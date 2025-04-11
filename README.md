@@ -97,32 +97,39 @@ The sample sheet should be a CSV file with the following columns:
 
 ### Parameters in configfile
 
-| Section            | Parameter                              | Description                  | Default Value         | Usage Notes                                              |
-|--------------------|----------------------------------------|------------------------------|-----------------------|----------------------------------------------------------|
-| General Workflow   | samplesheet                            | Path to samplesheet CSV      | -                     | Required. Contains sample/replicate info and FASTQ paths |
-|                    | output_directory                       | Main output directory        | -                     | Required. All results will be written here               |
-|                    | genome_fasta                           | Reference genome FASTA       | -                     | Required. Should include .fai index                      |
-|                    | blacklist                              | ENCODE blacklist BED         | -                     | Required. Removes problematic genomic regions            |
-|                    | fastq_suffix                           | FASTQ file extension         | ".fastq.gz"           | Match your input file format                             |
-|                    | read_suffix                            | Read pair identifiers        | ['_R1', '_R2']        | Must match FASTQ naming convention                       |
-| Trimming           | cutadapt_trimm_options                 | Additional Cutadapt options  | ''                    | Add custom trimming parameters                           |
-|                    | fw_adapter_sequence                    | Forward adapter              | "CTGTCTCTTATACACATCT" | Tn5 transposase adapter sequence                         |
-|                    | rv_adapter_sequence                    | Reverse adapter              | "CTGTCTCTTATACACATCT" | Tn5 transposase adapter sequence                         |
-| BWA Mapping        | bwa_options                            | BWA-MEM2 parameters          | ''                    | Add custom alignment options                             |
-| BAM Filtering      | remove_duplicates                      | Remove PCR duplicates        | True                  | Set False to keep duplicates                             |
-|                    | MAPQ_threshold                         | Minimum mapping quality      | 20                    | Increase for stricter alignment (range 0-60)             |
-|                    | remove_other_chromosomes_pattern       | Excluded contigs             | "CMV\|HBV\|..."       | Regex pattern for unwanted sequences                     |
-|                    | bam_features.minFragmentLength         | Minimum fragment size        | 0                     | Paired-end only                                          |
-|                    | bam_features.maxFragmentLength         | Maximum fragment size        | 2000                  | Typical ATAC-seq cutoff                                  |
-| Genome Annotations | genome_id                              | Genome identifier            | "hg38"                | Informational only                                       |
-|                    | effective_genomeSize                   | Effective genome size        | 2913022398            | Critical for MACS3. Must match reference genome          |
-|                    | ignore_for_normalization               | Excluded chromosomes         | "X Y MT M..."         | Contigs excluded from coverage normalization             |
-| Peak Calling       | qValue_cutoff                          | MACS3 significance threshold | 0.05                  | Lower = more stringent                                   |
-|                    | call_summits                           | Report peak summits          | True                  | Required for precise motif analysis                      |
-|                    | FRiP_threshold                         | Minimum FRiP score           | 20                    | % reads in peaks (QC threshold)                          |
-| Quality Control    | fragmentSize_window_length             | Fragment size bin            | 1000bp                | Larger bins smooth distributions                         |
-|                    | multiBigwigSummary_binning_window_size | Correlation bin              | 10000bp               | Affects sample similarity metrics                        |
-|                    | plotFingerprint.binSize                | Fingerprint resolution       | 500bp                 | Balance detail vs compute time                           |
+| Parameter                              | Description & Usage                                                                                                                | Default Value         |
+|----------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|-----------------------|
+| General Workflow                       |                                                                                                                                    |                       |
+| samplesheet                            | Path to samplesheet CSV (sample info and FASTQ paths).Required.                                                                    | -                     |
+| output_directory                       | Main output directory for results.Required.                                                                                        | -                     |
+| genome_fasta                           | Reference genome FASTA file.Required.                                                                                              | -                     |
+| blacklist                              | ENCODE blacklist BED file to exclude problematic genomic regions.Required.                                                         | -                     |
+| fastq_suffix                           | FASTQ file extension (e.g.,.fastq.gz). Must match input files.                                                                     | ".fastq.gz"           |
+| read_suffix                            | Read pair identifiers (e.g.,_R1,_R2). Match your FASTQ naming convention.                                                          | ['_R1', '_R2']        |
+| Trimming                               |                                                                                                                                    |                       |
+| cutadapt_trimm_options                 | Add custom trimming parameters                                                                                                     | ''                    |
+| fw_adapter_sequence                    | Forward adapter sequence for Tn5 transposase trimming.                                                                             | "CTGTCTCTTATACACATCT" |
+| rv_adapter_sequence                    | Reverse adapter sequence for Tn5 transposase trimming.                                                                             | "CTGTCTCTTATACACATCT" |
+| BWA Mapping                            |                                                                                                                                    |                       |
+| bwa_options                            | Custom alignment options for BWA-MEM2.                                                                                             | ''                    |
+| BAM Filtering                          |                                                                                                                                    |                       |
+| remove_duplicates                      | Remove PCR duplicates using GATK MarkDuplicates. Set to False to keep duplicates.                                                  | True                  |
+| MAPQ_threshold                         | Minimum mapping quality score (MAPQ). Filters ambiguous alignments (recommended: 20). Increase for stricter alignment (range 0-60) | 20                    |
+| remove_other_chromosomes_pattern       | Regex pattern to exclude unwanted contigs (e.g., mitochondrial DNA, viral sequences).                                              | "CMV\|HBV..."         |
+| bam_features.minFragmentLength         | Minimum fragment size for paired-end reads (filters short fragments).                                                              | 0                     |
+| bam_features.maxFragmentLength         | Maximum fragment size for paired-end reads (filters overly long fragments).                                                        | 2000                  |
+| Genome Annotations                     |                                                                                                                                    |                       |
+| genome_id                              | Genome identifier (informational only).                                                                                            | "hg38"                |
+| effective_genomeSize                   | Effective genome size for MACS3 peak calling. Must match reference genome.                                                         | 2913022398            |
+| ignore_for_normalization               | Chromosomes excluded from coverage normalization (e.g., sex chromosomes, contigs).                                                 | "X Y MT..."           |
+| Peak Calling                           |                                                                                                                                    |                       |
+| qValue_cutoff                          | MACS3 q-value significance threshold for peak calling (lower = more stringent).                                                    | 0.05                  |
+| call_summits                           | Whether to report precise peak summits (useful for motif analysis).                                                                | True                  |
+| FRiP_threshold                         | Minimum Fraction of Reads in Peaks (FRiP) score (% reads in peaks).                                                                | 20                    |
+| Quality Control                        |                                                                                                                                    |                       |
+| fragmentSize_window_length             | Bin size for fragment size distribution plots (larger bins = smoother distributions).                                              | 1000bp                |
+| multiBigwigSummary_binning_window_size | Window size for correlation heatmaps and signal comparison across samples.                                                         | 10000bp               |
+| plotFingerprint.binSize                | Resolution of fingerprint plots (higher = more detail, slower processing).                                                         | 500bp                 |
 
 ## Pipeline Overview
 
@@ -170,7 +177,6 @@ How BAM files and reads are filtered throughout the pipeline:
 12. **Handle paired-end read inconsistencies**  
     - Reads where only one mate fails any of the above criteria are excluded during filtering.
 
-![DAG](https://github.com/UKHD-NP/atacseq_snakemake/dag.png)
 
 #### **6. Quality Control on Trimmed Reads**
 The `fastQC_trimmed_fastq` rule performs quality control checks on trimmed FASTQ files using FastQC. A MultiQC report (`multiQC_trimmed_fastq`) aggregates these QC metrics into a single HTML file for easy review.
@@ -196,6 +202,8 @@ The `all_peaks_file_and_score_matrix` rule merges peak files across all samples 
 #### **13. Summary Table Generation**
 Finally, the `counts_summary` rule compiles key metrics (e.g., number of mapped reads, peaks detected, FRiP scores) into a summary table for easy interpretation.
 
+![DAG](https://github.com/UKHD-NP/atacseq_snakemake/blob/main/dag.png)
+
 ## References
 1. snakeATAC: [https://sebastian-gregoricchio.github.io/snakeATAC/](https://sebastian-gregoricchio.github.io/snakeATAC/)
 2. ENCODE ATAC-seq Guidelines: [https://www.encodeproject.org/atac-seq/](https://www.encodeproject.org/atac-seq/)
@@ -204,4 +212,4 @@ Finally, the `counts_summary` rule compiles key metrics (e.g., number of mapped 
 
 ## License
 
-This project is licensed under the MIT License—see the [`LICENSE`](https://github.com/UKHD-NP/atacseq_snakemake/MIT_Licence.md) file for details.
+This project is licensed under the MIT License—see the [`LICENSE`](https://github.com/UKHD-NP/atacseq_snakemake/blob/main/MIT_License.md) file for details.
