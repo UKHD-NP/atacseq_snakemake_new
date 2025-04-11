@@ -1,5 +1,4 @@
-# atacseq_snakemake
- ATAC-seq Snakemake workflow
+# ATAC-seq Snakemake workflow 
 
  ```ascii
            /^\/^\
@@ -171,6 +170,7 @@ How BAM files and reads are filtered throughout the pipeline:
 12. **Handle paired-end read inconsistencies**  
     - Reads where only one mate fails any of the above criteria are excluded during filtering.
 
+![DAG](https://github.com/UKHD-NP/atacseq_snakemake/dag.png)
 
 #### **6. Quality Control on Trimmed Reads**
 The `fastQC_trimmed_fastq` rule performs quality control checks on trimmed FASTQ files using FastQC. A MultiQC report (`multiQC_trimmed_fastq`) aggregates these QC metrics into a single HTML file for easy review.
@@ -204,4 +204,4 @@ Finally, the `counts_summary` rule compiles key metrics (e.g., number of mapped 
 
 ## License
 
-This project is licensed under the MIT License—see the `LICENSE` file for details.
+This project is licensed under the MIT License—see the [`LICENSE`](https://github.com/UKHD-NP/atacseq_snakemake/MIT_Licence.md) file for details.
