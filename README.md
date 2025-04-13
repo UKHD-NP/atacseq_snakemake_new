@@ -154,30 +154,30 @@ The `BWA_PE` rule aligns the trimmed reads to the reference genome using BWA-MEM
 The `MAPQ_MT_filter` rule filters aligned reads based on mapping quality (MAPQ) and removes unwanted chromosomes (e.g., mitochondrial DNA). Additionally, duplicate reads are marked or removed using GATK's `MarkDuplicatesWithMateCigar` in the subsequent `gatk4_markdups` rule.
 
 How BAM files and reads are filtered throughout the pipeline:
-I. **Remove mitochondrial DNA reads**  
-   - Reads mapping to `chrM` or mitochondrial contigs are excluded using SAMtools.
-II. **Exclude blacklisted regions**  
-   - Reads overlapping ENCODE blacklist regions are removed using BEDtools.
-III. **Remove duplicate reads**  
-   - PCR duplicates are marked and optionally removed using GATK `MarkDuplicatesWithMateCigar`.
-IV. **Filter by mapping quality (MAPQ)**  
-   - Reads with MAPQ scores below the threshold (default: 20, set in the configfile) are discarded using SAMtools.
-V. **Exclude secondary alignments**  
-   - Only primary alignments (`-F 0x100`) are retained using SAMtools.
-VI. **Remove unmapped reads**  
-   - Reads flagged as unmapped (`-F 0x4`) are filtered out using SAMtools.
-VII. **Exclude multimapped reads**  
-   - Reads mapping to multiple locations are removed based on MAPQ scoring.
-VIII. **Filter by mismatches**  
-   - Reads with more than 4 mismatches (using the NM tag) are excluded during filtering.
-IX. **Remove soft-clipped reads**  
-   - Soft-clipped reads are implicitly excluded during alignment and filtering steps.
-X. **Filter by fragment size**  
-    - Fragments outside the range of 0–2000 bp are removed using BEDtools and custom scripts.
-XI. **Exclude improperly paired reads**  
-    - Only properly paired reads (`-f 3`) are retained for downstream analysis.
-XII. **Handle paired-end read inconsistencies**  
-    - Reads where only one mate fails any of the above criteria are excluded during filtering.
+- **Remove mitochondrial DNA reads**  
+    Reads mapping to `chrM` or mitochondrial contigs are excluded using SAMtools.
+- **Exclude blacklisted regions**  
+    Reads overlapping ENCODE blacklist regions are removed using BEDtools.
+- **Remove duplicate reads**  
+    PCR duplicates are marked and optionally removed using GATK `MarkDuplicatesWithMateCigar`.
+- **Filter by mapping quality (MAPQ)**  
+    Reads with MAPQ scores below the threshold (default: 20, set in the configfile) are discarded using SAMtools.
+- **Exclude secondary alignments**  
+    Only primary alignments (`-F 0x100`) are retained using SAMtools.
+- **Remove unmapped reads**  
+    Reads flagged as unmapped (`-F 0x4`) are filtered out using SAMtools.
+- **Exclude multimapped reads**  
+    Reads mapping to multiple locations are removed based on MAPQ scoring.
+- **Filter by mismatches**  
+    Reads with more than 4 mismatches (using the NM tag) are excluded during filtering.
+- **Remove soft-clipped reads**  
+    Soft-clipped reads are implicitly excluded during alignment and filtering steps.
+- **Filter by fragment size**  
+    Fragments outside the range of 0–2000 bp are removed using BEDtools and custom scripts.
+- **Exclude improperly paired reads**  
+    Only properly paired reads (`-f 3`) are retained for downstream analysis.
+- **Handle paired-end read inconsistencies**  
+    Reads where only one mate fails any of the above criteria are excluded during filtering.
 
 
 #### **6. Quality Control on Trimmed Reads**
@@ -207,7 +207,7 @@ Finally, the `counts_summary` rule compiles key metrics (e.g., number of mapped 
 ![DAG](https://github.com/UKHD-NP/atacseq_snakemake/blob/main/dag.png)
 
 
-### **Output Directory Structure**
+## Output Directory Structure
 
 The pipeline generates a well-organized output directory structure. Below is a detailed breakdown:
 
@@ -311,7 +311,7 @@ results/
 - **05_quality_controls/**: Contains FastQC and MultiQC files for trimmed FASTQ files.
 - **06_Overall_quality_and_info/**: Aggregates overall quality metrics like FRiP scores, MultiQC reports summarizing QC metrics across all samples, and Lorenz curves for library complexity.
 
-### **Acknowledgments**
+## Acknowledgments
 
 A huge thank you to **Dr. Isabell Bludau**, **Dr. Paul Kerbs**, and **Quynh Nhu Nguyen** from Heidelberg University Hospital and the German Cancer Research Center (DKFZ) for their support, feedback, and contributions to this pipeline.
 
