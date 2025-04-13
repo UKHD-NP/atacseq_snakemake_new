@@ -1,4 +1,4 @@
-# ATAC-seq Snakemake workflow 
+# ATAC-seq Snakemake Pipeline 
 
  ```ascii
            /^\/^\
@@ -20,8 +20,6 @@
                ~-_        |/ \|||\|||/ \|||\|||/ \|||\|| 
                   ______  ~   `-~ `-`   `-~ `-`   `-~ `-  
 ```
-
-# ATAC-seq Snakemake Pipeline
 
 ATAC-seq (Assay for Transposase-Accessible Chromatin using sequencing) is a widely used method to profile genome-wide chromatin accessibility. By leveraging the Tn5 transposase, which preferentially inserts sequencing adapters into open chromatin regions, ATAC-seq provides insights into regulatory elements such as promoters, enhancers, and transcription factor binding sites.
 
