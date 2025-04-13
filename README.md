@@ -25,15 +25,6 @@ ATAC-seq (Assay for Transposase-Accessible Chromatin using sequencing) is a wide
 
 This is a modular Snakemake workflow for ATAC-seq data analysis, inspired by [snakeATAC](https://sebastian-gregoricchio.github.io/snakeATAC/) and best practices from ENCODE and nf-core ATAC-seq. It automates the analysis of ATAC-seq data from raw sequencing reads to processed results, including trimmed FASTQ files, aligned BAM files, peak calls, normalized coverage tracks, and quality control metrics. 
 
-### Key Features
-1. **Adapter Trimming**: Removes sequencing adapters using Cutadapt.
-2. **Alignment**: Maps reads to a reference genome using BWA-MEM2.
-3. **BAM Processing**: Filters reads based on quality, removes duplicates, and excludes unwanted chromosomes.
-4. **Peak Calling**: Identifies accessible chromatin regions using MACS3.
-5. **Normalization**: Generates RPM-normalized coverage tracks in bigWig format.
-6. **Quality Control**: Provides FRiP scores, fragment size distributions, and alignment statistics.
-7. **Comprehensive Reporting**: MultiQC consolidates all QC metrics into a single report.
-
 ## Installation
 
 1. **Place yourself in the directory where the repository should be downloaded**:
@@ -100,10 +91,10 @@ The sample sheet should be a CSV file with the following columns:
 | Parameter                              | Description & Usage                                                                                                                | Default Value         |
 |----------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|-----------------------|
 | General Workflow                       |                                                                                                                                    |                       |
-| samplesheet                            | Path to samplesheet CSV (sample info and FASTQ paths).Required.                                                                    | -                     |
-| output_directory                       | Main output directory for results.Required.                                                                                        | -                     |
-| genome_fasta                           | Reference genome FASTA file.Required.                                                                                              | -                     |
-| blacklist                              | ENCODE blacklist BED file to exclude problematic genomic regions.Required.                                                         | -                     |
+| samplesheet                            | Path to samplesheet CSV (sample info and FASTQ paths). Required.                                                                    | -                     |
+| output_directory                       | Main output directory for results. Required.                                                                                        | -                     |
+| genome_fasta                           | Reference genome FASTA file. Required.                                                                                              | -                     |
+| blacklist                              | ENCODE blacklist BED file to exclude problematic genomic regions. Required.                                                         | -                     |
 | fastq_suffix                           | FASTQ file extension (e.g.,.fastq.gz). Must match input files.                                                                     | ".fastq.gz"           |
 | read_suffix                            | Read pair identifiers (e.g.,_R1,_R2). Match your FASTQ naming convention.                                                          | ['_R1', '_R2']        |
 | Trimming                               |                                                                                                                                    |                       |
@@ -143,7 +134,7 @@ If a genome index is not already available, the rule `generate_genome_index` cre
 The `cutadapt_PE` rule trims sequencing adapters from paired-end reads using Cutadapt. 
 The Cutadapt parameters in this ATAC-seq pipeline are optimized for typical Nextera-based library preparation and sequencing on NextSeq/NovaSeq platforms. The `--nextseq-trim=20` parameter addresses the two-color chemistry’s tendency to produce poly-G artifacts by trimming 3’ bases with quality scores below 20. The `-q 27` threshold ensures only high-quality bases remain. The `--minimum-length 50` filters out reads shorter than 50 bp, removing adapter dimers and fragments too short for meaningful peak calling. The adapter sequences (set in the configfile) match the Illumina adapter sequences, ensuring proper removal of ligated adapters.
 
-For **shorter read lengths**, `--minimum-length` should be reduced (e.g., 25–30 bp) to retain usable fragments. If switching to **single-end sequencing**, the `-A` parameter becomes obsolete. For **Illumina HiSeq/MiSeq** (non-NextSeq), replace `--nextseq-trim` with generic quality trimming (e.g., `-q 20`), as poly-G artifacts are absent. If using **TruSeq adapters**, update `-a`/`-A` to the correct sequences in the configfile. For **lower-quality data** (e.g., degraded samples), relax `-q` to 20–25 to avoid excessive read loss. Always validate parameters using FastQC or MultiQC to ensure adapter removal and fragment size distribution align with expectations.
+For shorter read lengths, `--minimum-length` should be reduced (e.g., 25–30 bp) to retain usable fragments. For Illumina HiSeq/MiSeq (non-NextSeq), replace `--nextseq-trim` with generic quality trimming (e.g., `-q 20`), as poly-G artifacts are absent. If using TruSeq adapters, update `-a`/`-A` to the correct sequences in the configfile. For lower-quality data (e.g., degraded samples), relax `-q` to 20–25 to avoid excessive read loss. Always validate parameters using FastQC or MultiQC to ensure adapter removal and fragment size distribution align with expectations.
 
 #### **4. Read Alignment**
 The `BWA_PE` rule aligns the trimmed reads to the reference genome using BWA-MEM2. This aligner was chosen for its widespread use in the literature and its optimal balance of accuracy and speed showed in different [benchmarks](https://www.nature.com/articles/s41467-021-26865-w).
@@ -167,9 +158,7 @@ How BAM files and reads are filtered throughout the pipeline:
 - **Exclude multimapped reads**  
     Reads mapping to multiple locations are removed based on MAPQ scoring.
 - **Filter by mismatches**  
-    Reads with more than 4 mismatches (using the NM tag) are excluded during filtering.
-- **Remove soft-clipped reads**  
-    Soft-clipped reads are implicitly excluded during alignment and filtering steps.
+    Reads with more than 4 mismatches (using the NM tag) are excluded during filtering using SAMtools.
 - **Filter by fragment size**  
     Fragments outside the range of 0–2000 bp are removed using BEDtools and custom scripts.
 - **Exclude improperly paired reads**  
@@ -182,7 +171,7 @@ How BAM files and reads are filtered throughout the pipeline:
 The `fastQC_trimmed_fastq` rule performs quality control checks on trimmed FASTQ files using FastQC. A MultiQC report (`multiQC_trimmed_fastq`) aggregates these QC metrics into a single HTML file for easy review.
 
 #### **7. Quality Control on BAM Files**
-The `fastQC_BAMs` rule assesses the quality of BAM files (e.g., duplication rates, coverage). A MultiQC report (`multiQC_BAMs`) consolidates these metrics alongside alignment statistics and peak-calling results.
+The `fastQC_BAMs` rule assesses the quality of BAM files. A MultiQC report (`multiQC_BAMs`) consolidates these metrics alongside alignment statistics and peak-calling results.
 
 #### **8. Fragment Size Distribution**
 The `fragment_size_distribution` rule calculates fragment size distributions for each sample, which provides insights into nucleosome positioning and library complexity. A combined plot (`fragment_size_distribution_report`) summarizes these distributions across all samples.
@@ -301,9 +290,9 @@ results/
 |       │   └── peaks_score_matrix_all_samples_table_MACS3.tsv
 ```
 
-### **Explanation of Key Directories**
+### **Key Directories**
 - **01_trimmed_fastq/**: Contains trimmed FASTQ files and logs from Cutadapt.
-- **02_BAM/**: Stores filtered and deduplicated BAM files (after duplicate removal), and alignment statistics.
+- **02_BAM/**: Stores filtered and deduplicated BAM files, and alignment statistics.
 - **03_Normalization/**: Contains RPM-normalized bigWig files for visualization in genome browsers.
 - **04_MACS3_peaks/**: Includes peak-calling results such as narrowPeak files (chromatin accessibility regions) and summit files (precise peak summits).
 - **05_quality_controls/**: Contains FastQC and MultiQC files for trimmed FASTQ files.
