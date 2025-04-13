@@ -23,7 +23,9 @@
 
 # ATAC-seq Snakemake Pipeline
 
-A modular Snakemake workflow for ATAC-seq data analysis, inspired by [snakeATAC](https://sebastian-gregoricchio.github.io/snakeATAC/) and best practices from ENCODE and nf-core ATAC-seq.
+ATAC-seq (Assay for Transposase-Accessible Chromatin using sequencing) is a widely used method to profile genome-wide chromatin accessibility. By leveraging the Tn5 transposase, which preferentially inserts sequencing adapters into open chromatin regions, ATAC-seq provides insights into regulatory elements such as promoters, enhancers, and transcription factor binding sites.
+
+This is a modular Snakemake workflow for ATAC-seq data analysis, inspired by [snakeATAC](https://sebastian-gregoricchio.github.io/snakeATAC/) and best practices from ENCODE and nf-core ATAC-seq. It automates the analysis of ATAC-seq data from raw sequencing reads to processed results, including trimmed FASTQ files, aligned BAM files, peak calls, normalized coverage tracks, and quality control metrics. 
 
 ### Key Features
 1. **Adapter Trimming**: Removes sequencing adapters using Cutadapt.
@@ -152,29 +154,29 @@ The `BWA_PE` rule aligns the trimmed reads to the reference genome using BWA-MEM
 The `MAPQ_MT_filter` rule filters aligned reads based on mapping quality (MAPQ) and removes unwanted chromosomes (e.g., mitochondrial DNA). Additionally, duplicate reads are marked or removed using GATK's `MarkDuplicatesWithMateCigar` in the subsequent `gatk4_markdups` rule.
 
 How BAM files and reads are filtered throughout the pipeline:
-1. **Remove mitochondrial DNA reads**  
+I. **Remove mitochondrial DNA reads**  
    - Reads mapping to `chrM` or mitochondrial contigs are excluded using SAMtools.
-2. **Exclude blacklisted regions**  
+II. **Exclude blacklisted regions**  
    - Reads overlapping ENCODE blacklist regions are removed using BEDtools.
-3. **Remove duplicate reads**  
+III. **Remove duplicate reads**  
    - PCR duplicates are marked and optionally removed using GATK `MarkDuplicatesWithMateCigar`.
-4. **Filter by mapping quality (MAPQ)**  
+IV. **Filter by mapping quality (MAPQ)**  
    - Reads with MAPQ scores below the threshold (default: 20, set in the configfile) are discarded using SAMtools.
-5. **Exclude secondary alignments**  
+V. **Exclude secondary alignments**  
    - Only primary alignments (`-F 0x100`) are retained using SAMtools.
-6. **Remove unmapped reads**  
+VI. **Remove unmapped reads**  
    - Reads flagged as unmapped (`-F 0x4`) are filtered out using SAMtools.
-7. **Exclude multimapped reads**  
+VII. **Exclude multimapped reads**  
    - Reads mapping to multiple locations are removed based on MAPQ scoring.
-8. **Filter by mismatches**  
+VIII. **Filter by mismatches**  
    - Reads with more than 4 mismatches (using the NM tag) are excluded during filtering.
-9. **Remove soft-clipped reads**  
+IX. **Remove soft-clipped reads**  
    - Soft-clipped reads are implicitly excluded during alignment and filtering steps.
-10. **Filter by fragment size**  
+X. **Filter by fragment size**  
     - Fragments outside the range of 0–2000 bp are removed using BEDtools and custom scripts.
-11. **Exclude improperly paired reads**  
+XI. **Exclude improperly paired reads**  
     - Only properly paired reads (`-f 3`) are retained for downstream analysis.
-12. **Handle paired-end read inconsistencies**  
+XII. **Handle paired-end read inconsistencies**  
     - Reads where only one mate fails any of the above criteria are excluded during filtering.
 
 
@@ -203,6 +205,115 @@ The `all_peaks_file_and_score_matrix` rule merges peak files across all samples 
 Finally, the `counts_summary` rule compiles key metrics (e.g., number of mapped reads, peaks detected, FRiP scores) into a summary table for easy interpretation.
 
 ![DAG](https://github.com/UKHD-NP/atacseq_snakemake/blob/main/dag.png)
+
+
+### **Output Directory Structure**
+
+The pipeline generates a well-organized output directory structure. Below is a detailed breakdown:
+
+```
+results/
+├── 01_trimmed_fastq/
+│   ├── logs/
+│   │   ├── cutadapt.sample1.err
+│   │   ├── cutadapt.sample1.out
+│   │   └── ...
+│   ├── sample1_R1_trimmed.fastq.gz
+│   ├── sample1_R2_trimmed.fastq.gz
+│   └── ...
+├── 02_BAM/
+│   ├── sample1_mapq20_sorted_woMT_dedup.bai
+│   ├── sample1_mapq20_sorted_woMT_dedup.bam
+│   │   ├── sample1.bam
+│   │   ├── sample2.bam
+│   │   └── ...
+│   ├── flagstat
+│   │   ├── sample1_flagstat_filtered_bam_woMT.txt
+│   │   └── sample1_flagstat_UNfiltered_bam.txt
+│   ├── bwa_summary/
+│   │   ├── sample1.BWA_summary.txt
+│   │   ├── sample2.BWA_summary.txt
+│   │   └── ...
+│   ├── logs/
+│   │   ├── sample1.sort.log
+│   │   ├── sample2.sort.log
+│   │   └── ...
+│   ├── MarkDuplicates_metrics/
+│   │   ├── sample1_MarkDuplicates_metrics.txt
+│   │   ├── sample2_MarkDuplicates_metrics.txt
+│   │   └── ...
+│   ├── MarkDuplicates_logs/
+│   │   ├── sample1_MarkDuplicates.out
+│   │   ├── sample1_MarkDuplicates.err
+│   │   ├── sample2_MarkDuplicates.out
+│   │   ├── sample2_MarkDuplicates.err
+│   │   └── ...
+│   ├── reads_per_chromosome/
+│   │   ├── sample1_idxstats_read_per_chromosome.txt
+│   │   ├── sample2_idxstats_read_per_chromosome.txt
+│   │   └── ...
+│   ├── FixMateInformation_logs/
+│   │   ├── sample1_FixMateInformation.log
+│   │   ├── sample2_FixMateInformation.log
+│   │   └── ...
+├── 02_BAM_fastQC/
+│   ├── sample1_mapq20_sorted_woMT_dedup_fastqc.zip
+│   ├── sample1_mapq20_sorted_woMT_dedup_fastqc.html
+├── 03_Normalization/RPM_normalized
+│   ├── bamToBed_log/
+│   │   ├── sample1_bamToBed.log
+│   │   ├── sample2_bamToBed.log
+│   │   └── ...
+│   ├── sample1_mapq20_woMT_dedup_shifted_RPM.normalized.bw
+├── 04_MACS3_peaks/
+│   ├── logs/
+│   │   ├── sample1_mapq20_woMT_dedup_qValue0.05.log
+│   │   ├── sample2_mapq20_woMT_dedup_qValue0.05.log
+│   │   └── ...
+│   ├── sample1_mapq20_woMT_dedup_qValue0.05_treat_pileup.bdg
+│   ├── sample1_mapq20_woMT_dedup_qValue0.05_control_lambda.bdg
+│   ├── sample1_mapq20_woMT_dedup_qValue0.05_peaks.xls
+│   ├── sample1_mapq20_woMT_dedup_qValue0.05_peaks.narrowPeak
+│   ├── sample1_mapq20_woMT_dedup_qValue0.05_summits.bed
+│   ├── sample1_mapq20_woMT_dedup_qValue0.05_peaks_chr.narrowPeak
+├── 05_quality_controls/
+│   ├── trimmed_fastq_multiQC/
+│   │   ├── multiQC_report_trimmed_fastq.out
+│   │   ├── multiQC_report_trimmed_fastq.err
+│   ├── trimmed_fastq_fastqc/
+│   │   ├── sample1_R1_trimmed_fastqc.zip
+│   │   ├── sample1_R1_trimmed_fastqc.html
+├── 06_Overall_quality_and_info/
+│   ├── LorenzCurve_plotFingreprint/lorenz_plots/
+│   │   ├── sample1_Lorenz_curve_deeptools.plotFingreprint.pdf
+│   │   └── ...
+|   ├── Counts
+|   │   ├── counts_summary.txt
+|   │   └── subread_featureCounts_output
+|   │       └── sample1
+|   │           ├── sample1.readCountInPeaks
+|   │           ├── sample1.readCountInPeaks.log
+|   │           └── sample1.readCountInPeaks.summary
+|   └── Sample_comparisons
+|       ├── multiBigWigSummary_matrix_allSamples.npz
+|       ├── PCA_on_BigWigs_wholeGenome.pdf
+|       ├── Peak_comparison
+|       │   ├── all_samples_peaks_concatenation_collapsed_sorted.bed
+|       │   ├── peaks_score_matrix_all_samples_MACS3.npz
+|       │   └── peaks_score_matrix_all_samples_table_MACS3.tsv
+```
+
+### **Explanation of Key Directories**
+- **01_trimmed_fastq/**: Contains trimmed FASTQ files and logs from Cutadapt.
+- **02_BAM/**: Stores filtered and deduplicated BAM files (after duplicate removal), and alignment statistics.
+- **03_Normalization/**: Contains RPM-normalized bigWig files for visualization in genome browsers.
+- **04_MACS3_peaks/**: Includes peak-calling results such as narrowPeak files (chromatin accessibility regions) and summit files (precise peak summits).
+- **05_quality_controls/**: Contains FastQC and MultiQC files for trimmed FASTQ files.
+- **06_Overall_quality_and_info/**: Aggregates overall quality metrics like FRiP scores, MultiQC reports summarizing QC metrics across all samples, and Lorenz curves for library complexity.
+
+### **Acknowledgments**
+
+A huge thank you to **Dr. Isabell Bludau**, **Dr. Paul Kerbs**, and **Quynh Nhu Nguyen** from Heidelberg University Hospital and the German Cancer Research Center (DKFZ) for their support, feedback, and contributions to this pipeline.
 
 ## References
 1. snakeATAC: [https://sebastian-gregoricchio.github.io/snakeATAC/](https://sebastian-gregoricchio.github.io/snakeATAC/)
