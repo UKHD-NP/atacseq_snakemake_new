@@ -196,7 +196,17 @@ Finally, the `counts_summary` rule compiles key metrics (e.g., number of mapped 
 
 ## Output Directory Structure
 
-The pipeline generates a well-organized output directory structure. Below is a detailed breakdown:
+The pipeline generates a well-organized output directory structure. 
+
+### **Key Directories**
+- **01_trimmed_fastq/**: Contains trimmed FASTQ files and logs from Cutadapt.
+- **02_BAM/**: Stores filtered and deduplicated BAM files, and alignment statistics.
+- **03_Normalization/**: Contains RPM-normalized bigWig files for visualization in genome browsers.
+- **04_MACS3_peaks/**: Includes peak-calling results such as narrowPeak files (chromatin accessibility regions) and summit files (precise peak summits).
+- **05_quality_controls/**: Contains FastQC and MultiQC files for trimmed FASTQ files.
+- **06_Overall_quality_and_info/**: Aggregates overall quality metrics like FRiP scores, MultiQC reports summarizing QC metrics across all samples, and Lorenz curves for library complexity.
+
+Below is a detailed breakdown:
 
 ```
 results/
@@ -289,14 +299,6 @@ results/
 |       │   ├── peaks_score_matrix_all_samples_MACS3.npz
 |       │   └── peaks_score_matrix_all_samples_table_MACS3.tsv
 ```
-
-### **Key Directories**
-- **01_trimmed_fastq/**: Contains trimmed FASTQ files and logs from Cutadapt.
-- **02_BAM/**: Stores filtered and deduplicated BAM files, and alignment statistics.
-- **03_Normalization/**: Contains RPM-normalized bigWig files for visualization in genome browsers.
-- **04_MACS3_peaks/**: Includes peak-calling results such as narrowPeak files (chromatin accessibility regions) and summit files (precise peak summits).
-- **05_quality_controls/**: Contains FastQC and MultiQC files for trimmed FASTQ files.
-- **06_Overall_quality_and_info/**: Aggregates overall quality metrics like FRiP scores, MultiQC reports summarizing QC metrics across all samples, and Lorenz curves for library complexity.
 
 ## Acknowledgments
 
