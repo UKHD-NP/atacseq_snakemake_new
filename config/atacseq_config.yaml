@@ -51,18 +51,12 @@ peak_calling:
   qValue_cutoff: 0.05
   call_summits: True
   FRiP_threshold: 20 #%
-  peak_score_heatmap:
-    plot_heatmap: True
-    raw_heatmap_color: "Blues"
-    zScore_heatmap_color: "seismic"
 
 
 
 ## 5. Quality controls ---------------------------------------------------------------------------------------------------------------
 quality_controls:
   fragmentSize_window_length: 1000 #bp
-  multiBigwigSummary_binning_window_size: 10000 #bp
-  correlation_heatmap_color: "Blues"
   plotFingerprint:
     binSize: 500 #bp
     sampledRegions: 500000

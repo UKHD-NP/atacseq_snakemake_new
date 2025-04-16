@@ -168,7 +168,7 @@ wildcard_constraints:
     GROUPS = constraint_to(GROUPNAMES)
 
     
-# Correlations and heatmaps outputs
+# Correlations outputs
 peaks_comparison = []
 if (len(SAMPLENAMES) > 1):
     peaks_comparison.append(os.path.join(SUMMARYDIR, "Sample_comparisons/Peak_comparison/all_samples_peaks_concatenation_collapsed_sorted.bed"))
@@ -253,7 +253,7 @@ rule cutadapt_PE:
         mkdir -p 01_trimmed_fastq/logs/
 
         ${{CONDA_PREFIX}}/bin/cutadapt \
-        --nextseq-trim=20 -j {threads} -q 27 --minimum-length 50 \
+        --nextseq-trim=20 -j {threads} --minimum-length 20 \
         -a {params.fw_adapter_sequence} -A {params.rv_adapter_sequence} {params.opts} \
         -o {output.R1_trimm} -p {output.R2_trimm} {input[0]} {input[1]} > {log.out} 2> {log.err}
         """
@@ -319,7 +319,7 @@ rule MAPQ_MT_filter:
     shell:
         """
         printf '\033[1;36m{params.sample}: filtering MAPQ...\\n\033[0m'
-        $CONDA_PREFIX/bin/samtools view -@ {threads} -h -q {params.MAPQ_threshold} -F 0x100 -e '([NM] <= 4)' -f 3 -F 0x0008 {input.source_bam} -o {output.bam_mapq_only}
+        $CONDA_PREFIX/bin/samtools view -@ {threads} -h -q {params.MAPQ_threshold} -F 0x100 -e '([NM] <= 4) && sclen < 15' -f 3 -F 0x0008 {input.source_bam} -o {output.bam_mapq_only}
 
         $CONDA_PREFIX/bin/samtools sort -@ {threads} {output.bam_mapq_only} -o {output.bam_mapq_only_sorted_toFix}
         $CONDA_PREFIX/bin/samtools index -@ {threads} -b {output.bam_mapq_only_sorted_toFix} {output.bam_mapq_only_sorted_index_toFix}
