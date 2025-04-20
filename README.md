@@ -191,7 +191,7 @@ The `all_peaks_file_and_score_matrix` rule merges peak files across all samples 
 #### **13. Summary Table Generation**
 Finally, the `counts_summary` rule compiles key metrics (e.g., number of mapped reads, peaks detected, FRiP scores) into a summary table for easy interpretation.
 
-![DAG](https://github.com/UKHD-NP/atacseq_snakemake/blob/main/resources/dag.png)
+![DAG](https://github.com/UKHD-NP/atacseq_snakemake/blob/main/resources/dag.svg)
 
 
 ## Output Directory Structure
