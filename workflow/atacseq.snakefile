@@ -194,7 +194,6 @@ rule AAA_initialization:
         summary_file = os.path.join(SUMMARYDIR, "Counts/counts_summary.txt"),
         lorenz_plot_ggplot = os.path.join(SUMMARYDIR, "LorenzCurve_plotFingreprint/Lorenz_curve_deeptools.plotFingreprint_allSamples.pdf"),
         norm_bw_average = norm_bw_average,
-        frip = expand(os.path.join(SUMMARYDIR, "frip/{sample}_frip_score.txt"), sample = SAMPLENAMES),
         peaks_comparison = peaks_comparison
     shell:
         """
@@ -214,6 +213,8 @@ rule generate_genome_index:
         genome_fai = ''.join([re.sub(".gz", "", genome_fasta, count=0, flags=0),".fai"])
     params:
         bwa = bwa_version
+    conda:
+        "../envs/align.yml"
     threads:
         workflow.cores
     benchmark:
@@ -240,6 +241,8 @@ rule cutadapt_PE:
         opts = str(config["cutadapt_trimm_options"]),
         fw_adapter_sequence = str(config["fw_adapter_sequence"]),
         rv_adapter_sequence = str(config["rv_adapter_sequence"])
+    conda:
+        "../envs/trimming.yml"
     log:
         out = "01_trimmed_fastq/logs/cutadapt.{SAMPLE}.out",
         err = "01_trimmed_fastq/logs/cutadapt.{SAMPLE}.err"
@@ -273,6 +276,8 @@ rule BWA_PE:
         sample = "{SAMPLE}",
         bwa = bwa_version,
         genome_fasta = genome_fasta
+    conda:
+        "../envs/align.yml"
     threads:
         max((workflow.cores - 1), 1)
     log:
@@ -310,6 +315,8 @@ rule MAPQ_MT_filter:
         sample = "{SAMPLE}",
         MAPQ_threshold = config["MAPQ_threshold"],
         chr_remove_pattern = chr_remove_pattern
+    conda:
+        "../envs/filter.yml"
     threads:
         max(math.floor(workflow.cores/len(SAMPLENAMES)), 1)
     log:
@@ -354,6 +361,8 @@ rule gatk4_markdups:
     params:
         remove_duplicates = str(config["remove_duplicates"]).strip().lower() == "true",
         sample = "{SAMPLE}"
+    conda:
+        "../envs/filter.yml"
     log:
         out = "02_BAM/MarkDuplicates_logs/{SAMPLE}_MarkDuplicates.out",
         err = "02_BAM/MarkDuplicates_logs/{SAMPLE}_MarkDuplicates.err"
@@ -392,6 +401,8 @@ rule fastQC_trimmed_fastq:
         zip_R1 = "05_quality_controls/trimmed_fastq_fastqc/{SAMPLE}_R1_trimmed_fastqc.zip",
         html_R2 = "05_quality_controls/trimmed_fastq_fastqc/{SAMPLE}_R2_trimmed_fastqc.html",
         zip_R2 = "05_quality_controls/trimmed_fastq_fastqc/{SAMPLE}_R2_trimmed_fastqc.zip"
+    conda:
+        "../envs/fastqc.yml"
     threads:
         workflow.cores
     benchmark:
@@ -416,6 +427,8 @@ rule multiQC_trimmed_fastq:
         home_dir = home_dir,
         cutadapt_logs = os.path.join(home_dir, "01_trimmed_fastq/logs/"),
         multiqc_fastqc_report_name = "multiQC_report_trimmed_fastq.html"
+    conda:
+        "../envs/multiqc.yml"
     log:
         out = os.path.join(home_dir, "05_quality_controls/trimmed_fastq_multiQC/multiQC_report_trimmed_fastq.out"),
         err = os.path.join(home_dir, "05_quality_controls/trimmed_fastq_multiQC/multiQC_report_trimmed_fastq.err")
@@ -470,6 +483,8 @@ rule bam_shifting_and_RPM_normalization:
         minFragmentLength = str(config["bam_features"]["minFragmentLength"]),
         maxFragmentLength = str(config["bam_features"]["maxFragmentLength"]),
         ignore_chr = '|'.join([re.sub('\..*$', '', i) for i in str(config["genomic_annotations"]["ignore_for_normalization"]).split(" ")])
+    conda:
+        "../envs/shifting.yml"
     threads:
         max(math.floor(workflow.cores/2), 1)
     log:
@@ -521,6 +536,8 @@ rule compute_bigwigAverage:
         bw_input_suffix = "_mapq"+MAPQ+"_woMT_"+DUP+"_shifted_RPM.normalized.bw",
         bw_output_suffix = "_mapq"+MAPQ+"_woMT_"+DUP+"_shifted_RPM.normalized_merged.bs"+str(config["differential_TF_binding"]["merged_bigwig_binSize"])+".bw",
         blacklist = BLACKLIST,
+    conda:
+        "../envs/deeptools.yml"
     threads:
         workflow.cores
     log:
@@ -564,6 +581,8 @@ rule fastQC_BAMs:
     params:
         fastQC_BAMs_outdir = os.path.join(config["output_directory"], "02_BAM_fastQC/"),
         sample = "{SAMPLE}"
+    conda:
+        "../envs/fastqc.yml"
     threads:
         max(math.floor(workflow.cores/len(SAMPLENAMES)), 1)
     benchmark:
@@ -596,6 +615,8 @@ rule fragment_size_distribution:
         binSize = str(config["quality_controls"]["fragmentSize_window_length"]),
         blacklist = BLACKLIST,
         maxFragmentLength = config["bam_features"]["maxFragmentLength"]
+    conda:
+        "../envs/deeptools.yml"
     log:
         out = os.path.join(SUMMARYDIR, "fragmentSizeDistribution_plots/log/{SAMPLE}_fragmentSize_log.out"),
         err = os.path.join(SUMMARYDIR, "fragmentSizeDistribution_plots/log/{SAMPLE}_fragmentSize_log.err")
@@ -641,6 +662,8 @@ rule fragment_size_distribution_report:
         dir = os.path.join(home_dir,""),
         summary_dir = SUMMARYDIR,
         maxFragmentLength = config["bam_features"]["maxFragmentLength"]
+    conda:
+        "../envs/plot.yml"
     threads: 1
     log:
       ggplot = os.path.join(SUMMARYDIR, "fragmentSizeDistribution_plots/log/ggplot_replotting.log"),
@@ -685,6 +708,8 @@ rule peakCalling_MACS3:
         basename = ''.join(["{SAMPLE}_mapq", MAPQ, "_woMT_",DUP,"_qValue", str(config["peak_calling"]["qValue_cutoff"])]),
         summits = SUMMITS,
         sample = "{SAMPLE}"
+    conda:
+        "../envs/peakcalling.yml"
     log:
         out = os.path.join(''.join([PEAKSDIR,"log/"]), ''.join(["{SAMPLE}_mapq", MAPQ, "_woMT_",DUP,"_qValue", str(config["peak_calling"]["qValue_cutoff"]), ".log"]))
     benchmark:
@@ -729,6 +754,8 @@ rule counts_summary:
         FRiP_threshold = config["peak_calling"]["FRiP_threshold"],
         MAPQ = MAPQ,
         DUP = DUP
+    conda:
+        "../envs/counts.yml"
     threads: 1
     benchmark:
         "benchmarks/counts_summary/counts_summary---benchmark.txt"
@@ -776,24 +803,6 @@ rule counts_summary:
 # ----------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------
-rule frip_score:
-    input:
-        bam = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", MAPQ, "_sorted_woMT_", DUP, ".bam"])),
-        peaks = expand(os.path.join(PEAKSDIR, ''.join(["{sample}_mapq", MAPQ, "_woMT_",DUP,"_qValue", str(config["peak_calling"]["qValue_cutoff"]), "_peaks.narrowPeak"])), sample=SAMPLENAMES)
-    output:
-        frip_score = os.path.join(SUMMARYDIR, "frip/{SAMPLE}_frip_score.txt")
-    shell:
-        """
-        reads_in_peaks=$(bedtools intersect -a {input.bam} -b {input.peaks} -bed -c -f 0.20 | awk '{{sum += $NF}} END {{print sum}}')
-        total_mapped=$(samtools view -c {input.bam})
-        
-        frip=$(echo "scale=4; $reads_in_peaks / $total_mapped" | bc)
-        
-        echo "{wildcards.SAMPLE}\t$frip" > {output.frip_score}
-        """
-# ----------------------------------------------------------------------------------------
-
-# ----------------------------------------------------------------------------------------
 # Perform multiQC for BAMs
 rule multiQC_BAMs:
     input:
@@ -808,6 +817,8 @@ rule multiQC_BAMs:
         dedup_BAM_flagstat_dir = "02_BAM/flagstat/",
         macs_dir = PEAKSDIR,
         multiQC_BAM_outdir = os.path.join(config["output_directory"], SUMMARYDIR, ''.join(["multiQC_", DUP, "_bams/"]))
+    conda:
+        "../envs/multiqc.yml"
     log:
         out = os.path.join(SUMMARYDIR, ''.join(["multiQC_", DUP, "_bams/multiQC_report_BAMs_", DUP, ".out"])),
         err = os.path.join(SUMMARYDIR, ''.join(["multiQC_", DUP, "_bams/multiQC_report_BAMs_", DUP, ".err"]))
@@ -850,6 +861,8 @@ rule Lorenz_curve:
         binSize = config["quality_controls"]["plotFingerprint"]["binSize"],
         sampledRegions = config["quality_controls"]["plotFingerprint"]["sampledRegions"],
         extra_params = config["quality_controls"]["plotFingerprint"]["extra_parameters"]
+    conda:
+        "../envs/deeptools.yml"
     threads:
         max(math.floor((workflow.cores-1)/2), 1)
     log:
@@ -884,6 +897,8 @@ rule Lorenz_curve_merge_plots:
         lorenz_plots_pattern = os.path.join(SUMMARYDIR, "LorenzCurve_plotFingreprint/lorenz_plots/*_Lorenz_curve_deeptools.plotFingreprint.pdf"),
         dir = os.path.join(home_dir,""),
         summary_dir = SUMMARYDIR,
+    conda:
+        "../envs/lorenz_plot.yml"
     log:
         pdfcombine = os.path.join(SUMMARYDIR, "LorenzCurve_plotFingreprint/log/LorenzCurve_plotFingreprint_mergePdf.log"),
         ggplotcombine = os.path.join(SUMMARYDIR, "LorenzCurve_plotFingreprint/log/LorenzCurve_plotFingreprint_ggplot.merge.plots.log")
@@ -928,6 +943,8 @@ rule all_peaks_file_and_score_matrix:
         peaks_dir = PEAKSDIR,
         labels = ' '.join(SAMPLENAMES),
         blacklist = BLACKLIST
+    conda:
+        "../envs/score_matrix.yml"
     threads:
         max((workflow.cores-1), 1)
     benchmark:
