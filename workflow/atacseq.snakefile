@@ -162,6 +162,17 @@ if (eval(str(config["peak_calling"]["call_summits"])) == True):
 else:
     SUMMITS=""
 
+if (eval(str(config["quality_controls"]["calculate_pbc"])) == True):
+    pbc = os.path.join(SUMMARYDIR, "PBC/merged_pbc_metrics.tsv")
+else:
+    pbc = []
+
+if (eval(str(config["quality_controls"]["calculate_frip"])) == True):
+    frip = os.path.join(SUMMARYDIR, "FRiP/merged_frip.tsv")
+else:
+    frip = []
+
+   
 
 wildcard_constraints:
     SAMPLE = constraint_to(SAMPLENAMES),
@@ -194,7 +205,9 @@ rule AAA_initialization:
         summary_file = os.path.join(SUMMARYDIR, "Counts/counts_summary.txt"),
         lorenz_plot_ggplot = os.path.join(SUMMARYDIR, "LorenzCurve_plotFingreprint/Lorenz_curve_deeptools.plotFingreprint_allSamples.pdf"),
         norm_bw_average = norm_bw_average,
-        peaks_comparison = peaks_comparison
+        peaks_comparison = peaks_comparison,
+        pbc = pbc,
+        frip = frip
     shell:
         """
         printf '\033[1;36mPipeline ended!\\n\033[0m'
@@ -840,6 +853,109 @@ rule multiQC_BAMs:
         """
 
 
+# ----------------------------------------------------------------------------------------
+
+
+# ----------------------------------------------------------------------------------------
+
+rule calculate_pbc:
+    input:
+        dedup_BAM_sorted = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", MAPQ, "_sorted_woMT_", DUP, ".bam"]))
+    output:
+        pbc = os.path.join(SUMMARYDIR, ''.join(["PBC/", "{SAMPLE}_mapq", MAPQ, "_sorted_woMT_", DUP, ".pbc.qc"]))
+    conda:
+        "../envs/pbc.yml"
+    shell:
+        """
+        set -euo pipefail
+        samtools sort -@ {threads} -n -O BAM -o tmp.bam {input.dedup_BAM_sorted}
+        bedtools bamtobed -bedpe -i tmp.bam | \
+        awk 'BEGIN{{OFS="\t"}}{{print $1,$2,$4,$6,$9,$10}}' | \
+        grep -v 'chrM' | \
+        sort | \
+        uniq -c | \
+        awk 'BEGIN{{mt=0;m0=0;m1=0;m2=0}}($1==1){{m1=m1+1}}($1==2){{m2=m2+1}}{{m0=m0+1}}{{mt=mt+$1}}END{{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n", mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}}' > {output.pbc}
+        rm tmp.bam
+        """
+
+# ----------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------
+
+rule merge_pbc_results:
+    input:
+        pbc = expand(os.path.join(SUMMARYDIR, ''.join(["PBC/", "{sample}_mapq", MAPQ, "_sorted_woMT_", DUP, ".pbc.qc"])), sample = SAMPLENAMES)
+    output:
+        pbc_merged = os.path.join(SUMMARYDIR, ''.join(["PBC/", "merged_pbc_metrics.tsv"]))
+    conda:
+        "../envs/pbc.yml"
+    shell:
+        """
+        (
+        echo -e "Sample\tTotalReadPairs\tDistinctReadPairs\tOneReadPair\tTwoReadPairs\tNRF\tPBC1\tPBC2"
+        for f in {input.pbc}; do
+            sample=$(basename "$f" .pbc.qc)
+            line=$(cat "$f")
+            echo -e "$sample\t$line"
+        done
+        ) > {output.pbc_merged}
+        """
+
+# ----------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------
+rule calculate_frip:
+    input:
+        dedup_BAM_sorted = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", MAPQ, "_sorted_woMT_", DUP, ".bam"])),
+        narrowPeak = os.path.join(PEAKSDIR, ''.join(["{SAMPLE}_mapq", MAPQ, "_woMT_",DUP,"_qValue", str(config["peak_calling"]["qValue_cutoff"]), "_peaks.narrowPeak"]))
+    output:
+        frip = os.path.join(SUMMARYDIR, ''.join(["frip/", "{SAMPLE}_mapq", MAPQ, "_sorted_woMT_", DUP, ".frip.txt"]))
+    conda:
+        "../envs/pbc.yml"
+    shell:
+        """
+        set -euo pipefail
+        
+        # Calculate total reads
+        total_reads=$(samtools view -c {input.dedup_BAM_sorted})
+        
+        # Calculate reads in peaks
+        reads_in_peaks=$(
+            bedtools sort -i {input.narrowPeak} \
+            | bedtools merge -i stdin \
+            | bedtools intersect -u -nonamecheck \
+                -a {input.dedup_BAM_sorted} -b stdin -ubam \
+            | samtools view -c
+        )
+        
+        # Calculate FRiP
+        FRiP=$(awk "BEGIN {{printf \"%.5f\", {reads_in_peaks}/{total_reads}}}")
+        
+        # Write results
+        echo -e "TotalReads\tReadsInPeaks\tFRiP" > {output.frip}
+        echo -e "$total_reads\t$reads_in_peaks\t$FRiP" >> {output.frip}
+        """
+# ----------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------
+rule merge_frip_results:
+    input:
+        frip = expand(os.path.join(SUMMARYDIR, ''.join(["frip/", "{sample}_mapq", MAPQ, "_sorted_woMT_", DUP, ".frip.txt"])), sample = SAMPLENAMES)
+    output:
+        pbc_merged = os.path.join(SUMMARYDIR, ''.join(["frip/merged_frip.tsv"]))
+    conda:
+        "../envs/pbc.yml"
+    shell:
+        """
+        (
+        echo -e "Sample\t"$(head -1 {input.frip[0]} | tr '\t' ' ')
+        for f in {input.frip}; do
+            sample=$(basename "$f" .frip.txt)
+            metrics=$(tail -1 "$f")
+            echo -e "$sample\t$metrics"
+        done
+        ) > {output.pbc_merged}
+        """
 # ----------------------------------------------------------------------------------------
 
 

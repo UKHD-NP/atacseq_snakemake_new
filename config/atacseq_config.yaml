@@ -61,6 +61,10 @@ quality_controls:
     binSize: 500 #bp
     sampledRegions: 500000
     extra_parameters: ""
+  calculate_pbc: True
+  calculate_frip: True
+  calculate_tss: True
+
 
 
 
