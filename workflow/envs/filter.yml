@@ -5,14 +5,11 @@ channels:
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=2_gnu
-  - _r-mutex=1.0.1=anacondar_1
-  - binutils_impl_linux-64=2.43=h4bf12b8_4
-  - bwidget=1.10.1=ha770c72_0
+  - alsa-lib=1.2.14=hb9d3cd8_0
   - bzip2=1.0.8=h4bc722e_7
   - c-ares=1.34.5=hb9d3cd8_0
-  - ca-certificates=2025.1.31=hbcca054_0
+  - ca-certificates=2025.1.31=hbd8a1cb_1
   - cairo=1.18.4=h3394656_0
-  - curl=8.13.0=h332b0f4_0
   - font-ttf-dejavu-sans-mono=2.37=hab24e00_0
   - font-ttf-inconsolata=3.000=h77eed37_0
   - font-ttf-source-code-pro=2.038=h77eed37_0
@@ -20,114 +17,58 @@ dependencies:
   - fontconfig=2.15.0=h7e30c49_1
   - fonts-conda-ecosystem=1=0
   - fonts-conda-forge=1=0
-  - freetype=2.13.3=h48d6fc4_0
-  - fribidi=1.0.10=h36c2ea0_0
-  - gatk=3.8=hdfd78af_12
-  - gcc_impl_linux-64=14.2.0=hdb7739f_2
-  - gfortran_impl_linux-64=14.2.0=h0ee6e4a_2
+  - freetype=2.13.3=ha770c72_1
+  - gatk4=4.6.1.0=py310hdfd78af_0
+  - giflib=5.2.2=hd590300_0
   - graphite2=1.3.13=h59595ed_1003
-  - gsl=2.7=he838d99_0
-  - gxx_impl_linux-64=14.2.0=h2ead766_2
   - harfbuzz=11.1.0=h3beb420_0
   - htslib=1.21=h566b1c6_1
   - icu=75.1=he02047a_0
-  - kernel-headers_linux-64=3.10.0=he073ed8_18
   - keyutils=1.6.1=h166bdaf_0
   - krb5=1.21.3=h659f571_0
+  - lcms2=2.17=h717163a_0
   - ld_impl_linux-64=2.43=h712a8e2_4
-  - lerc=4.0.0=h27087fc_0
-  - libblas=3.9.0=31_h59b9bed_openblas
-  - libcblas=3.9.0=31_he106b2a_openblas
+  - lerc=4.0.0=h0aef613_1
+  - libcups=2.3.3=h4637d8d_4
   - libcurl=8.13.0=h332b0f4_0
-  - libdeflate=1.23=h4ddbbb0_0
+  - libdeflate=1.23=h86f0d12_0
   - libedit=3.1.20250104=pl5321h7949ede_0
   - libev=4.33=hd590300_2
   - libexpat=2.7.0=h5888daf_0
   - libffi=3.4.6=h2dba641_1
+  - libfreetype=2.13.3=ha770c72_1
+  - libfreetype6=2.13.3=h48d6fc4_1
   - libgcc=14.2.0=h767d61c_2
-  - libgcc-devel_linux-64=14.2.0=h9c4974d_102
   - libgcc-ng=14.2.0=h69a702a_2
-  - libgfortran=14.2.0=h69a702a_2
-  - libgfortran-ng=14.2.0=h69a702a_2
-  - libgfortran5=14.2.0=hf1ad2bd_2
   - libglib=2.84.1=h2ff4ddf_0
   - libgomp=14.2.0=h767d61c_2
   - libiconv=1.18=h4ce23a2_1
-  - libjpeg-turbo=3.0.0=hd590300_1
-  - liblapack=3.9.0=31_h7ac8fdf_openblas
+  - libjpeg-turbo=3.1.0=hb9d3cd8_0
   - liblzma=5.8.1=hb9d3cd8_0
   - libmpdec=4.0.0=h4bc722e_0
   - libnghttp2=1.64.0=h161d5f1_0
-  - libopenblas=0.3.29=pthreads_h94d23a6_0
   - libpng=1.6.47=h943b412_0
-  - libsanitizer=14.2.0=hed042b8_2
   - libsqlite=3.49.1=hee588c1_2
   - libssh2=1.11.1=hf672d98_0
   - libstdcxx=14.2.0=h8f9b012_2
-  - libstdcxx-devel_linux-64=14.2.0=h9c4974d_102
   - libstdcxx-ng=14.2.0=h4852527_2
-  - libtiff=4.7.0=hd9ff511_3
+  - libtiff=4.7.0=hd9ff511_4
   - libuuid=2.38.1=h0b41bf4_0
   - libwebp-base=1.5.0=h851e524_0
   - libxcb=1.17.0=h8a09558_0
   - libzlib=1.3.1=hb9d3cd8_2
-  - make=4.4.1=hb9d3cd8_2
   - ncurses=6.5=h2d0b736_3
-  - openjdk=8.0.412=h2b85faf_2
+  - openjdk=17.0.14=h39bb4c0_2
   - openssl=3.5.0=h7b32b05_0
-  - pango=1.56.3=h9ac818e_1
   - pcre2=10.44=hba22ea6_2
   - pip=25.0.1=pyh145f28c_0
   - pixman=0.44.2=h29eaf8c_0
   - pthread-stubs=0.4=hb9d3cd8_1002
   - python=3.13.3=hf636f53_101_cp313
-  - python_abi=3.13=6_cp313
-  - r-base=4.4.3=h9c32bc2_0
-  - r-bitops=1.0_9=r44h2b5f3a1_0
-  - r-catools=1.18.3=r44h93ab643_0
-  - r-cli=3.6.4=r44h93ab643_1
-  - r-colorspace=2.1_1=r44hdb488b9_0
-  - r-crayon=1.5.3=r44hc72bb7e_1
-  - r-ellipsis=0.3.2=r44hb1dbf0f_3
-  - r-fansi=1.0.6=r44hb1dbf0f_1
-  - r-farver=2.1.2=r44ha18555a_1
-  - r-ggplot2=3.5.2=r44hc72bb7e_0
-  - r-glue=1.8.0=r44h2b5f3a1_0
-  - r-gplots=3.2.0=r44hc72bb7e_0
-  - r-gsalib=2.2.1=r44hc72bb7e_3
-  - r-gtable=0.3.6=r44hc72bb7e_0
-  - r-gtools=3.9.5=r44hb1dbf0f_1
-  - r-isoband=0.2.7=r44ha18555a_3
-  - r-kernsmooth=2.23_26=r44h8461fee_0
-  - r-labeling=0.4.3=r44hc72bb7e_1
-  - r-lattice=0.22_7=r44h2b5f3a1_0
-  - r-lifecycle=1.0.4=r44hc72bb7e_1
-  - r-magrittr=2.0.3=r44hb1dbf0f_3
-  - r-mass=7.3_64=r44h2b5f3a1_0
-  - r-matrix=1.7_3=r44h2ae2be5_0
-  - r-mgcv=1.9_3=r44h2ae2be5_0
-  - r-munsell=0.5.1=r44hc72bb7e_1
-  - r-nlme=3.1_168=r44hb67ce94_0
-  - r-pillar=1.10.2=r44hc72bb7e_0
-  - r-pkgconfig=2.0.3=r44hc72bb7e_4
-  - r-plyr=1.8.9=r44ha18555a_1
-  - r-r6=2.6.1=r44hc72bb7e_0
-  - r-rcolorbrewer=1.1_3=r44h785f33e_3
-  - r-rcpp=1.0.14=r44h93ab643_0
-  - r-reshape=0.8.9=r44hc72bb7e_3
-  - r-rlang=1.1.6=r44h93ab643_0
-  - r-scales=1.3.0=r44hc72bb7e_1
-  - r-tibble=3.2.1=r44hdb488b9_3
-  - r-utf8=1.2.4=r44hb1dbf0f_1
-  - r-vctrs=0.6.5=r44h0d4f4ea_1
-  - r-viridislite=0.4.2=r44hc72bb7e_2
-  - r-withr=3.0.2=r44hc72bb7e_0
+  - python_abi=3.13=7_cp313
   - readline=8.2=h8c095d6_2
   - samtools=1.21=h96c455f_1
-  - sed=4.8=he412f7d_0
-  - sysroot_linux-64=2.17=h0157908_18
   - tk=8.6.13=noxft_h4845f30_101
-  - tktable=2.10=h8bc8fbc_6
   - tzdata=2025b=h78e105d_0
   - xorg-libice=1.1.2=hb9d3cd8_0
   - xorg-libsm=1.2.6=he73a12e_0
@@ -135,7 +76,11 @@ dependencies:
   - xorg-libxau=1.0.12=hb9d3cd8_0
   - xorg-libxdmcp=1.1.5=hb9d3cd8_0
   - xorg-libxext=1.3.6=hb9d3cd8_0
+  - xorg-libxfixes=6.0.1=hb9d3cd8_0
+  - xorg-libxi=1.8.2=hb9d3cd8_0
+  - xorg-libxrandr=1.5.4=hb9d3cd8_0
   - xorg-libxrender=0.9.12=hb9d3cd8_0
   - xorg-libxt=1.3.1=hb9d3cd8_0
+  - xorg-libxtst=1.2.5=hb9d3cd8_3
   - zstd=1.5.7=hb8e6e7a_2
 prefix: /home/users/np/temesvari/miniforge3/envs/filter_env
