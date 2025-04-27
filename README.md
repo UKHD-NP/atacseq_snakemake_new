@@ -57,6 +57,7 @@ Once the environment is activated, you can run the pipeline using the following 
     ```bash
     snakemake \
     --cores  \
+    --use-conda \
     -s workflow/atacseq.snakefile \
     --configfile config/atacseq_config.yaml \
     --config \
@@ -70,6 +71,7 @@ Once the environment is activated, you can run the pipeline using the following 
     ```bash
     snakemake \
     --cores  \
+    --use-conda \
     -s workflow/atacseq.snakefile \
     --configfile config/atacseq_config.yaml \
     --config \
@@ -132,15 +134,21 @@ If a genome index is not already available, the rule `generate_genome_index` cre
 
 #### **3. Adapter Trimming**
 The `cutadapt_PE` rule trims sequencing adapters from paired-end reads using Cutadapt. 
-The Cutadapt parameters in this ATAC-seq pipeline are optimized for typical Nextera-based library preparation and sequencing on NextSeq/NovaSeq platforms. The `--nextseq-trim=20` parameter addresses the two-color chemistry’s tendency to produce poly-G artifacts by trimming 3’ bases with quality scores below 20. The `-q 27` threshold ensures only high-quality bases remain. The `--minimum-length 50` filters out reads shorter than 50 bp, removing adapter dimers and fragments too short for meaningful peak calling. The adapter sequences (set in the configfile) match the Illumina adapter sequences, ensuring proper removal of ligated adapters.
+The Cutadapt parameters in this ATAC-seq pipeline are optimized for typical Nextera-based library preparation and sequencing on NextSeq/NovaSeq platforms. The `--nextseq-trim=20` parameter addresses the two-color chemistry’s tendency to produce poly-G artifacts by trimming 3’ bases with quality scores below 20. The `--minimum-length 20` filters out reads shorter than 20 bp, removing adapter dimers and fragments too short for meaningful peak calling. On the basis of [this](https://pmc.ncbi.nlm.nih.gov/articles/PMC10035359/) and [this](https://training.galaxyproject.org/training-material/topics/epigenetics/tutorials/atac-seq/tutorial.html) practical example was the value chosen for this parameter. The adapter sequences (set in the configfile) match the Illumina adapter sequences, ensuring proper removal of ligated adapters.
 
-For shorter read lengths, `--minimum-length` should be reduced (e.g., 25–30 bp) to retain usable fragments. For Illumina HiSeq/MiSeq (non-NextSeq), replace `--nextseq-trim` with generic quality trimming (e.g., `-q 20`), as poly-G artifacts are absent. If using TruSeq adapters, update `-a`/`-A` to the correct sequences in the configfile. For lower-quality data (e.g., degraded samples), relax `-q` to 20–25 to avoid excessive read loss. Always validate parameters using FastQC or MultiQC to ensure adapter removal and fragment size distribution align with expectations.
+For Illumina HiSeq/MiSeq (non-NextSeq), replace `--nextseq-trim` with generic quality trimming (e.g., `-q 20`), as poly-G artifacts are absent. If using TruSeq adapters, update `-a`/`-A` to the correct sequences in the configfile. For lower-quality data (e.g., degraded samples), relax `-q` to 20–25 to avoid excessive read loss. Always validate parameters using FastQC or MultiQC to ensure adapter removal and fragment size distribution align with expectations.
+
+![Base Content in the sequences](resources/fastqc_base_content.png)
+***Figure 1: Expected [FastQC base content profiles](https://bioinformaticamente.com/2024/12/05/comprehensive-guide-to-atac-seq-data-quality-control/) for (A) raw and (B) trimmed reads. Post-trimming (B) shows reduced 3’-end G-content spikes caused by NextSeq poly-G artifacts.***
+
+![Adapter content in the sequences](resources/fastqc_adapter_content.png)
+***Figure2: [Adapter content profiles](https://bioinformaticamente.com/2024/12/05/comprehensive-guide-to-atac-seq-data-quality-control/) for (A) raw and (B) trimmed reads. Successful adapter removal eliminates >99% of Nextera sequences.***
 
 #### **4. Read Alignment**
 The `BWA_PE` rule aligns the trimmed reads to the reference genome using BWA-MEM2. This aligner was chosen for its widespread use in the literature and its optimal balance of accuracy and speed showed in different [benchmarks](https://www.nature.com/articles/s41467-021-26865-w).
 
 #### **5. BAM Filtering**
-The `MAPQ_MT_filter` rule filters aligned reads based on mapping quality (MAPQ) and removes unwanted chromosomes (e.g., mitochondrial DNA). Additionally, duplicate reads are marked or removed using GATK's `MarkDuplicatesWithMateCigar` in the subsequent `gatk4_markdups` rule.
+The `MAPQ_MT_filter` rule filters aligned reads based on mapping quality (MAPQ) and removes unwanted chromosomes (e.g., mitochondrial DNA). Based on [ENCODE guidelines](https://www.encodeproject.org/atac-seq/), each replicate should retain ***≥50 million non-duplicate, non-mitochondrial aligned reads*** for paired-end analysis. Additionally, duplicate reads are marked or removed using GATK's `MarkDuplicatesWithMateCigar` in the subsequent `gatk4_markdups` rule.
 
 How BAM files and reads are filtered throughout the pipeline:
 - **Remove mitochondrial DNA reads**  
@@ -173,17 +181,38 @@ The `fastQC_trimmed_fastq` rule performs quality control checks on trimmed FASTQ
 #### **7. Quality Control on BAM Files**
 The `fastQC_BAMs` rule assesses the quality of BAM files. A MultiQC report (`multiQC_BAMs`) consolidates these metrics alongside alignment statistics and peak-calling results.
 
+Key metrics from [ENCODE](https://www.encodeproject.org/atac-seq/) include:  
+- **Alignment rate** >95% (acceptable >80%) 
+- **FRiP score** >0.3 (acceptable >0.2)  
+- **Nucleosome-free regions** must be detectable in called peaks 
+
 #### **8. Fragment Size Distribution**
 The `fragment_size_distribution` rule calculates fragment size distributions for each sample, which provides insights into nucleosome positioning and library complexity. A combined plot (`fragment_size_distribution_report`) summarizes these distributions across all samples.
+High-quality ATAC-seq data based on [ENCODE](https://www.encodeproject.org/atac-seq/) must show:
+-**Nucleosome-free region (NFR) peak** at ~50 bp
+-**Mononucleosome peak** between 147–294 bp
+-Clear separation of di-/tri-nucleosome peaks (optional)
+
+
+![Fragment-distribution](resources/fragmentSize_distribution_examples.svg)
+***Figure 3: [Fragment distributions](https://sebastian-gregoricchio.github.io/snakeATAC/) showing (left) ideal profile with NFR and mono-/di-nucleosome peaks vs. (right) noisy data lacking clear nucleosomal patterning.***
 
 #### **9. Read Shifting and Normalization**
 The `bam_shifting_and_RPM_normalization` rule shifts paired-end reads to account for Tn5 transposase binding offset and generates RPM-normalized bigWig files for visualization in genome browsers.
 
 #### **10. Peak Calling**
-The `peakCalling_MACS3` rule identifies regions of open chromatin by calling peaks using MACS3. The output includes narrowPeak files, summit locations, and associated metrics (e.g., q-values).
+The `peakCalling_MACS3` rule identifies regions of open chromatin by calling peaks using MACS3. 
+[ENCODE standards](https://www.encodeproject.org/atac-seq/) require:
+-**Replicated peak files** with >150,000 peaks (acceptable >100,000)
+-**Nucleosome-free regions** must be detectable in called peaks
+
+The output includes narrowPeak files, summit locations, and associated metrics (e.g., q-values).
 
 #### **11. Lorenz Curves**
 The `Lorenz_curve` rule generates Lorenz curves (or fingerprint plots) to assess library complexity and sequencing biases across samples.
+
+![Lorenz-curve](resources/lorenz_curve_examples.svg)
+***Figure 4: [Lorenz curves](https://sebastian-gregoricchio.github.io/snakeATAC/) comparing (right) ideal complex library vs. (left) oversequenced/low-complexity sample.***
 
 #### **12. Merging Peaks Across Samples**
 The `all_peaks_file_and_score_matrix` rule merges peak files across all samples to create a unified peak set. It also generates a score matrix summarizing signal intensity at each peak for all samples.
@@ -191,7 +220,7 @@ The `all_peaks_file_and_score_matrix` rule merges peak files across all samples 
 #### **13. Summary Table Generation**
 Finally, the `counts_summary` rule compiles key metrics (e.g., number of mapped reads, peaks detected, FRiP scores) into a summary table for easy interpretation.
 
-![DAG](https://github.com/UKHD-NP/atacseq_snakemake/blob/main/resources/dag.png)
+![DAG](resources/dag.svg)
 
 
 ## Output Directory Structure
@@ -309,7 +338,10 @@ A huge thank you to **Dr. Isabell Bludau**, **Dr. Paul Kerbs**, and **Quynh Nhu 
 2. ENCODE ATAC-seq Guidelines: [https://www.encodeproject.org/atac-seq/](https://www.encodeproject.org/atac-seq/)
 3. nf-core ATAC-seq Workflow: [https://nf-co.re/atacseq](https://nf-co.re/atacseq)
 4. Best Practices for ATAC-seq Analysis: [Genome Biology](https://doi.org/10.1186/s13059-020-1929-3)
+5. [Galaxy ATAC-seq Tutorial](https://training.galaxyproject.org/training-material/topics/epigenetics/tutorials/atac-seq/tutorial.html)  
+6. [Cutadapt Parameter Optimization (PMC10035359)](https://pmc.ncbi.nlm.nih.gov/articles/PMC10035359/)  
+7. [FastQC Figure Source](https://bioinformaticamente.com/2024/12/05/comprehensive-guide-to-atac-seq-data-quality-control/)  
 
 ## License
 
-This project is licensed under the MIT License—see the [`LICENSE`](https://github.com/UKHD-NP/atacseq_snakemake/blob/main/MIT_License.md) file for details.
+This project is licensed under the MIT License—see the [`LICENSE`](MIT_License.md) file for details.
