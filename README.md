@@ -57,6 +57,7 @@ Once the environment is activated, you can run the pipeline using the following 
     ```bash
     snakemake \
     --cores  \
+    --use-conda \
     -s workflow/atacseq.snakefile \
     --configfile config/atacseq_config.yaml \
     --config \
@@ -70,6 +71,7 @@ Once the environment is activated, you can run the pipeline using the following 
     ```bash
     snakemake \
     --cores  \
+    --use-conda \
     -s workflow/atacseq.snakefile \
     --configfile config/atacseq_config.yaml \
     --config \
@@ -210,7 +212,7 @@ The output includes narrowPeak files, summit locations, and associated metrics (
 The `Lorenz_curve` rule generates Lorenz curves (or fingerprint plots) to assess library complexity and sequencing biases across samples.
 
 ![Lorenz-curve](resources/lorenz_curve_examples.svg)
-***Figure 3: [Lorenz curves](https://sebastian-gregoricchio.github.io/snakeATAC/) comparing (right) ideal complex library vs. (left) oversequenced/low-complexity sample.***
+***Figure 4: [Lorenz curves](https://sebastian-gregoricchio.github.io/snakeATAC/) comparing (right) ideal complex library vs. (left) oversequenced/low-complexity sample.***
 
 #### **12. Merging Peaks Across Samples**
 The `all_peaks_file_and_score_matrix` rule merges peak files across all samples to create a unified peak set. It also generates a score matrix summarizing signal intensity at each peak for all samples.
