@@ -1,4 +1,4 @@
-name: ataqseq
+name: atacseq
 channels:
   - conda-forge
   - bioconda

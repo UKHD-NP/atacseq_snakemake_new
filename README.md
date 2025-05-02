@@ -29,12 +29,12 @@ This is a modular Snakemake workflow for ATAC-seq data analysis, inspired by [sn
 
 1. **Place yourself in the directory where the repository should be downloaded**:
     ```bash
-    cd </target/folder>
+    cd </target/repository/folder>
     ```
 
 2. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/atacseq-pipeline.git
+   git clone https://github.com/UKHD-NP/atacseq_snakemake.git
    cd atacseq_snakemake
    ```
    or click on *Code > Download ZIP* on the GitHub page
@@ -42,7 +42,7 @@ This is a modular Snakemake workflow for ATAC-seq data analysis, inspired by [sn
 3. **Install dependencies**:
    This pipeline uses Conda/Mamba for environment management. Install the required environment as follows:
    ```bash
-   mamba env create -f workflow/envs/mamba_env.yaml
+   mamba env create -f workflow/envs/initial.yaml
    ```
 4. **Activate the environment**:
     ```bash
@@ -88,7 +88,7 @@ The sample sheet should be a CSV file with the following columns:
 | name   | REP1      | path/to/sample_R1.fastq.gz| path/to/sample_R2.fastq.gz|
 
 
-### Parameters in configfile
+### Parameters in configfile (atacseq_config.yaml)
 
 | Parameter                              | Description & Usage                                                                                                                | Default Value         |
 |----------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|-----------------------|
@@ -104,7 +104,7 @@ The sample sheet should be a CSV file with the following columns:
 | fw_adapter_sequence                    | Forward adapter sequence for Tn5 transposase trimming.                                                                             | "CTGTCTCTTATACACATCT" |
 | rv_adapter_sequence                    | Reverse adapter sequence for Tn5 transposase trimming.                                                                             | "CTGTCTCTTATACACATCT" |
 | BWA Mapping                            |                                                                                                                                    |                       |
-| bwa_options                            | Custom alignment options for BWA-MEM2.                                                                                             | ''                    |
+| bwa_options                            | Custom alignment options for BWA-mem2.                                                                                             | ''                    |
 | BAM Filtering                          |                                                                                                                                    |                       |
 | remove_duplicates                      | Remove PCR duplicates using GATK MarkDuplicates. Set to False to keep duplicates.                                                  | True                  |
 | MAPQ_threshold                         | Minimum mapping quality score (MAPQ). Filters ambiguous alignments (recommended: 20). Increase for stricter alignment (range 0-60) | 20                    |
@@ -130,11 +130,11 @@ The sample sheet should be a CSV file with the following columns:
 The pipeline begins with an initialization rule (`AAA_initialization`), which ensures that all required outputs are properly organized.
 
 #### **2. Genome Index Generation**
-If a genome index is not already available, the rule `generate_genome_index` creates it using BWA-MEM2 and with samtools. This step ensures that the reference genome is prepared for efficient read alignment. The output includes `.bwt`, `.fai`, and other index files necessary for mapping.
+If a genome index is not already available, the rule `generate_genome_index` creates it using BWA-mem2 and with samtools. This step ensures that the reference genome is prepared for efficient read alignment. The output includes `.bwt`, `.fai`, and other index files necessary for mapping.
 
 #### **3. Adapter Trimming**
 The `cutadapt_PE` rule trims sequencing adapters from paired-end reads using Cutadapt. 
-The Cutadapt parameters in this ATAC-seq pipeline are optimized for typical Nextera-based library preparation and sequencing on NextSeq/NovaSeq platforms. The `--nextseq-trim=20` parameter addresses the two-color chemistry’s tendency to produce poly-G artifacts by trimming 3’ bases with quality scores below 20. The `--minimum-length 20` filters out reads shorter than 20 bp, removing adapter dimers and fragments too short for meaningful peak calling. On the basis of [this](https://pmc.ncbi.nlm.nih.gov/articles/PMC10035359/) and [this](https://training.galaxyproject.org/training-material/topics/epigenetics/tutorials/atac-seq/tutorial.html) practical example was the value chosen for this parameter. The adapter sequences (set in the configfile) match the Illumina adapter sequences, ensuring proper removal of ligated adapters.
+The Cutadapt parameters in this ATAC-seq pipeline are optimized for typical Nextera-based library preparation and sequencing on NextSeq/NovaSeq platforms. The `--nextseq-trim=20` parameter addresses the two-color chemistry’s tendency to produce poly-G artifacts by trimming 3’ bases with quality scores below 20. The `--minimum-length 20` setting filters out reads shorter than 20 bp, removing adapter dimers and fragments too short for meaningful peak calling. On the basis of [this](https://pmc.ncbi.nlm.nih.gov/articles/PMC10035359/) and [this](https://training.galaxyproject.org/training-material/topics/epigenetics/tutorials/atac-seq/tutorial.html) practical example was the value chosen for this parameter. The adapter sequences (set in the configfile) match the Illumina adapter sequences, ensuring proper removal of ligated adapters.
 
 For Illumina HiSeq/MiSeq (non-NextSeq), replace `--nextseq-trim` with generic quality trimming (e.g., `-q 20`), as poly-G artifacts are absent. If using TruSeq adapters, update `-a`/`-A` to the correct sequences in the configfile. For lower-quality data (e.g., degraded samples), relax `-q` to 20–25 to avoid excessive read loss. Always validate parameters using FastQC or MultiQC to ensure adapter removal and fragment size distribution align with expectations.
 
@@ -145,7 +145,7 @@ For Illumina HiSeq/MiSeq (non-NextSeq), replace `--nextseq-trim` with generic qu
 ***Figure2: [Adapter content profiles](https://bioinformaticamente.com/2024/12/05/comprehensive-guide-to-atac-seq-data-quality-control/) for (A) raw and (B) trimmed reads. Successful adapter removal eliminates >99% of Nextera sequences.***
 
 #### **4. Read Alignment**
-The `BWA_PE` rule aligns the trimmed reads to the reference genome using BWA-MEM2. This aligner was chosen for its widespread use in the literature and its optimal balance of accuracy and speed showed in different [benchmarks](https://www.nature.com/articles/s41467-021-26865-w).
+The `BWA_PE` rule aligns the trimmed reads to the reference genome using BWA-mem2. This aligner was chosen for its widespread use in the literature and its optimal balance of accuracy and speed showed in different [benchmarks](https://www.nature.com/articles/s41467-021-26865-w).
 
 #### **5. BAM Filtering**
 The `MAPQ_MT_filter` rule filters aligned reads based on mapping quality (MAPQ) and removes unwanted chromosomes (e.g., mitochondrial DNA). Based on [ENCODE guidelines](https://www.encodeproject.org/atac-seq/), each replicate should retain ***≥50 million non-duplicate, non-mitochondrial aligned reads*** for paired-end analysis. Additionally, duplicate reads are marked or removed using GATK's `MarkDuplicatesWithMateCigar` in the subsequent `gatk4_markdups` rule.
@@ -212,7 +212,7 @@ The output includes narrowPeak files, summit locations, and associated metrics (
 The `Lorenz_curve` rule generates Lorenz curves (or fingerprint plots) to assess library complexity and sequencing biases across samples.
 
 ![Lorenz-curve](resources/lorenz_curve_examples.svg)
-***Figure 4: [Lorenz curves](https://sebastian-gregoricchio.github.io/snakeATAC/) comparing (right) ideal complex library vs. (left) oversequenced/low-complexity sample.***
+***Figure 4: [Lorenz curves](https://sebastian-gregoricchio.github.io/snakeATAC/) comparing (left) oversequenced/low-complexity sample vs. (right) ideal complex library.***
 
 #### **12. Merging Peaks Across Samples**
 The `all_peaks_file_and_score_matrix` rule merges peak files across all samples to create a unified peak set. It also generates a score matrix summarizing signal intensity at each peak for all samples.
@@ -230,6 +230,7 @@ The pipeline generates a well-organized output directory structure.
 ### **Key Directories**
 - **01_trimmed_fastq/**: Contains trimmed FASTQ files and logs from Cutadapt.
 - **02_BAM/**: Stores filtered and deduplicated BAM files, and alignment statistics.
+- **02_BAM_fastQC/**: Stores FastQC and MultiQC files for filtered and deduplicated BAM files.
 - **03_Normalization/**: Contains RPM-normalized bigWig files for visualization in genome browsers.
 - **04_MACS3_peaks/**: Includes peak-calling results such as narrowPeak files (chromatin accessibility regions) and summit files (precise peak summits).
 - **05_quality_controls/**: Contains FastQC and MultiQC files for trimmed FASTQ files.
@@ -238,7 +239,7 @@ The pipeline generates a well-organized output directory structure.
 Below is a detailed breakdown:
 
 ```
-results/
+output_directory/
 ├── 01_trimmed_fastq/
 │   ├── logs/
 │   │   ├── cutadapt.sample1.err
@@ -278,19 +279,19 @@ results/
 │   │   ├── sample1_idxstats_read_per_chromosome.txt
 │   │   ├── sample2_idxstats_read_per_chromosome.txt
 │   │   └── ...
-│   ├── FixMateInformation_logs/
-│   │   ├── sample1_FixMateInformation.log
-│   │   ├── sample2_FixMateInformation.log
-│   │   └── ...
+│   └── FixMateInformation_logs/
+│       ├── sample1_FixMateInformation.log
+│       ├── sample2_FixMateInformation.log
+│       └── ...
 ├── 02_BAM_fastQC/
 │   ├── sample1_mapq20_sorted_woMT_dedup_fastqc.zip
-│   ├── sample1_mapq20_sorted_woMT_dedup_fastqc.html
+│   └── sample1_mapq20_sorted_woMT_dedup_fastqc.html
 ├── 03_Normalization/RPM_normalized
 │   ├── bamToBed_log/
 │   │   ├── sample1_bamToBed.log
 │   │   ├── sample2_bamToBed.log
 │   │   └── ...
-│   ├── sample1_mapq20_woMT_dedup_shifted_RPM.normalized.bw
+│   └── sample1_mapq20_woMT_dedup_shifted_RPM.normalized.bw
 ├── 04_MACS3_peaks/
 │   ├── logs/
 │   │   ├── sample1_mapq20_woMT_dedup_qValue0.05.log
@@ -301,32 +302,32 @@ results/
 │   ├── sample1_mapq20_woMT_dedup_qValue0.05_peaks.xls
 │   ├── sample1_mapq20_woMT_dedup_qValue0.05_peaks.narrowPeak
 │   ├── sample1_mapq20_woMT_dedup_qValue0.05_summits.bed
-│   ├── sample1_mapq20_woMT_dedup_qValue0.05_peaks_chr.narrowPeak
+│   └── sample1_mapq20_woMT_dedup_qValue0.05_peaks_chr.narrowPeak
 ├── 05_quality_controls/
 │   ├── trimmed_fastq_multiQC/
 │   │   ├── multiQC_report_trimmed_fastq.out
-│   │   ├── multiQC_report_trimmed_fastq.err
-│   ├── trimmed_fastq_fastqc/
-│   │   ├── sample1_R1_trimmed_fastqc.zip
-│   │   ├── sample1_R1_trimmed_fastqc.html
-├── 06_Overall_quality_and_info/
-│   ├── LorenzCurve_plotFingreprint/lorenz_plots/
-│   │   ├── sample1_Lorenz_curve_deeptools.plotFingreprint.pdf
-│   │   └── ...
-|   ├── Counts
-|   │   ├── counts_summary.txt
-|   │   └── subread_featureCounts_output
-|   │       └── sample1
-|   │           ├── sample1.readCountInPeaks
-|   │           ├── sample1.readCountInPeaks.log
-|   │           └── sample1.readCountInPeaks.summary
-|   └── Sample_comparisons
-|       ├── multiBigWigSummary_matrix_allSamples.npz
-|       ├── PCA_on_BigWigs_wholeGenome.pdf
-|       ├── Peak_comparison
-|       │   ├── all_samples_peaks_concatenation_collapsed_sorted.bed
-|       │   ├── peaks_score_matrix_all_samples_MACS3.npz
-|       │   └── peaks_score_matrix_all_samples_table_MACS3.tsv
+│   │   └── multiQC_report_trimmed_fastq.err
+│   └── trimmed_fastq_fastqc/
+│       ├── sample1_R1_trimmed_fastqc.zip
+│       └── sample1_R1_trimmed_fastqc.html
+└── 06_Overall_quality_and_info/
+    ├── LorenzCurve_plotFingreprint/lorenz_plots/
+    │   ├── sample1_Lorenz_curve_deeptools.plotFingreprint.pdf
+    │   └── ...
+    ├── Counts
+    │   ├── counts_summary.txt
+    │   └── subread_featureCounts_output
+    │       └── sample1
+    │           ├── sample1.readCountInPeaks
+    │           ├── sample1.readCountInPeaks.log
+    │           └── sample1.readCountInPeaks.summary
+    └── Sample_comparisons
+        ├── multiBigWigSummary_matrix_allSamples.npz
+        ├── PCA_on_BigWigs_wholeGenome.pdf
+        └── Peak_comparison
+            ├── all_samples_peaks_concatenation_collapsed_sorted.bed
+            ├── peaks_score_matrix_all_samples_MACS3.npz
+            └── peaks_score_matrix_all_samples_table_MACS3.tsv
 ```
 
 ## Acknowledgments

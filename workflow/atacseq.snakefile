@@ -96,13 +96,6 @@ def is_paired_end(sample_name):
 
 # Function to get paired FASTQ files for a given sample
 def get_paired_fq(wildcards):
-    #print(f"DataFrame shape: {samplesheet.shape}")
-    #print(samplesheet.head())  # Print first few rows
-    #print(f"Attempting to access index for SAMPLE={wildcards.SAMPLE}")
-    #if samplesheet.empty:
-    #  raise ValueError("Error: The DataFrame is empty. Check input file paths.")
-    #if wildcards.SAMPLE not in samplesheet.index:
-    #  raise KeyError(f"Sample {wildcards.SAMPLE} not found in DataFrame.")
     sample_data = samplesheet[samplesheet['sample_name'] == wildcards.SAMPLE].iloc[0]
     if is_paired_end(wildcards.SAMPLE):
         return [sample_data['fq1'], sample_data['fq2']]  # Return a list of file paths
@@ -198,6 +191,7 @@ rule AAA_initialization:
         narrowPeaks_peaks = expand(os.path.join(PEAKSDIR, "{sample}_mapq{mapq}_woMT_{dup}_qValue{qValue}_peaks.narrowPeak"), sample=SAMPLENAMES, mapq=MAPQ, dup=DUP, qValue=str(config["peak_calling"]["qValue_cutoff"])),
         narrowPeaks_peaks_chr = expand(os.path.join(PEAKSDIR, ''.join(["{sample}_mapq", MAPQ, "_woMT_", DUP, "_qValue", str(config["peak_calling"]["qValue_cutoff"]), "_peaks_chr.narrowPeak"])), sample=SAMPLENAMES),
         summary_file = os.path.join(SUMMARYDIR, "Counts/counts_summary.txt"),
+        pbc = pbc,
         lorenz_plot_ggplot = os.path.join(SUMMARYDIR, "LorenzCurve_plotFingreprint/Lorenz_curve_deeptools.plotFingreprint_allSamples.pdf"),
         norm_bw_average = norm_bw_average,
         peaks_comparison = peaks_comparison
@@ -360,13 +354,18 @@ rule gatk4_markdups:
         bam_mapq_only_sorted = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_sorted_woMT.bam"])),
         bam_mapq_only_sorted_index = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_sorted_woMT.bam.bai"]))
     output:
+        bam_mdup_notshifted = temp(os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_notshifted_sorted_woMT_", DUP, ".bam"]))),
+        bai_mdup_notshifted = temp(os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_notshifted_sorted_woMT_", DUP, ".bai"]))),
+        bam_mdup_notsorted = temp(os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_notsorted_woMT_", DUP, ".bam"]))),
         bam_mdup = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_sorted_woMT_", DUP, ".bam"])),
         bai_mdup = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_sorted_woMT_", DUP, ".bai"])),
         dup_metrics = "02_BAM/MarkDuplicates_metrics/{SAMPLE}_MarkDuplicates_metrics.txt",
         flagstat_filtered = os.path.join("02_BAM/flagstat/", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_sorted_woMT_", DUP, "_flagstat.txt"]))
     params:
         remove_duplicates = str(config["remove_duplicates"]).strip().lower() == "true",
-        sample = "{SAMPLE}"
+        sample = "{SAMPLE}",
+        minFragmentLength = str(config["bam_features"]["minFragmentLength"]),
+        maxFragmentLength = str(config["bam_features"]["maxFragmentLength"]) 
     conda:
         "envs/filter.yml"
     log:
@@ -386,12 +385,24 @@ rule gatk4_markdups:
 
         $CONDA_PREFIX/bin/gatk MarkDuplicatesWithMateCigar \
         --INPUT {input.bam_mapq_only_sorted} \
-        --OUTPUT {output.bam_mdup} \
+        --OUTPUT {output.bam_mdup_notshifted} \
         --REMOVE_DUPLICATES {params.remove_duplicates} \
         --OPTICAL_DUPLICATE_PIXEL_DISTANCE 2500 \
         --CREATE_INDEX true \
         --VALIDATION_STRINGENCY LENIENT \
         --METRICS_FILE {output.dup_metrics} 2> {log.out} > {log.err}
+
+
+        printf '\033[1;36m{params.sample}: Shifting reads...\\n\033[0m'
+        alignmentSieve -b {output.bam_mdup_notshifted} \
+            --ATACshift \
+            --minFragmentLength {params.minFragmentLength} \
+            --maxFragmentLength {params.maxFragmentLength} \
+            --numberOfProcessors {threads} \
+            -o {output.bam_mdup_notsorted}
+
+        $CONDA_PREFIX/bin/samtools sort -@ {threads} {output.bam_mdup_notsorted} -o {output.bam_mdup}
+        $CONDA_PREFIX/bin/samtools index -@ {threads} -b {output.bam_mdup} {output.bai_mdup}
 
         $CONDA_PREFIX/bin/samtools flagstat -@ {threads} {output.bam_mdup} > {output.flagstat_filtered}
         """
@@ -486,8 +497,6 @@ rule bam_shifting_and_RPM_normalization:
         build_normalization = "03_Normalization/RPM_normalized/bamToBed_log",
         blacklist = BLACKLIST,
         mapq_cutoff = MAPQ,
-        minFragmentLength = str(config["bam_features"]["minFragmentLength"]),
-        maxFragmentLength = str(config["bam_features"]["maxFragmentLength"]),
         ignore_chr = '|'.join([re.sub('\..*$', '', i) for i in str(config["genomic_annotations"]["ignore_for_normalization"]).split(" ")])
     conda:
         "envs/shifting.yml"
@@ -509,12 +518,12 @@ rule bam_shifting_and_RPM_normalization:
         printf '\033[1;36m{params.sample}: Bam filtering and conversion to bedPE...\\n\033[0m'
         $CONDA_PREFIX/bin/samtools view -@ {threads} -b -f 3 {output.dedup_BAM_sortedByName} | bedtools bamtobed -i stdin -cigar -bedpe > {output.dedup_BEDPE_sortedByName} 2> {log.out}
 
-        printf '\033[1;36m{params.sample}: Shifting read fragments...\\n\033[0m'
-        awk -v OFS='\\t' '{{if($9=="+"){{print $1,$2+4,$6-5,$7,1,$9}}else if($9=="-"){{print $1,$2-5,$6+4,$7,1,$9}}}}' {output.dedup_BEDPE_sortedByName} | awk '(($3 >= $2))' > {output.dedup_BED_sortedByName_shifted}
+        printf '\033[1;36m{params.sample}: Not shifting read fragments...\\n\033[0m'
+        awk -v OFS='\\t' '{{if($9=="+"){{print $1,$2,$6,$7,1,$9}}else if($9=="-"){{print $1,$2,$6,$7,1,$9}}}}' {output.dedup_BEDPE_sortedByName} | awk '(($3 >= $2))' > {output.dedup_BED_sortedByName_shifted}
         sort -k1,1 -k2,2n {output.dedup_BED_sortedByName_shifted} | grep '+' > {output.dedup_BED_sortedByPos_shifted}
 
-        printf '\033[1;36m{params.sample}: Filter blacklist and fragmentSize...\\n\033[0m'
-        $CONDA_PREFIX/bin/bedtools intersect -a {output.dedup_BED_sortedByPos_shifted} -b {params.blacklist} -v | awk '(($3-$2 >= {params.minFragmentLength}) && ($3-$2 <= {params.maxFragmentLength}))' > {output.dedup_BED_sortedByPos_shifted_noBlack}
+        printf '\033[1;36m{params.sample}: Filter blacklist...\\n\033[0m'
+        $CONDA_PREFIX/bin/bedtools intersect -a {output.dedup_BED_sortedByPos_shifted} -b {params.blacklist} -v > {output.dedup_BED_sortedByPos_shifted_noBlack}
 
         printf '\033[1;36m{params.sample}: Compute and RPM-Normalize coverage...\\n\033[0m'
         cut -f 1,2,3 {output.dedup_BED_sortedByPos_shifted_noBlack} | grep -v -E '{params.ignore_chr}' > {output.dedup_BED_sortedByPos_shifted_noBlack_noIgnoreChr}
@@ -579,11 +588,11 @@ rule compute_bigwigAverage:
 # FastQC on BAMs
 rule fastQC_BAMs:
     input:
-        dedup_BAM = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", MAPQ, "_sorted_woMT_", DUP, ".bam"])),
-        dedup_BAM_index = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", MAPQ, "_sorted_woMT_", DUP, ".bai"]))
+        bam_mdup_notshifted = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_notshifted_sorted_woMT_", DUP, ".bam"])),
+        bai_mdup_notshifted = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_notshifted_sorted_woMT_", DUP, ".bai"]))
     output:
-        html = os.path.join("02_BAM_fastQC/", ''.join(["{SAMPLE}_mapq", MAPQ, "_sorted_woMT_", DUP, "_fastqc.html"])),
-        zip = os.path.join("02_BAM_fastQC/", ''.join(["{SAMPLE}_mapq", MAPQ, "_sorted_woMT_", DUP, "_fastqc.zip"]))
+        html = os.path.join("02_BAM_fastQC/", ''.join(["{SAMPLE}_mapq", MAPQ, "_notshifted_sorted_woMT_", DUP, "_fastqc.html"])),
+        zip = os.path.join("02_BAM_fastQC/", ''.join(["{SAMPLE}_mapq", MAPQ, "_notshifted_sorted_woMT_", DUP, "_fastqc.zip"]))
     params:
         fastQC_BAMs_outdir = os.path.join(config["output_directory"], "02_BAM_fastQC/"),
         sample = "{SAMPLE}"
@@ -598,7 +607,7 @@ rule fastQC_BAMs:
         printf '\033[1;36m{params.sample}: Performing fastQC on deduplicated bam...\\n\033[0m'
         mkdir -p 02_BAM_fastQC
         
-        $CONDA_PREFIX/bin/fastqc -t {threads} --outdir {params.fastQC_BAMs_outdir} {input.dedup_BAM}
+        $CONDA_PREFIX/bin/fastqc -t {threads} --outdir {params.fastQC_BAMs_outdir} {input.bam_mdup_notshifted}
         """
 # ----------------------------------------------------------------------------------------
 
@@ -813,7 +822,7 @@ rule counts_summary:
 rule multiQC_BAMs:
     input:
         flagstat_filtered = expand(os.path.join("02_BAM/flagstat/", ''.join(["{sample}_mapq", str(config["MAPQ_threshold"]), "_sorted_woMT_", DUP, "_flagstat.txt"])), sample = SAMPLENAMES),
-        BAM_fastqc_zip = expand(os.path.join("02_BAM_fastQC/", ''.join(["{sample}_mapq", MAPQ, "_sorted_woMT_", DUP, "_fastqc.zip"])), sample=SAMPLENAMES),
+        BAM_fastqc_zip = expand(os.path.join("02_BAM_fastQC/", ''.join(["{sample}_mapq", MAPQ, "_notshifted_sorted_woMT_", DUP, "_fastqc.zip"])), sample=SAMPLENAMES),
         narrowPeaks = expand(os.path.join(PEAKSDIR, ''.join(["{sample}_mapq", MAPQ, "_woMT_",DUP,"_qValue", str(config["peak_calling"]["qValue_cutoff"]), "_peaks.narrowPeak"])), sample=SAMPLENAMES)
     output:
         multiqcReportBAM = os.path.join(SUMMARYDIR, ''.join(["multiQC_", DUP, "_bams/multiQC_report_BAMs_", DUP, ".html"]))
@@ -822,9 +831,11 @@ rule multiQC_BAMs:
         picard_metrics_dir = "02_BAM/MarkDuplicates_metrics/",
         dedup_BAM_flagstat_dir = "02_BAM/flagstat/",
         macs_dir = PEAKSDIR,
-        multiQC_BAM_outdir = os.path.join(config["output_directory"], SUMMARYDIR, ''.join(["multiQC_", DUP, "_bams/"]))
+        multiQC_BAM_outdir = os.path.join(config["output_directory"], SUMMARYDIR, ''.join(["multiQC_", DUP, "_bams/"])),
+        multiqc_config =  os.path.join(workflow.basedir, os.path.pardir, "config", "multiqc_config.yaml")
     conda:
         "envs/multiqc.yml"
+    threads: 1
     log:
         out = os.path.join(SUMMARYDIR, ''.join(["multiQC_", DUP, "_bams/multiQC_report_BAMs_", DUP, ".out"])),
         err = os.path.join(SUMMARYDIR, ''.join(["multiQC_", DUP, "_bams/multiQC_report_BAMs_", DUP, ".err"]))
@@ -836,7 +847,7 @@ rule multiQC_BAMs:
 
         $CONDA_PREFIX/bin/multiqc -f \
         --outdir {params.multiQC_BAM_outdir} \
-        -c ../config/multiqc_config.yaml \
+        -c {params.multiqc_config} \
         -n multiQC_report_BAMs_{DUP}.html \
         --dirs \
         02_BAM/MarkDuplicates_metrics 02_BAM/flagstat \
@@ -847,6 +858,69 @@ rule multiQC_BAMs:
         """
 
 
+# ----------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------
+# Calculating PBC metrics
+rule calculate_pbc:
+    input:
+        dedup_BAM = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", MAPQ, "_sorted_woMT_", DUP, ".bam"]))
+    output:
+        dedup_BAM_sorted = temp(os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", MAPQ, "_sorted2_woMT_", DUP, ".bam"]))),
+        pbc = os.path.join(SUMMARYDIR, "PBC/{SAMPLE}_pbc.qc")
+    conda:
+        "envs/pbc.yml" 
+    threads:
+        max(math.floor(workflow.cores/2), 1)  
+    benchmark:
+        "benchmarks/PBC/PBC---{SAMPLE}_benchmark.txt"
+    shell:
+        """
+        # Sort BAM by read names
+        echo "Sorting BAM by read names..."
+        samtools sort -@ {threads} -n -O BAM -o {output.dedup_BAM_sorted} {input.dedup_BAM}
+
+        # Calculate PBC metrics
+        echo "Calculating PBC metrics..."
+        bedtools bamtobed -bedpe -i {output.dedup_BAM_sorted} | \
+        awk 'BEGIN{{OFS="\\t"}}{{print $1,$2,$4,$6,$9,$10}}' | \
+        grep -v 'chrM' | \
+        sort | \
+        uniq -c | \
+        awk 'BEGIN{{mt=0;m0=0;m1=0;m2=0}}
+            ($1==1){{m1=m1+1}}
+            ($1==2){{m2=m2+1}}
+            {{m0=m0+1}}
+            {{mt=mt+$1}}
+            END{{printf "%d\\t%d\\t%d\\t%d\\t%f\\t%f\\t%f\\n", mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}}' > {output.pbc}
+
+        echo "PBC metrics saved"
+        """
+
+# ----------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------
+ 
+rule merge_pbc_results:
+    input:
+        pbc = expand(os.path.join(SUMMARYDIR, "PBC/{sample}_pbc.qc"), sample = SAMPLENAMES)
+    output:
+        pbc_merged = os.path.join(SUMMARYDIR, "PBC/merged_pbc_metrics.tsv")
+    conda:
+        "envs/pbc.yml"
+    threads: 1
+    shell:
+        """
+        (
+        echo -e "Sample\tTotalReadPairs\tDistinctReadPairs\tOneReadPair\tTwoReadPairs\tNRF\tPBC1\tPBC2"
+        for f in {input.pbc}; do
+            sample=$(basename "$f" .pbc.qc)
+            line=$(cat "$f")
+            echo -e "$sample\t$line"
+        done
+        ) > {output.pbc_merged}
+        """
+ 
 # ----------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------
