@@ -66,10 +66,3 @@ quality_controls:
   calculate_tss: True
 
 
-
-
-### 6. Differential TF-binding analyses -----------------------------------------------------------------------------------------------
-differential_TF_binding:
-  sample_groups_table: ""
-  merged_bigwig_binSize: 10
-

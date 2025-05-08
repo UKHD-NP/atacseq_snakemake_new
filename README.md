@@ -189,9 +189,9 @@ Key metrics from [ENCODE](https://www.encodeproject.org/atac-seq/) include:
 #### **8. Fragment Size Distribution**
 The `fragment_size_distribution` rule calculates fragment size distributions for each sample, which provides insights into nucleosome positioning and library complexity. A combined plot (`fragment_size_distribution_report`) summarizes these distributions across all samples.
 High-quality ATAC-seq data based on [ENCODE](https://www.encodeproject.org/atac-seq/) must show:
--**Nucleosome-free region (NFR) peak** at ~50 bp
--**Mononucleosome peak** between 147–294 bp
--Clear separation of di-/tri-nucleosome peaks (optional)
+- **Nucleosome-free region (NFR) peak** at ~50 bp 
+- **Mononucleosome peak** between 147–294 bp
+- Clear separation of di-/tri-nucleosome peaks (optional)
 
 
 ![Fragment-distribution](resources/fragmentSize_distribution_examples.svg)
@@ -322,8 +322,6 @@ output_directory/
     │           ├── sample1.readCountInPeaks.log
     │           └── sample1.readCountInPeaks.summary
     └── Sample_comparisons
-        ├── multiBigWigSummary_matrix_allSamples.npz
-        ├── PCA_on_BigWigs_wholeGenome.pdf
         └── Peak_comparison
             ├── all_samples_peaks_concatenation_collapsed_sorted.bed
             ├── peaks_score_matrix_all_samples_MACS3.npz

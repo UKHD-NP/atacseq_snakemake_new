@@ -63,7 +63,6 @@ MAPQ = str(config["MAPQ_threshold"])
 genome_id = config["genomic_annotations"]["genome_id"]
 BLACKLIST = str(config["blacklist"])
 GROUPNAMES = SAMPLENAMES
-norm_bw_average = []
 
 
 if (eval(str(config["remove_duplicates"])) == True):
@@ -193,7 +192,6 @@ rule AAA_initialization:
         summary_file = os.path.join(SUMMARYDIR, "Counts/counts_summary.txt"),
         pbc = pbc,
         lorenz_plot_ggplot = os.path.join(SUMMARYDIR, "LorenzCurve_plotFingreprint/Lorenz_curve_deeptools.plotFingreprint_allSamples.pdf"),
-        norm_bw_average = norm_bw_average,
         peaks_comparison = peaks_comparison
     shell:
         """
@@ -354,18 +352,13 @@ rule gatk4_markdups:
         bam_mapq_only_sorted = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_sorted_woMT.bam"])),
         bam_mapq_only_sorted_index = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_sorted_woMT.bam.bai"]))
     output:
-        bam_mdup_notshifted = temp(os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_notshifted_sorted_woMT_", DUP, ".bam"]))),
-        bai_mdup_notshifted = temp(os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_notshifted_sorted_woMT_", DUP, ".bai"]))),
-        bam_mdup_notsorted = temp(os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_notsorted_woMT_", DUP, ".bam"]))),
         bam_mdup = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_sorted_woMT_", DUP, ".bam"])),
         bai_mdup = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_sorted_woMT_", DUP, ".bai"])),
         dup_metrics = "02_BAM/MarkDuplicates_metrics/{SAMPLE}_MarkDuplicates_metrics.txt",
         flagstat_filtered = os.path.join("02_BAM/flagstat/", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_sorted_woMT_", DUP, "_flagstat.txt"]))
     params:
         remove_duplicates = str(config["remove_duplicates"]).strip().lower() == "true",
-        sample = "{SAMPLE}",
-        minFragmentLength = str(config["bam_features"]["minFragmentLength"]),
-        maxFragmentLength = str(config["bam_features"]["maxFragmentLength"]) 
+        sample = "{SAMPLE}"
     conda:
         "envs/filter.yml"
     log:
@@ -385,24 +378,13 @@ rule gatk4_markdups:
 
         $CONDA_PREFIX/bin/gatk MarkDuplicatesWithMateCigar \
         --INPUT {input.bam_mapq_only_sorted} \
-        --OUTPUT {output.bam_mdup_notshifted} \
+        --OUTPUT {output.bam_mdup} \
         --REMOVE_DUPLICATES {params.remove_duplicates} \
         --OPTICAL_DUPLICATE_PIXEL_DISTANCE 2500 \
         --CREATE_INDEX true \
         --VALIDATION_STRINGENCY LENIENT \
+        --MINIMUM_DISTANCE 250 \
         --METRICS_FILE {output.dup_metrics} 2> {log.out} > {log.err}
-
-
-        printf '\033[1;36m{params.sample}: Shifting reads...\\n\033[0m'
-        alignmentSieve -b {output.bam_mdup_notshifted} \
-            --ATACshift \
-            --minFragmentLength {params.minFragmentLength} \
-            --maxFragmentLength {params.maxFragmentLength} \
-            --numberOfProcessors {threads} \
-            -o {output.bam_mdup_notsorted}
-
-        $CONDA_PREFIX/bin/samtools sort -@ {threads} {output.bam_mdup_notsorted} -o {output.bam_mdup}
-        $CONDA_PREFIX/bin/samtools index -@ {threads} -b {output.bam_mdup} {output.bai_mdup}
 
         $CONDA_PREFIX/bin/samtools flagstat -@ {threads} {output.bam_mdup} > {output.flagstat_filtered}
         """
@@ -483,6 +465,9 @@ rule bam_shifting_and_RPM_normalization:
     output:
         #temp
         dedup_BAM_sortedByName = temp(os.path.join("03_Normalization/RPM_normalized/", ''.join(["temp_{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_sortedByName.bam"]))),
+        dedup_BED_sortedByName = temp(os.path.join("03_Normalization/RPM_normalized/", ''.join(["temp_{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_sortedByName.bed"]))),
+        dedup_BED_read_sortedByName_shifted = temp(os.path.join("03_Normalization/RPM_normalized/", ''.join(["temp_{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_read_sortedByName_shifted.bed"]))),
+        dedup_BED_read_sortedByPos_shifted = os.path.join("03_Normalization/RPM_normalized/", ''.join(["temp_{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_read_sortedByPos_shifted.bed"])),
         dedup_BEDPE_sortedByName = temp(os.path.join("03_Normalization/RPM_normalized/", ''.join(["temp_{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_sortedByName.bedpe"]))),
         dedup_BED_sortedByName_shifted = temp(os.path.join("03_Normalization/RPM_normalized/", ''.join(["temp_{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_sortedByName_shifted.bed"]))),
         dedup_BED_sortedByPos_shifted = temp(os.path.join("03_Normalization/RPM_normalized/", ''.join(["temp_{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_sortedByPos_shifted.bed"]))),
@@ -496,6 +481,8 @@ rule bam_shifting_and_RPM_normalization:
         sample = "{SAMPLE}",
         build_normalization = "03_Normalization/RPM_normalized/bamToBed_log",
         blacklist = BLACKLIST,
+        minFragmentLength = str(config["bam_features"]["minFragmentLength"]),
+        maxFragmentLength = str(config["bam_features"]["maxFragmentLength"]),
         mapq_cutoff = MAPQ,
         ignore_chr = '|'.join([re.sub('\..*$', '', i) for i in str(config["genomic_annotations"]["ignore_for_normalization"]).split(" ")])
     conda:
@@ -515,15 +502,22 @@ rule bam_shifting_and_RPM_normalization:
         printf '\033[1;36m{params.sample}: re-sorting by read name...\\n\033[0m'
         $CONDA_PREFIX/bin/samtools sort -@ {threads} -n -o {output.dedup_BAM_sortedByName} {input.dedup_BAM}
 
+        printf '\033[1;36m{params.sample}: Bam filtering and conversion to bed...\\n\033[0m'
+        $CONDA_PREFIX/bin/samtools view -@ {threads} -b -f 3 {output.dedup_BAM_sortedByName} | bedtools bamtobed -i stdin -cigar > {output.dedup_BED_sortedByName} 2> {log.out}
+
+        printf '\033[1;36m{params.sample}: Shifting read fragments...\\n\033[0m'
+        awk -v OFS='\\t' '{{if($6=="+"){{print $1,$2+4,$3+4,$4,$5,$6,$7}}else if($6=="-"){{print $1,$2-5,$3-5,$4,$5,$6,$7}}}}' {output.dedup_BED_sortedByName} > {output.dedup_BED_read_sortedByName_shifted}
+        sort -k1,1 -k2,2n {output.dedup_BED_read_sortedByName_shifted} > {output.dedup_BED_read_sortedByPos_shifted}
+
         printf '\033[1;36m{params.sample}: Bam filtering and conversion to bedPE...\\n\033[0m'
         $CONDA_PREFIX/bin/samtools view -@ {threads} -b -f 3 {output.dedup_BAM_sortedByName} | bedtools bamtobed -i stdin -cigar -bedpe > {output.dedup_BEDPE_sortedByName} 2> {log.out}
 
-        printf '\033[1;36m{params.sample}: Not shifting read fragments...\\n\033[0m'
-        awk -v OFS='\\t' '{{if($9=="+"){{print $1,$2,$6,$7,1,$9}}else if($9=="-"){{print $1,$2,$6,$7,1,$9}}}}' {output.dedup_BEDPE_sortedByName} | awk '(($3 >= $2))' > {output.dedup_BED_sortedByName_shifted}
+        printf '\033[1;36m{params.sample}: Shifting read fragments...\\n\033[0m'
+        awk -v OFS='\\t' '{{if($9=="+"){{print $1,$2+4,$6-5,$7,1,$9}}else if($9=="-"){{print $1,$2-5,$6+4,$7,1,$9}}}}' {output.dedup_BEDPE_sortedByName} | awk '(($3 >= $2))' > {output.dedup_BED_sortedByName_shifted}
         sort -k1,1 -k2,2n {output.dedup_BED_sortedByName_shifted} | grep '+' > {output.dedup_BED_sortedByPos_shifted}
 
-        printf '\033[1;36m{params.sample}: Filter blacklist...\\n\033[0m'
-        $CONDA_PREFIX/bin/bedtools intersect -a {output.dedup_BED_sortedByPos_shifted} -b {params.blacklist} -v > {output.dedup_BED_sortedByPos_shifted_noBlack}
+        printf '\033[1;36m{params.sample}: Filter blacklist and fragmentSize...\\n\033[0m'
+        $CONDA_PREFIX/bin/bedtools intersect -a {output.dedup_BED_sortedByPos_shifted} -b {params.blacklist} -v | awk '(($3-$2 >= {params.minFragmentLength}) && ($3-$2 <= {params.maxFragmentLength}))' > {output.dedup_BED_sortedByPos_shifted_noBlack}
 
         printf '\033[1;36m{params.sample}: Compute and RPM-Normalize coverage...\\n\033[0m'
         cut -f 1,2,3 {output.dedup_BED_sortedByPos_shifted_noBlack} | grep -v -E '{params.ignore_chr}' > {output.dedup_BED_sortedByPos_shifted_noBlack_noIgnoreChr}
@@ -538,61 +532,14 @@ rule bam_shifting_and_RPM_normalization:
 
 
 # ----------------------------------------------------------------------------------------
-# Average bigWigs by group
-rule compute_bigwigAverage:
-    input:
-        norm_bw = expand(''.join(["03_Normalization/RPM_normalized/{sample}_mapq", MAPQ, "_woMT_", DUP ,"_shifted_RPM.normalized.bw"]), sample = SAMPLENAMES)
-    output:
-        norm_bw_average = expand(''.join(["03_Normalization/RPM_normalized_merged/{group}_mapq", MAPQ, "_woMT_", DUP ,"_shifted_RPM.normalized_merged.bs", str(config["differential_TF_binding"]["merged_bigwig_binSize"]), ".bw"]), group = GROUPNAMES)
-    params:
-        groups_tb = str(config["differential_TF_binding"]["sample_groups_table"]),
-        binSize = str(config["differential_TF_binding"]["merged_bigwig_binSize"]),
-        groups = ' '.join(GROUPNAMES),
-        bw_input_suffix = "_mapq"+MAPQ+"_woMT_"+DUP+"_shifted_RPM.normalized.bw",
-        bw_output_suffix = "_mapq"+MAPQ+"_woMT_"+DUP+"_shifted_RPM.normalized_merged.bs"+str(config["differential_TF_binding"]["merged_bigwig_binSize"])+".bw",
-        blacklist = BLACKLIST,
-    conda:
-        "envs/deeptools.yml"
-    threads:
-        workflow.cores
-    log:
-        out = expand("03_Normalization/RPM_normalized_merged/log/{group}_bigwigAverage.log", group = GROUPNAMES)
-    benchmark:
-        "benchmarks/compute_bigwigAverage/compute_bigwigAverage---allGroups_benchmark.txt"
-    priority: 50
-    shell:
-        """
-        printf '\033[1;36mMerging bigwigs by group...\\n\033[0m'
-
-        for i in {params.groups}
-        do
-            SAMPLE=$(grep $i {params.groups_tb} | cut -f 1 | uniq)
-            BIGWGS=$(echo $(for s in $SAMPLE; do echo 03_Normalization/RPM_normalized/${{s}}{params.bw_input_suffix}; done))
-
-            echo '  - '${{i}}': '$SAMPLE
-
-            $CONDA_PREFIX/bin/bigwigAverage \
-            -b $BIGWGS \
-            --binSize {params.binSize} \
-            --outFileName 03_Normalization/RPM_normalized_merged/${{i}}{params.bw_output_suffix} \
-            --outFileFormat bigwig \
-            --blackListFileName {params.blacklist} \
-            -p {threads} &> 03_Normalization/RPM_normalized_merged/log/${{i}}_bigwigAverage.log
-        done
-        """
-# ----------------------------------------------------------------------------------------
-
-
-
-# ----------------------------------------------------------------------------------------
 # FastQC on BAMs
 rule fastQC_BAMs:
     input:
-        bam_mdup_notshifted = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_notshifted_sorted_woMT_", DUP, ".bam"])),
-        bai_mdup_notshifted = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_notshifted_sorted_woMT_", DUP, ".bai"]))
+        bam_mdup = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_sorted_woMT_", DUP, ".bam"])),
+        bai_mdup = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", str(config["MAPQ_threshold"]), "_sorted_woMT_", DUP, ".bai"]))
     output:
-        html = os.path.join("02_BAM_fastQC/", ''.join(["{SAMPLE}_mapq", MAPQ, "_notshifted_sorted_woMT_", DUP, "_fastqc.html"])),
-        zip = os.path.join("02_BAM_fastQC/", ''.join(["{SAMPLE}_mapq", MAPQ, "_notshifted_sorted_woMT_", DUP, "_fastqc.zip"]))
+        html = os.path.join("02_BAM_fastQC/", ''.join(["{SAMPLE}_mapq", MAPQ, "_sorted_woMT_", DUP, "_fastqc.html"])),
+        zip = os.path.join("02_BAM_fastQC/", ''.join(["{SAMPLE}_mapq", MAPQ, "_sorted_woMT_", DUP, "_fastqc.zip"]))
     params:
         fastQC_BAMs_outdir = os.path.join(config["output_directory"], "02_BAM_fastQC/"),
         sample = "{SAMPLE}"
@@ -607,7 +554,7 @@ rule fastQC_BAMs:
         printf '\033[1;36m{params.sample}: Performing fastQC on deduplicated bam...\\n\033[0m'
         mkdir -p 02_BAM_fastQC
         
-        $CONDA_PREFIX/bin/fastqc -t {threads} --outdir {params.fastQC_BAMs_outdir} {input.bam_mdup_notshifted}
+        $CONDA_PREFIX/bin/fastqc -t {threads} --outdir {params.fastQC_BAMs_outdir} {input.bam_mdup}
         """
 # ----------------------------------------------------------------------------------------
 
@@ -707,8 +654,7 @@ rule fragment_size_distribution_report:
 # PeakCalling on bams (MACS3 callpeak)
 rule peakCalling_MACS3:
     input:
-        dedup_BAM_sorted = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", MAPQ, "_sorted_woMT_", DUP, ".bam"])),
-        dedup_BAM_sorted_index = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", MAPQ, "_sorted_woMT_", DUP, ".bai"]))
+        dedup_BED_read_sortedByPos_shifted = os.path.join("03_Normalization/RPM_normalized/", ''.join(["temp_{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_read_sortedByPos_shifted.bed"]))
     output:
         peaks_xls = os.path.join(PEAKSDIR, ''.join(["{SAMPLE}_mapq", MAPQ, "_woMT_",DUP,"_qValue", str(config["peak_calling"]["qValue_cutoff"]), "_peaks.xls"])),
         narrowPeaks = os.path.join(PEAKSDIR, ''.join(["{SAMPLE}_mapq", MAPQ, "_woMT_",DUP,"_qValue", str(config["peak_calling"]["qValue_cutoff"]), "_peaks.narrowPeak"])),
@@ -735,12 +681,12 @@ rule peakCalling_MACS3:
         printf '\033[1;36m{params.sample}: Calling peaks by {params.peak_caller}...\\n\033[0m'
 
       $CONDA_PREFIX/bin/{params.peak_caller} callpeak \
-        -t {input.dedup_BAM_sorted} \
+        -t {input.dedup_BED_read_sortedByPos_shifted} \
         -g {params.genomeSize} \
         -n {params.basename} \
         -q {params.qValue} \
-        -f BAMPE -B \
-        --nomodel --shift -75 --extsize 150 --call-summits \
+        -f BED -B \
+        --nomodel --shift -75 --extsize 150 --nolambda \
         --outdir {params.peaks_dir} \
         --keep-dup all \
         {params.summits} 2> {log.out}
@@ -821,8 +767,8 @@ rule counts_summary:
 # Perform multiQC for BAMs
 rule multiQC_BAMs:
     input:
-        flagstat_filtered = expand(os.path.join("02_BAM/flagstat/", ''.join(["{sample}_mapq", str(config["MAPQ_threshold"]), "_sorted_woMT_", DUP, "_flagstat.txt"])), sample = SAMPLENAMES),
-        BAM_fastqc_zip = expand(os.path.join("02_BAM_fastQC/", ''.join(["{sample}_mapq", MAPQ, "_notshifted_sorted_woMT_", DUP, "_fastqc.zip"])), sample=SAMPLENAMES),
+        flagstat_filtered = expand(os.path.join("02_BAM/bwa_summary/", "{sample}.BWA_summary.txt"), sample = SAMPLENAMES),
+        BAM_fastqc_zip = expand(os.path.join("02_BAM_fastQC/", ''.join(["{sample}_mapq", MAPQ, "_sorted_woMT_", DUP, "_fastqc.zip"])), sample=SAMPLENAMES),
         narrowPeaks = expand(os.path.join(PEAKSDIR, ''.join(["{sample}_mapq", MAPQ, "_woMT_",DUP,"_qValue", str(config["peak_calling"]["qValue_cutoff"]), "_peaks.narrowPeak"])), sample=SAMPLENAMES)
     output:
         multiqcReportBAM = os.path.join(SUMMARYDIR, ''.join(["multiQC_", DUP, "_bams/multiQC_report_BAMs_", DUP, ".html"]))
