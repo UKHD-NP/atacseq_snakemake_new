@@ -3,8 +3,6 @@
 # On the other hand, some parameter values have to be inevitably modified
 # **********************************************************************************************************************************
 
-# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ DNA MAPPING @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
 ### Enabling Jinja-like templating
 __use_yte__: true
 
@@ -12,6 +10,8 @@ __use_yte__: true
 samplesheet:
 output_directory:
 genome_fasta:
+tss_bed:
+chromsizes:
 runs_directory: "{{ output_directory }}/02_BAM"
 blacklist:
 fastq_suffix: ".fastq.gz"
