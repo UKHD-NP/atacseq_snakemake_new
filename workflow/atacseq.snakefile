@@ -1,5 +1,5 @@
 ##########################################
-## snakeATAC: Snakefile for DNA mapping ##
+## Snakefile for ATAC-seq analysis ##
 ##########################################
 
 import os
@@ -20,6 +20,8 @@ from itertools import chain
     
 # Define general variables
 genome_fasta = str(config["genome_fasta"])
+tss_bed = str(config["tss_bed"])
+chromsizes = str(config["chromsizes"])
 
 
 ### working directory
@@ -97,7 +99,7 @@ def is_paired_end(sample_name):
 def get_paired_fq(wildcards):
     sample_data = samplesheet[samplesheet['sample_name'] == wildcards.SAMPLE].iloc[0]
     if is_paired_end(wildcards.SAMPLE):
-        return [sample_data['fq1'], sample_data['fq2']]  # Return a list of file paths
+        return [ancient(sample_data['fq1']), ancient(sample_data['fq2'])]  # Return a list of file paths
     else:
         raise ValueError(f"Sample {wildcards.SAMPLE} is not paired-end.")
 
@@ -165,15 +167,6 @@ wildcard_constraints:
     SAMPLE = constraint_to(SAMPLENAMES),
     GROUPS = constraint_to(GROUPNAMES)
 
-    
-# Correlations outputs
-peaks_comparison = []
-if (len(SAMPLENAMES) > 1):
-    peaks_comparison.append(os.path.join(SUMMARYDIR, "Sample_comparisons/Peak_comparison/all_samples_peaks_concatenation_collapsed_sorted.bed"))
-    peaks_comparison.append(os.path.join(SUMMARYDIR, ''.join(["Sample_comparisons/Peak_comparison/peaks_score_matrix_all_samples_", PEAKCALLER, ".npz"])))
-    peaks_comparison.append(os.path.join(SUMMARYDIR, ''.join(["Sample_comparisons/Peak_comparison/peaks_score_matrix_all_samples_table_", PEAKCALLER, ".tsv"])))
-
-# ruleorder: fastQC_filtered_BAM > normalized_bigWig > raw_bigWig
 
 # ========================================================================================
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -191,8 +184,9 @@ rule AAA_initialization:
         narrowPeaks_peaks_chr = expand(os.path.join(PEAKSDIR, ''.join(["{sample}_mapq", MAPQ, "_woMT_", DUP, "_qValue", str(config["peak_calling"]["qValue_cutoff"]), "_peaks_chr.narrowPeak"])), sample=SAMPLENAMES),
         summary_file = os.path.join(SUMMARYDIR, "Counts/counts_summary.txt"),
         pbc = pbc,
-        lorenz_plot_ggplot = os.path.join(SUMMARYDIR, "LorenzCurve_plotFingreprint/Lorenz_curve_deeptools.plotFingreprint_allSamples.pdf"),
-        peaks_comparison = peaks_comparison
+        plot=expand(''.join([SUMMARYDIR, "TSS_plots/{sample}_sample_tss-enrich.pdf"]), sample=SAMPLENAMES),
+        plot_large=expand(''.join([SUMMARYDIR, "TSS_plots/{sample}_sample_large_tss-enrich.pdf"]), sample=SAMPLENAMES),
+        lorenz_plot_ggplot = os.path.join(SUMMARYDIR, "LorenzCurve_plotFingreprint/Lorenz_curve_deeptools.plotFingreprint_allSamples.pdf")
     shell:
         """
         printf '\033[1;36mPipeline ended!\\n\033[0m'
@@ -232,8 +226,8 @@ rule cutadapt_PE:
     input:
         get_paired_fq
     output:
-        R1_trimm = "01_trimmed_fastq/{SAMPLE}_R1_trimmed.fastq.gz",
-        R2_trimm = "01_trimmed_fastq/{SAMPLE}_R2_trimmed.fastq.gz"
+        R1_trimm = temp("01_trimmed_fastq/{SAMPLE}_R1_trimmed.fastq.gz"),
+        R2_trimm = temp("01_trimmed_fastq/{SAMPLE}_R2_trimmed.fastq.gz")
     params:
         sample = "{SAMPLE}",
         opts = str(config["cutadapt_trimm_options"]),
@@ -245,7 +239,7 @@ rule cutadapt_PE:
         out = "01_trimmed_fastq/logs/cutadapt.{SAMPLE}.out",
         err = "01_trimmed_fastq/logs/cutadapt.{SAMPLE}.err"
     threads:
-        max((workflow.cores - 1), 1)
+        max(math.floor(workflow.cores/4), 1)
     benchmark:
         "benchmarks/cutadapt_PE/cutadapt_PE---{SAMPLE}_benchmark.txt"
     shell:
@@ -277,7 +271,7 @@ rule BWA_PE:
     conda:
         "envs/align.yml"
     threads:
-        max((workflow.cores - 1), 1)
+        max(math.floor(workflow.cores/4), 1)
     log:
         out = "02_BAM/logs/{SAMPLE}.sort.log"
     benchmark:
@@ -365,7 +359,7 @@ rule gatk4_markdups:
         out = "02_BAM/MarkDuplicates_logs/{SAMPLE}_MarkDuplicates.out",
         err = "02_BAM/MarkDuplicates_logs/{SAMPLE}_MarkDuplicates.err"
     threads:
-        workflow.cores
+        4
     benchmark:
         "benchmarks/gatk4_markdups/gatk4_markdups---{SAMPLE}_benchmark.txt"
     shell:
@@ -467,7 +461,7 @@ rule bam_shifting_and_RPM_normalization:
         dedup_BAM_sortedByName = temp(os.path.join("03_Normalization/RPM_normalized/", ''.join(["temp_{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_sortedByName.bam"]))),
         dedup_BED_sortedByName = temp(os.path.join("03_Normalization/RPM_normalized/", ''.join(["temp_{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_sortedByName.bed"]))),
         dedup_BED_read_sortedByName_shifted = temp(os.path.join("03_Normalization/RPM_normalized/", ''.join(["temp_{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_read_sortedByName_shifted.bed"]))),
-        dedup_BED_read_sortedByPos_shifted = os.path.join("03_Normalization/RPM_normalized/", ''.join(["temp_{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_read_sortedByPos_shifted.bed"])),
+        dedup_BED_read_sortedByPos_shifted = os.path.join("03_Normalization/RPM_normalized/", ''.join(["{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_read_sortedByPos_shifted.bed"])),
         dedup_BEDPE_sortedByName = temp(os.path.join("03_Normalization/RPM_normalized/", ''.join(["temp_{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_sortedByName.bedpe"]))),
         dedup_BED_sortedByName_shifted = temp(os.path.join("03_Normalization/RPM_normalized/", ''.join(["temp_{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_sortedByName_shifted.bed"]))),
         dedup_BED_sortedByPos_shifted = temp(os.path.join("03_Normalization/RPM_normalized/", ''.join(["temp_{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_sortedByPos_shifted.bed"]))),
@@ -488,7 +482,7 @@ rule bam_shifting_and_RPM_normalization:
     conda:
         "envs/shifting.yml"
     threads:
-        max(math.floor(workflow.cores/2), 1)
+        max(math.floor(workflow.cores/4), 1)
     log:
         out = "03_Normalization/RPM_normalized/bamToBed_log/{SAMPLE}_bamToBed.log"
     benchmark:
@@ -649,12 +643,50 @@ rule fragment_size_distribution_report:
         """
 # ----------------------------------------------------------------------------------------
 
-
+# ----------------------------------------------------------------------------------------
+# TSS Enrichment plot
+rule tss_plot:
+    input:
+        BAM = os.path.join("02_BAM", ''.join(["{SAMPLE}_mapq", MAPQ, "_sorted_woMT_", DUP, ".bam"])),
+        tss = ancient(tss_bed),
+        chromsizes=ancient(chromsizes)
+    output:
+        plot= os.path.join(SUMMARYDIR, "TSS_plots/{SAMPLE}_sample_tss-enrich.pdf"),
+        plot_large=os.path.join(SUMMARYDIR, "TSS_plots/{SAMPLE}_sample_large_tss-enrich.pdf"),
+        score=os.path.join(SUMMARYDIR, "TSS_plots/{SAMPLE}_sample_tss-enrich.score.txt")
+    params:
+        script_folder = os.path.join(workflow.basedir, "tss3.py"),
+        read_len=150,  
+        sample_name="{SAMPLE}"  
+    log:
+        out=os.path.join(SUMMARYDIR, "TSS_plots/log/tss_plot_{SAMPLE}.out"),
+        err=os.path.join(SUMMARYDIR, "TSS_plots/log/tss_plot_{SAMPLE}.err")
+    conda:
+        "envs/tss.yml"
+    threads: 8
+    shell:
+        """
+        python {params.script_folder} \
+            --bam {input.BAM} \
+            --tss {input.tss} \
+            --chromsizes {input.chromsizes} \
+            --read_len {params.read_len} \
+            --out_plot {output.plot} \
+            --out_plot_large {output.plot_large} \
+            --sample_name "{params.sample_name}" \
+            --bins 400 \
+            --bp_edge 2000 \
+            --processes {threads} \
+            --greenleaf_norm \
+        > {log.out} 2> {log.err}
+        """
+# ----------------------------------------------------------------------------------------        
+        
 # ----------------------------------------------------------------------------------------
 # PeakCalling on bams (MACS3 callpeak)
 rule peakCalling_MACS3:
     input:
-        dedup_BED_read_sortedByPos_shifted = os.path.join("03_Normalization/RPM_normalized/", ''.join(["temp_{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_read_sortedByPos_shifted.bed"]))
+        dedup_BED_read_sortedByPos_shifted = os.path.join("03_Normalization/RPM_normalized/", ''.join(["{SAMPLE}_mapq", MAPQ, "_sorted_woMT_",DUP,"_read_sortedByPos_shifted.bed"]))
     output:
         peaks_xls = os.path.join(PEAKSDIR, ''.join(["{SAMPLE}_mapq", MAPQ, "_woMT_",DUP,"_qValue", str(config["peak_calling"]["qValue_cutoff"]), "_peaks.xls"])),
         narrowPeaks = os.path.join(PEAKSDIR, ''.join(["{SAMPLE}_mapq", MAPQ, "_woMT_",DUP,"_qValue", str(config["peak_calling"]["qValue_cutoff"]), "_peaks.narrowPeak"])),
@@ -685,8 +717,8 @@ rule peakCalling_MACS3:
         -g {params.genomeSize} \
         -n {params.basename} \
         -q {params.qValue} \
-        -f BED -B \
-        --nomodel --shift -75 --extsize 150 --nolambda \
+        -f BED \
+        --nomodel --shift -75 --extsize 150 --call-summits --nolambda \
         --outdir {params.peaks_dir} \
         --keep-dup all \
         {params.summits} 2> {log.out}
@@ -702,7 +734,7 @@ rule peakCalling_MACS3:
 rule counts_summary:
     input:
         flagstat_filtered = expand(os.path.join("02_BAM/flagstat/", ''.join(["{sample}_mapq", MAPQ, "_sorted_woMT_", DUP, "_flagstat.txt"])), sample = SAMPLENAMES),
-        dedup_BED_sortedByPos_shifted_noBlack = expand(os.path.join("03_Normalization/RPM_normalized/", ''.join(["temp_{sample}_mapq", MAPQ, "_sorted_woMT_",DUP,"_sortedByPos_shifted_noBlack.bed"])), sample=SAMPLENAMES),
+        dedup_BED_read_sortedByPos_shifted = expand(os.path.join("03_Normalization/RPM_normalized/", ''.join(["{sample}_mapq", MAPQ, "_sorted_woMT_",DUP,"_read_sortedByPos_shifted.bed"])), sample = SAMPLENAMES),
         peaks_file = expand(os.path.join(PEAKSDIR, ''.join(["{sample}_mapq", MAPQ, "_woMT_", DUP, "_qValue", str(config["peak_calling"]["qValue_cutoff"]), "_peaks.narrowPeak"])), sample = SAMPLENAMES),
         norm_bw = expand("03_Normalization/RPM_normalized/{sample}_mapq{mapq}_woMT_{dup}_shifted_RPM.normalized.bw", sample=SAMPLENAMES, dup=DUP, mapq=MAPQ)
     output:
@@ -724,37 +756,36 @@ rule counts_summary:
     shell:
         """
         mkdir -p {params.build_summary_directory}/Counts/subread_featureCounts_output/
-
+ 
         printf '\033[1;36mGeneration of a general counts summary table...\\n\033[0m'
         printf Sample'\\t'dedup_BAM'\\t'shifted_readsM'\\t'loss_post_shifting'\\t'n.peaks'\\t'FRiP.perc'\\t'FRiP.quality'\\n' > {output.summary_file}
-
+ 
         for NAME in {params.sample_list}
         do
             printf '\033[1;36m     - %s: adding stats to summary table...\\n\033[0m' $NAME
-
+ 
             mkdir -p {params.build_summary_directory}/Counts/subread_featureCounts_output/${{NAME}}/
-
+ 
             woMT_BAM=$(grep mapped 02_BAM/flagstat/${{NAME}}_mapq{params.MAPQ}_sorted_woMT_{params.DUP}_flagstat.txt | head -n 1 | cut -f 1 -d ' ')
-
+ 
             dedupBAM=$(grep mapped 02_BAM/flagstat/${{NAME}}_mapq{params.MAPQ}_sorted_woMT_{params.DUP}_flagstat.txt | head -n 1 | cut -f 1 -d ' ')
-
-            halfShiftedBEDPE=$(printf %d\\\\n $(wc -l < 03_Normalization/RPM_normalized/temp_${{NAME}}_mapq{params.MAPQ}_sorted_woMT_{params.DUP}_sortedByPos_shifted_noBlack.bed))
-            shiftedBEDPE=$(echo "$halfShiftedBEDPE * 2" | bc)
-            lossReads=$(echo "$dedupBAM - $shiftedBEDPE" | bc)
-
+ 
+            shiftedBED=$(printf %d\\\\n $(wc -l < 03_Normalization/RPM_normalized/${{NAME}}_mapq{params.MAPQ}_sorted_woMT_{params.DUP}_read_sortedByPos_shifted.bed))                                                        
+            lossReads=$(echo "$dedupBAM - $shiftedBED" | bc)
+ 
             peaks=$(wc -l {params.peaks_dir}${{NAME}}*_peaks.narrowPeak | cut -f 1 -d ' ')
-
-            awk 'BEGIN{{FS=OFS="\\t"; print "GeneID\\tChr\\tStart\\tEnd\\tStrand"}}{{print $4, $1, $2+1, $3, "."}}' {params.peaks_dir}${{NAME}}*.*Peak > {params.peaks_dir}${{NAME}}.saf
+ 
+            awk 'BEGIN{{FS=OFS="\\t"; print "GeneID\\tChr\\tStart\\tEnd\\tStrand"}}{{print $4, $1, $2+1, $3, "."}}' {params.peaks_dir}${{NAME}}*_peaks.narrowPeak > {params.peaks_dir}${{NAME}}.saf
             FEATURECOUNTSLOG={params.build_summary_directory}/Counts/subread_featureCounts_output/${{NAME}}/${{NAME}}.readCountInPeaks.log
             featureCounts -p -a {params.peaks_dir}${{NAME}}.saf -F SAF -o {params.build_summary_directory}/Counts/subread_featureCounts_output/${{NAME}}/${{NAME}}.readCountInPeaks 02_BAM/${{NAME}}_mapq*_sorted_woMT_{DUP}.bam 2> ${{FEATURECOUNTSLOG}}
             rm {params.peaks_dir}${{NAME}}.saf
             frip=$(grep 'Successfully assigned alignments' ${{FEATURECOUNTSLOG}} | sed -e 's/.*(//' | sed 's/%.*$//')
             fripScore=$(echo $frip | sed 's/\\..*$//')
             fripLabel=$(if [ $fripScore -ge {params.FRiP_threshold} ]; then echo 'good'; else echo 'bad'; fi)
-
-            printf ${{NAME}}'\\t'$dedupBAM'\\t'$shiftedBEDPE'\\t'$lossReads'\\t'$peaks'\\t'$frip'\\t'$fripLabel'\\n' >> {output.summary_file}
+ 
+            printf ${{NAME}}'\\t'$dedupBAM'\\t'$shiftedBED'\\t'$lossReads'\\t'$peaks'\\t'$frip'\\t'$fripLabel'\\n' >> {output.summary_file}
         done
-
+ 
         uniq -u {output.summary_file} > {output.summary_file_temp}
         (head -n 1 {output.summary_file_temp} && tail -n +2 {output.summary_file_temp} | sort -k 1) > {output.summary_file}
         """
@@ -767,7 +798,7 @@ rule counts_summary:
 # Perform multiQC for BAMs
 rule multiQC_BAMs:
     input:
-        flagstat_filtered = expand(os.path.join("02_BAM/bwa_summary/", "{sample}.BWA_summary.txt"), sample = SAMPLENAMES),
+        flagstat_filtered = expand(os.path.join("02_BAM/flagstat/", ''.join(["{sample}_mapq", str(config["MAPQ_threshold"]), "_sorted_woMT_", DUP, "_flagstat.txt"])), sample = SAMPLENAMES),
         BAM_fastqc_zip = expand(os.path.join("02_BAM_fastQC/", ''.join(["{sample}_mapq", MAPQ, "_sorted_woMT_", DUP, "_fastqc.zip"])), sample=SAMPLENAMES),
         narrowPeaks = expand(os.path.join(PEAKSDIR, ''.join(["{sample}_mapq", MAPQ, "_woMT_",DUP,"_qValue", str(config["peak_calling"]["qValue_cutoff"]), "_peaks.narrowPeak"])), sample=SAMPLENAMES)
     output:
@@ -790,7 +821,7 @@ rule multiQC_BAMs:
     shell:
         """
         printf '\033[1;36mGenerating multiQC report from deduplicated bam quality test...\\n\033[0m'
-
+ 
         $CONDA_PREFIX/bin/multiqc -f \
         --outdir {params.multiQC_BAM_outdir} \
         -c {params.multiqc_config} \
@@ -802,7 +833,6 @@ rule multiQC_BAMs:
         {params.dedup_BAM_flagstat_dir} \
         {params.macs_dir} > {log.out} 2> {log.err}
         """
-
 
 # ----------------------------------------------------------------------------------------
 
@@ -817,7 +847,7 @@ rule calculate_pbc:
     conda:
         "envs/pbc.yml" 
     threads:
-        max(math.floor(workflow.cores/2), 1)  
+        1  
     benchmark:
         "benchmarks/PBC/PBC---{SAMPLE}_benchmark.txt"
     shell:
@@ -890,7 +920,7 @@ rule Lorenz_curve:
     conda:
         "envs/deeptools.yml"
     threads:
-        max(math.floor((workflow.cores-1)/2), 1)
+        max(math.floor(workflow.cores/4), 1)
     log:
         out = os.path.join(SUMMARYDIR, "LorenzCurve_plotFingreprint/log/{SAMPLE}_deeptools_plotFingreprint.log")
     benchmark:
@@ -946,58 +976,6 @@ rule Lorenz_curve_merge_plots:
         -e "pdf('{params.dir}{output.lorenz_plot_ggplot}', width = 8, height = 6.5)" \
         -e "ggplot2::ggplot(data = combined_table, ggplot2::aes(x = rank, y = cumulative_sum, color = sample)) + ggplot2::geom_line() + ggplot2::ggtitle('Fingerprints (Lorenz curves) all samples') + ggplot2::xlim(c(0,1)) + ggplot2::xlab('Normalized rank') + ggplot2::ylab('Fraction with reference to the bin with highest coverage') + ggplot2::theme_classic() + ggplot2::theme(axis.text = ggplot2::element_text(color = 'black'), axis.ticks = ggplot2::element_line(color = 'black'))" \
         -e "invisible(dev.off())" &> {log.ggplotcombine}
-        """
-# ----------------------------------------------------------------------------------------
-
-
-# ----------------------------------------------------------------------------------------
-# Absolute peaks file and relative matrix score generation for called peaks
-rule all_peaks_file_and_score_matrix:
-    input:
-        norm_bw = expand("03_Normalization/RPM_normalized/{sample}_mapq{mapq}_woMT_{dup}_shifted_RPM.normalized.bw", sample=SAMPLENAMES,  dup=DUP, mapq=MAPQ),
-        peaks_file = expand(os.path.join(str(PEAKSDIR), "{sample}_mapq{mapq}_woMT_{dup}_qValue{qValue}_peaks.narrowPeak"), sample=SAMPLENAMES, mapq=MAPQ, dup=DUP, qValue=str(config["peak_calling"]["qValue_cutoff"]))
-    output:
-        concatenation_bed = temp(os.path.join(SUMMARYDIR, "Sample_comparisons/Peak_comparison/temp_all_samples_peaks_concatenation.bed")),
-        concatenation_bed_sorted = temp(os.path.join(SUMMARYDIR, "Sample_comparisons/Peak_comparison/temp_all_samples_peaks_concatenation_sorted.bed")),
-        concatenation_bed_collapsed = temp(os.path.join(SUMMARYDIR, "Sample_comparisons/Peak_comparison/temp_all_samples_peaks_concatenation_collapsed.bed")),
-        concatenation_bed_collapsed_sorted = os.path.join(SUMMARYDIR, "Sample_comparisons/Peak_comparison/all_samples_peaks_concatenation_collapsed_sorted.bed"),
-        score_matrix_peaks = os.path.join(SUMMARYDIR, ''.join(["Sample_comparisons/Peak_comparison/peaks_score_matrix_all_samples_", PEAKCALLER, ".npz"])),
-        score_matrix_peaks_table = os.path.join(SUMMARYDIR, ''.join(["Sample_comparisons/Peak_comparison/peaks_score_matrix_all_samples_table_", PEAKCALLER, ".tsv"]))
-    params:
-        make_directory = os.path.dirname(''.join([SUMMARYDIR, "Sample_comparisons/Peak_comparison/"])),
-        peak_caller = PEAKCALLER,
-        peaks_dir = PEAKSDIR,
-        labels = ' '.join(SAMPLENAMES),
-        blacklist = BLACKLIST
-    conda:
-        "envs/score_matrix.yml"
-    threads:
-        max((workflow.cores-1), 1)
-    benchmark:
-        "benchmarks/all_peaks_file_and_score_matrix/all_peaks_file_and_score_matrix---benchmark.txt"
-    shell:
-        """
-        printf '\033[1;36mGenerating a file result of the merge of all the {params.peak_caller} peaks...\\n\033[0m'
-
-        mkdir -p {params.make_directory}
-
-        cat {params.peaks_dir}*.*Peak >> {output.concatenation_bed}
-        sort -V -k1,1 -k2,2 -k5,5 {output.concatenation_bed} > {output.concatenation_bed_sorted}
-
-        $CONDA_PREFIX/bin/bedtools merge -i {output.concatenation_bed_sorted} | uniq > {output.concatenation_bed_collapsed}
-        sort -V -k1,1 -k2,2 -k5,5 {output.concatenation_bed_collapsed} > {output.concatenation_bed_collapsed_sorted}
-
-
-        printf '\033[1;36mComputing the score matrix for all the {params.peak_caller} peaks per each sample...\\n\033[0m'
-
-        $CONDA_PREFIX/bin/multiBigwigSummary BED-file \
-        -p {threads} \
-        -b {input.norm_bw} \
-        -o {output.score_matrix_peaks} \
-        --BED {output.concatenation_bed_collapsed_sorted} \
-        --blackListFileName {params.blacklist} \
-        --outRawCounts {output.score_matrix_peaks_table} \
-        --labels {params.labels}
         """
 # ----------------------------------------------------------------------------------------
 
