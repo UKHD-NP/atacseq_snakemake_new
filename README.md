@@ -487,6 +487,18 @@ output_directory/
             └── peaks_score_matrix_all_samples_table_MACS3.tsv
 ```
 
+## Test Dataset
+
+A synthetic test dataset with blacklist, tss, chromsize, samplesheet and FASTA file is provided in the `test_data/` directory to validate the pipeline installation.
+The test dataset includes 2 samples (sample1 and sample2) with the following properties:
+
+Feature                     |  Specification                                                                         
+----------------------------+----------------------------------------------------------------------------------------
+Reference genome            |  chr22 (100 kb synthetic sequence)                                                     
+Reads per sample            |  20,000 paired-end reads (75 bp)                                                       
+TSS positions               |  100 transcription start sites                                                                                                                                                      
+Quality scores              |  Phred 25-40 (mean ~33)                                                                        
+                                                    
 
 ## Acknowledgments
 
