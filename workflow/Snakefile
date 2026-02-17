@@ -1,0 +1,40 @@
+import pandas as pd
+import re
+
+# Load the config file
+configfile: "config/config.yml"
+
+# Load the sample sheet from the config file
+samplesheet = pd.read_csv(config['samples_csv'], sep=r'[;,]', engine='python')
+sample_ids = samplesheet['sample_id'].drop_duplicates().tolist()
+sample_id_pattern = "|".join(re.escape(sid) for sid in sample_ids)
+
+# Constrain sample_id wildcard to known sample IDs to avoid recursive expansion
+wildcard_constraints:
+    sample_id=sample_id_pattern
+
+# Import rules
+include: "modules/common.smk"
+include: "modules/init.smk"
+include: "modules/prepare_genome.smk"
+include: "modules/qc.smk"
+include: "modules/trim.smk"
+include: "modules/align.smk"
+include: "modules/mark_duplicates.smk"
+include: "modules/bam_filter.smk"
+include: "modules/align_stats.smk"
+include: "modules/bam_to_bigwig.smk"
+include: "modules/call_peaks.smk"
+include: "modules/shift_bam.smk"
+include: "modules/frip_score.smk"
+include: "modules/quant.smk"
+include: "modules/annotate_peaks.smk"
+include: "modules/deeptools.smk"
+include: "modules/ataqv.smk"
+include: "modules/delete_tmp.smk"
+include: "modules/multiqc.smk"
+
+# Targets rule
+rule all:
+    input:
+        get_target_files(sample_ids)

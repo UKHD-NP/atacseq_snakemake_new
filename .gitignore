@@ -1,0 +1,3 @@
+.snakemake/
+references/
+test_data/results/

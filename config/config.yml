@@ -1,0 +1,80 @@
+# Path or URL to the sample sheet (CSV format, columns: sample_id, fq1, fq2, outdir)
+samples_csv: "test_data/samplesheet_test.csv"
+
+ref:
+  # Reference assembly mode:
+  # - hg19/hg38/m39: auto-download and stage references into references/{assembly}/
+  # - custom: use user-provided fasta/gtf/blacklist below
+  assembly: "custom"  # choices: hg19, hg38, m39, custom
+  fasta: "test_data/references/genome.fa"
+  gtf: "test_data/references/genes.gtf"
+  blacklist: "test_data/references/ce11-blacklist.v2.bed"
+  # Optional prebuilt index prefixes (leave empty to auto-build in references/{assembly}/)
+  bwa_index: ""      # BWA index prefix
+  bowtie2_index: ""  # Bowtie2 index prefix
+  # Mito contig naming for filtering/ataqv (e.g. MT, chrM)
+  mito_name: "MT"
+  # Keep mitochondrial contig in include_regions (bam_filter); false = remove mito
+  keep_mito: false
+
+trimming:
+  enabled: true
+  tool: "trim_galore"  # Choose trimming tool: "fastp" or "trim_galore"
+  trim_galore_params: "--nextseq 25 --length 36"
+  fastp_params: "--cut_tail --cut_tail_window_size 4 --cut_tail_mean_quality 25 --trim_poly_g --length_required 36"
+
+align:
+  # Alignment engine
+  tool: "bowtie2"  # choices: bwa-mem2, bowtie2
+  bowtie2_params: "--very-sensitive --no-discordant -p 2 -X 2000"
+  bwa_params: "-I 0,2000"
+
+bam_filter:
+  enabled: true
+  # Core filtering flags:
+  # - remove unmapped/mate-unmapped/secondary/duplicate
+  # - keep proper pairs
+  # - MAPQ threshold
+  params: "-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400 -q 30"
+  
+markduplicates:
+  # Mark duplicates with Picard before bam_filter
+  enabled: true
+
+deeptools:
+  # Enable computeMatrix / plotProfile / plotHeatmap / plotFingerprint
+  enabled: true
+
+call_peaks:
+  enabled: true
+  peak_type: "narrow"  # choices: narrow, broad
+  # MACS3 genome size (--gsize):
+  # - Recommended: use effective genome size values
+  #   https://deeptools.readthedocs.io/en/latest/content/feature/effectiveGenomeSize.html
+  # - If left empty, this pipeline auto-sums chromsizes as fallback
+  macs3_gsize: "2701262066"
+  macs3_narrow_params: >-
+    --trackline --shift 75 --extsize 150 --keep-dup all --nomodel --call-summits -q 0.01 
+  macs3_broad_params: >-
+    --trackline --shift 75 --extsize 150 --keep-dup all --nomodel --broad --broad-cutoff 0.1
+  frip_overlap_fraction: 0.2
+
+annotate_peaks:
+  # HOMER annotatePeaks + summary table
+  enabled: true
+
+feature_counts:
+  enabled: true
+  # true = count using shifted BAM, false = filtered BAM
+  use_shifted_bam: true
+
+ataqv:
+  # ATAC-specific QC JSON + mkarv HTML
+  enabled: true
+
+multiqc:
+  # MultiQC config path
+  config: "workflow/scripts/multiqc_config.yml"
+
+# Wait for delayed filesystem visibility (HPC/NFS)
+latency-wait: 60

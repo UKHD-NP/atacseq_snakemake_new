@@ -1,6 +1,8 @@
-MIT License
+# MIT License
 
-Copyright (c) [2025] [Levente Temesvári-Nagy]
+Copyright (c) 2025
+Department of Neuropathology,
+Heidelberg University Hospital and German Cancer Research Center (DKFZ)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
