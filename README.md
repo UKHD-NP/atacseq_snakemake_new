@@ -82,13 +82,13 @@ delete_tmp
 
 - Linux
 - Snakemake (recommended in a controller env)
-- Conda/Mamba/Micromamba
+- Conda/Mamba
 
 Example controller environment:
 
 ```bash
-micromamba create -n atacseq_snakemake -c conda-forge -c bioconda snakemake
-micromamba activate atacseq_snakemake
+mamba create -n atacseq_snakemake -c conda-forge -c bioconda snakemake
+mamba activate atacseq_snakemake
 ```
 
 Then run workflow rules with `--use-conda` so each rule uses its own env from `workflow/envs/*.yml`.
