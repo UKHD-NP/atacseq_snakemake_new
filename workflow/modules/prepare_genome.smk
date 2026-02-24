@@ -4,10 +4,10 @@ rule samtools_faidx:
         config['ref']['fasta']
     output:
         config['ref']['fasta'] + ".fai"
-    message:
-        "Generating FASTA index"
     conda:
         os.path.join(workflow.basedir, "envs", "samtools.yml")
+    message:
+        "Generating FASTA index"
     threads: 1
     shell:
         """
@@ -16,15 +16,17 @@ rule samtools_faidx:
 
 
 rule gtf2bed:
-    # Generate BED file from GTF for RSeQC modules
+    # Generate BED file from GTF
     input:
         config['ref']['gtf']
     output:
         config['ref']['bed']
-    message:
-        "Converting GTF to BED format for RSeQC"
     params:
         gtf2bed_script = os.path.join(workflow.basedir, "scripts", "gtf2bed")
+    conda:
+        os.path.join(workflow.basedir, "envs", "gtf2bed.yml")
+    message:
+        "Converting GTF to BED format"
     threads: 1
     log:
         os.path.join(ref_dir, "gtf2bed", f"{config['ref']['assembly']}.log")
@@ -39,7 +41,7 @@ rule gtf2bed:
         fi
 
         echo "[INFO] Using gtf2bed script: {params.gtf2bed_script}" > {log}
-        "{params.gtf2bed_script}" {input} > {output} 2>> {log}
+        perl "{params.gtf2bed_script}" "{input}" > "{output}" 2>> "{log}"
 
         # Check if output was created successfully
         if [ ! -s "{output}" ]; then
@@ -57,12 +59,10 @@ rule get_chromsizes:
         fai=config["ref"]["fasta"] + ".fai"
     output:
         config["ref"]["chromsizes"]
-    conda:
-        os.path.join(workflow.basedir, "envs", "samtools.yml")
-    log:
-        os.path.join(ref_dir, "chromsizes", f"{assembly}.log")
     message:
         "Generating chromosome sizes file"
+    log:
+        os.path.join(ref_dir, "chromsizes", f"{config['ref']['assembly']}.log")
     shell:
         """
         mkdir -p $(dirname {output})
@@ -83,10 +83,12 @@ rule get_autosomes:
         config["ref"]["autosomes"]
     params:
         script=os.path.join(workflow.basedir, "scripts", "get_autosomes.py")
-    log:
-        os.path.join(ref_dir, "autosomes", f"{assembly}.log")
+    conda:
+        os.path.join(workflow.basedir, "envs", "samtools.yml")
     message:
         "Extracting autosome chromosome names"
+    log:
+        os.path.join(ref_dir, "autosomes", f"{config['ref']['assembly']}.log")
     shell:
         """
         mkdir -p $(dirname {output})
@@ -105,10 +107,10 @@ rule tss_extract:
         bed=config["ref"]["bed"]
     output:
         config["ref"]["tss"]
-    log:
-        os.path.join(ref_dir, "tss", f"{assembly}.log")
     message:
         "Extracting TSS BED intervals"
+    log:
+        os.path.join(ref_dir, "tss", f"{config['ref']['assembly']}.log")
     shell:
         """
         mkdir -p $(dirname {output})
@@ -141,10 +143,10 @@ rule genome_blacklist_regions:
         tmp=lambda wildcards, output: f"{output}.tmp"
     conda:
         os.path.join(workflow.basedir, "envs", "bedtools.yml")
-    log:
-        os.path.join(ref_dir, "include_regions", f"{assembly}.log")
     message:
         "Generating include regions from chromsizes and blacklist"
+    log:
+        os.path.join(ref_dir, "include_regions", f"{config['ref']['assembly']}.log")
     shell:
         """
         mkdir -p $(dirname {output})

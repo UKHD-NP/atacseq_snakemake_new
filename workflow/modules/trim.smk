@@ -14,10 +14,6 @@ else:
 # Rule for Adapter and quality trimming
 rule fastp:
     # Perform adapter trimming and quality control on FASTQ files
-    params:
-        fastp_params = TRIMMING_CFG.get("fastp_params", ""),
-        # Compression level for output files (1-9, higher is more compressed but slower)
-        compression_level = 4
     input:
         get_paired_fq
     output:
@@ -26,16 +22,20 @@ rule fastp:
         json = os.path.join("{outdir}", "trim", "{sample_id}.fastp.json"),
         html = os.path.join("{outdir}", "trim", "{sample_id}.fastp.html"),
         unpaired1 = os.path.join("{outdir}", "trim", "{sample_id}_1.fail.fastq.gz"),
-        unpaired2 = os.path.join("{outdir}", "trim", "{sample_id}_2.fail.fastq.gz") 
-    message:
-        "{wildcards.sample_id}: Trimming and performing quality control on paired-end FASTQ files"
-    log:
-        os.path.join("{outdir}", "logs", "fastp", "{sample_id}.fastp.log")
+        unpaired2 = os.path.join("{outdir}", "trim", "{sample_id}_2.fail.fastq.gz")
+    params:
+        fastp_params = TRIMMING_CFG.get("fastp_params", ""),
+        # Compression level for output files (1-9, higher is more compressed but slower)
+        compression_level = 4
     conda:
         os.path.join(workflow.basedir, "envs", "fastp.yml")
+    message:
+        "{wildcards.sample_id}: Trimming and performing quality control on paired-end FASTQ files"
     threads: 8
     resources:
         mem_mb = 4096
+    log:
+        os.path.join("{outdir}", "logs", "fastp", "{sample_id}.fastp.log")
     benchmark:
         os.path.join("{outdir}", "benchmarks", "fastp.{sample_id}.benchmark.txt")
     shell:
@@ -62,9 +62,6 @@ rule fastp:
 
 rule trim_galore:
     # Trim reads using trim_galore (alternative to fastp)
-    params:
-        trim_galore_params = TRIMMING_CFG.get("trim_galore_params", ""),
-        outdir = lambda wildcards: os.path.join(wildcards.outdir, "trim")
     input:
         get_paired_fq
     output:
@@ -72,17 +69,20 @@ rule trim_galore:
         out2 = os.path.join("{outdir}", "trim", "{sample_id}_trimmed_2.fastq.gz"),
         report1 = os.path.join("{outdir}", "trim", "{sample_id}_1.fastq.gz_trimming_report.txt"),
         report2 = os.path.join("{outdir}", "trim", "{sample_id}_2.fastq.gz_trimming_report.txt")
-    log:
-        os.path.join("{outdir}", "logs", "trim_galore", "{sample_id}.trim.log")
+    params:
+        trim_galore_params = TRIMMING_CFG.get("trim_galore_params", ""),
+        outdir = lambda wildcards: os.path.join(wildcards.outdir, "trim")
     conda:
         os.path.join(workflow.basedir, "envs", "trim_galore.yml")
+    message:
+        "{wildcards.sample_id}: Trimming reads with trim_galore"
     threads: 8
     resources:
         mem_mb = 4096
+    log:
+        os.path.join("{outdir}", "logs", "trim_galore", "{sample_id}.trim.log")
     benchmark:
         os.path.join("{outdir}", "benchmarks", "trim_galore.{sample_id}.benchmark.txt")
-    message:
-        "{wildcards.sample_id}: Trimming reads with trim_galore"
     shell:
         """
         mkdir -p {params.outdir}

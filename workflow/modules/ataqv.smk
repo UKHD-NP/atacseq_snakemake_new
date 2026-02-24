@@ -4,15 +4,10 @@ ATAQV_MITO_NAME = str(config.get("ref", {}).get("mito_name", "chrM")).strip() or
 ATAQV_MKARV_CONCURRENCY = 6
 
 if is_enabled("ataqv") and not is_enabled("call_peaks"):
-    raise ValueError(error_msg("ataqv requires `call_peaks.enabled: true` (peak file input)."))
+    fatal("ataqv requires `call_peaks.enabled: true` (peak file input).")
 
 rule ataqv:
     # Build ataqv JSON metrics for ATAC-seq QC.
-    params:
-        ignore_read_groups = "--ignore-read-groups" if ATAQV_IGNORE_READ_GROUPS else "",
-        mito_name = ATAQV_MITO_NAME,
-        description = ATAQV_DESCRIPTION,
-        sample_name = lambda wildcards: f"{wildcards.sample_id}.filtered"
     input:
         bam = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam"),
         bai = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam.bai"),
@@ -21,15 +16,20 @@ rule ataqv:
         autosomes = config["ref"]["autosomes"]
     output:
         json = os.path.join("{outdir}", "ataqv", "{sample_id}.ataqv.json")
-    log:
-        os.path.join("{outdir}", "logs", "ataqv", "{sample_id}.ataqv.log")
+    params:
+        ignore_read_groups = "--ignore-read-groups" if ATAQV_IGNORE_READ_GROUPS else "",
+        mito_name = ATAQV_MITO_NAME,
+        description = ATAQV_DESCRIPTION,
+        sample_name = lambda wildcards: f"{wildcards.sample_id}.filtered"
     conda:
         os.path.join(workflow.basedir, "envs", "ataqv.yml")
-    threads: 6
-    benchmark:
-        os.path.join("{outdir}", "benchmarks", "{sample_id}.ataqv.benchmark.txt")
     message:
         "{wildcards.sample_id}: Running ataqv"
+    threads: 6
+    log:
+        os.path.join("{outdir}", "logs", "ataqv", "{sample_id}.ataqv.log")
+    benchmark:
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.ataqv.benchmark.txt")
     shell:
         """
         mkdir -p "$(dirname "{output.json}")"
@@ -59,23 +59,23 @@ rule ataqv:
 
 rule ataqv_mkarv:
     # Render ataqv interactive HTML report with mkarv.
-    params:
-        html_dir = os.path.join("{outdir}", "ataqv", "{sample_id}.mkarv_html"),
-        jsons_dir = os.path.join("{outdir}", "ataqv", "{sample_id}.mkarv_jsons"),
-        json_link = os.path.join("{outdir}", "ataqv", "{sample_id}.mkarv_jsons", "{sample_id}.ataqv.json")
     input:
         json = os.path.join("{outdir}", "ataqv", "{sample_id}.ataqv.json")
     output:
         index = os.path.join("{outdir}", "ataqv", "{sample_id}.mkarv_html", "index.html")
-    log:
-        os.path.join("{outdir}", "logs", "ataqv", "{sample_id}.mkarv.log")
+    params:
+        html_dir = os.path.join("{outdir}", "ataqv", "{sample_id}.mkarv_html"),
+        jsons_dir = os.path.join("{outdir}", "ataqv", "{sample_id}.mkarv_jsons"),
+        json_link = os.path.join("{outdir}", "ataqv", "{sample_id}.mkarv_jsons", "{sample_id}.ataqv.json")
     conda:
         os.path.join(workflow.basedir, "envs", "ataqv.yml")
-    threads: ATAQV_MKARV_CONCURRENCY
-    benchmark:
-        os.path.join("{outdir}", "benchmarks", "{sample_id}.mkarv.benchmark.txt")
     message:
         "{wildcards.sample_id}: Building ataqv HTML report with mkarv"
+    threads: ATAQV_MKARV_CONCURRENCY
+    log:
+        os.path.join("{outdir}", "logs", "ataqv", "{sample_id}.mkarv.log")
+    benchmark:
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.mkarv.benchmark.txt")
     shell:
         """
         mkdir -p "{params.html_dir}"

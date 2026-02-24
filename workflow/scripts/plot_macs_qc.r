@@ -56,14 +56,15 @@ summary.dat <- data.frame()
 for (idx in 1:length(PeakFiles)) {
 
     sampleid = SampleIDs[idx]
-    isNarrow <- FALSE
-    header <- c("chrom","start","end","name","pileup", "strand", "fold", "-log10(pvalue)","-log10(qvalue)")
-    fsplit <- unlist(strsplit(basename(PeakFiles[idx]), split='.',fixed=TRUE))
-    if (fsplit[length(fsplit)] == 'narrowPeak') {
-        isNarrow <- TRUE
-        header <- c(header,"summit")
-    }
     peaks <- read.table(PeakFiles[idx], sep="\t", header=FALSE)
+    ncols <- ncol(peaks)
+    if (ncols == 10) {
+        header <- c("chrom","start","end","name","pileup", "strand", "fold", "-log10(pvalue)","-log10(qvalue)","summit")
+    } else if (ncols == 9) {
+        header <- c("chrom","start","end","name","pileup", "strand", "fold", "-log10(pvalue)","-log10(qvalue)")
+    } else {
+        stop(paste("Unsupported peak file format for", PeakFiles[idx], "- expected 9 or 10 columns, got", ncols), call.=FALSE)
+    }
     colnames(peaks) <- header
 
     ## GET SUMMARY STATISTICS

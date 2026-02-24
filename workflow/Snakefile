@@ -14,8 +14,8 @@ wildcard_constraints:
     sample_id=sample_id_pattern
 
 # Import rules
-include: "modules/common.smk"
 include: "modules/init.smk"
+include: "modules/common.smk"
 include: "modules/prepare_genome.smk"
 include: "modules/qc.smk"
 include: "modules/trim.smk"

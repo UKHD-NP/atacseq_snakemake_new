@@ -2,19 +2,19 @@ rule bedtools_genomecov:
     # Build scaled bedGraph from filtered BAM using mapped-read normalization.
     input:
         bam = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam"),
-        flagstat=os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam.flagstat")
+        flagstat = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam.flagstat")
     output:
-        bedgraph=os.path.join("{outdir}", "bigwig", "{sample_id}.bedGraph"),
+        bedgraph = os.path.join("{outdir}", "bigwig", "{sample_id}.bedGraph"),
         scale_factor=os.path.join("{outdir}", "bigwig", "{sample_id}.scale_factor.txt")
-    log:
-        os.path.join("{outdir}", "logs", "bedtools", "{sample_id}.genomecov.log")
     conda:
         os.path.join(workflow.basedir, "envs", "bedtools.yml")
+    message:
+        "{wildcards.sample_id}: Generating scaled bedGraph — [Source: Filtered BAM, NOT SHIFTED]""
     threads: 8
+    log:
+        os.path.join("{outdir}", "logs", "bedtools", "{sample_id}.genomecov.log")
     benchmark:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.bedtools_genomecov.benchmark.txt")
-    message:
-        "{wildcards.sample_id}: Generating scaled bedGraph"
     shell:
         """
         mkdir -p "$(dirname "{output.bedgraph}")"
@@ -60,15 +60,15 @@ rule ucsc_bedgraphtobigwig:
         chromsizes=config["ref"]["chromsizes"]
     output:
         bigwig=os.path.join("{outdir}", "bigwig", "{sample_id}.bigWig")
-    log:
-        os.path.join("{outdir}", "logs", "ucsc", "{sample_id}.bedgraphtobigwig.log")
     conda:
         os.path.join(workflow.basedir, "envs", "ucsc_tools.yml")
+    message:
+        "{wildcards.sample_id}: Converting bedGraph to bigWig — [Source: Filtered BAM, NOT SHIFTED]"
     threads: 8
+    log:
+        os.path.join("{outdir}", "logs", "ucsc", "{sample_id}.bedgraphtobigwig.log")
     benchmark:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.bedgraphtobigwig.benchmark.txt")
-    message:
-        "{wildcards.sample_id}: Converting bedGraph to bigWig"
     shell:
         """
         mkdir -p "$(dirname "{output.bigwig}")"

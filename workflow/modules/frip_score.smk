@@ -1,24 +1,25 @@
 rule frip_score:
     # FRiP = reads in peaks / mapped reads.
-    params:
-        overlap = float(CALL_PEAKS_CFG.get("frip_overlap_fraction", 0.20)),
-        flagstat = lambda wildcards: os.path.join(wildcards.outdir, "peaks", f"{wildcards.sample_id}.frip.flagstat.txt")
+    # Reuses the flagstat produced by samtools_stats to avoid redundant computation.
     input:
         bam = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam"),
-        peaks = os.path.join("{outdir}", "peaks", "{sample_id}_peaks.peak")
+        peaks = os.path.join("{outdir}", "peaks", "{sample_id}_peaks.peak"),
+        flagstat = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam.flagstat")
     output:
         frip = os.path.join("{outdir}", "peaks", "{sample_id}.FRiP.txt"),
         peak_count_mqc = os.path.join("{outdir}", "peaks", "{sample_id}_peaks.count_mqc.tsv"),
         frip_mqc = os.path.join("{outdir}", "peaks", "{sample_id}_peaks.FRiP_mqc.tsv")
-    log:
-        os.path.join("{outdir}", "logs", "frip", "{sample_id}.frip.log")
+    params:
+        overlap = float(CALL_PEAKS_CFG.get("frip_overlap_fraction", 0.20))
     conda:
         os.path.join(workflow.basedir, "envs", "bedtools.yml")
-    threads: 8
-    benchmark:
-        os.path.join("{outdir}", "benchmarks", "{sample_id}.frip_score.benchmark.txt")
     message:
         "{wildcards.sample_id}: Calculating FRiP score"
+    threads: 8
+    log:
+        os.path.join("{outdir}", "logs", "frip", "{sample_id}.frip.log")
+    benchmark:
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.frip_score.benchmark.txt")
     shell:
         """
         mkdir -p "$(dirname "{output.frip}")"
@@ -35,12 +36,7 @@ rule frip_score:
             exit 1
         }}
 
-        samtools flagstat "{input.bam}" > "{params.flagstat}" 2>> "{log}" || {{
-            echo "[ERROR] samtools flagstat failed." >> "{log}"
-            exit 1
-        }}
-
-        grep 'mapped (' "{params.flagstat}" \
+        grep 'mapped (' "{input.flagstat}" \
             | grep -v "primary" \
             | awk -v a="$READS_IN_PEAKS" -v sample="{wildcards.sample_id}" 'BEGIN{{OFS="\\t"}}{{if ($1 > 0) {{print sample, a/$1}} else {{print sample, 0}}}}' \
             > "{output.frip}" 2>> "{log}" || {{

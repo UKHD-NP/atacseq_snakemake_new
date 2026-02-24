@@ -5,8 +5,6 @@ import ssl
 import os
 import sys
 
-ssl._create_default_https_context = ssl._create_unverified_context
-
 
 def info(msg):
     print(f"[INFO] {msg}")
@@ -31,11 +29,6 @@ REFERENCE_URLS = {
         "gtf": "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_46/gencode.v46.primary_assembly.basic.annotation.gtf.gz",
         "blacklist": "https://raw.githubusercontent.com/Boyle-Lab/Blacklist/master/lists/hg38-blacklist.v2.bed.gz",
     },
-    "m39": {
-        "fasta": "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M35/GRCm39.primary_assembly.genome.fa.gz",
-        "gtf": "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M35/gencode.vM35.primary_assembly.annotation.gtf.gz",
-        "blacklist": "https://raw.githubusercontent.com/Boyle-Lab/Blacklist/master/lists/mm10-blacklist.v2.bed.gz",
-    },
 }
 
 
@@ -59,7 +52,7 @@ elif assembly in REFERENCE_URLS:
     url_gtf = REFERENCE_URLS[assembly]["gtf"]
     url_blacklist = REFERENCE_URLS[assembly]["blacklist"]
 else:
-    fatal(f"Invalid 'ref.assembly': '{assembly}'. Allowed values: hg19, hg38, m39, custom.")
+    fatal(f"Invalid 'ref.assembly': '{assembly}'. Allowed values: hg19, hg38, custom.")
 
 
 # Keep references in a deterministic location inside the project.
@@ -102,6 +95,7 @@ def stage_local_reference(source_path, target_path, label):
         return
 
     os.makedirs(os.path.dirname(target_path), exist_ok=True)
+    
     if source_path.endswith(".gz"):
         info(f"Decompressing custom {label} file: {source_path}")
         if not decompress_file(source_path, target_path):
@@ -118,7 +112,13 @@ def download_reference_file(url, compressed_path, target_path, label):
     """Download and decompress a remote reference file."""
     try:
         info(f"Downloading {label} reference from: {url}")
-        urlretrieve(url, compressed_path)
+        # Temporarily disable SSL verification only for this download call
+        _orig_ctx = ssl._create_default_https_context
+        ssl._create_default_https_context = ssl._create_unverified_context
+        try:
+            urlretrieve(url, compressed_path)
+        finally:
+            ssl._create_default_https_context = _orig_ctx
         info(f"Decompressing downloaded {label} file: {compressed_path}")
         if not decompress_file(compressed_path, target_path):
             fatal(f"Could not decompress downloaded {label} file: {compressed_path}")

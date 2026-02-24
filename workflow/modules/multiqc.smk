@@ -56,7 +56,7 @@ def get_input_multiqc(wildcards):
         targets.append(_path("peaks", f"{sample_id}_peaks.FRiP_mqc.tsv"))
         targets.append(_path("peaks", f"{sample_id}_peaks.count_mqc.tsv"))
         targets.append(_path("peaks", f"{sample_id}.macs_peakqc.summary.txt"))
-   
+
     # Add annotation summaries.
     if annotation_on:
         targets.append(_path("annotation", f"{sample_id}.macs_annotatePeaks.summary.txt"))
@@ -79,27 +79,27 @@ def get_input_multiqc(wildcards):
 
 rule multiqc:
     # Aggregate quality control reports with MultiQC
-    params:
-        outdir = lambda wildcards: os.path.join(wildcards.outdir, "multiqc"),
-        # Add extra parameters for optimized MultiQC performance
-        extra_params = "--no-megaqc-upload --flat --interactive",
-        # Path to MultiQC config file
-        config_file = os.path.join(workflow.basedir, "scripts", "multiqc_config.yml")
     input:
         reports = get_input_multiqc
     output:
         os.path.join("{outdir}", "multiqc", "{sample_id}.multiqc.html")
-    log:
-        os.path.join("{outdir}", "logs", "multiqc", "{sample_id}.multiqc.log")
+    params:
+        outdir = lambda wildcards: os.path.join(wildcards.outdir, "multiqc"),
+        # Add extra parameters for optimized MultiQC performance
+        extra_params = "--no-megaqc-upload --interactive",
+        # Path to MultiQC config file
+        config_file = os.path.join(workflow.basedir, "scripts", "multiqc_config.yml")
     conda:
         os.path.join(workflow.basedir, "envs", "multiqc.yml")
+    message:
+        "{wildcards.sample_id}: Running MultiQC"
     threads: 2
     resources:
         mem_mb = 8192
+    log:
+        os.path.join("{outdir}", "logs", "multiqc", "{sample_id}.multiqc.log")
     benchmark:
         os.path.join("{outdir}", "benchmarks", "multiqc.{sample_id}.benchmark.txt")
-    message:
-        "{wildcards.sample_id}: Running MultiQC"
     shell:
         """
         # Set max file size limit for Python processes

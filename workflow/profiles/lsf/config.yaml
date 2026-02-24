@@ -1,0 +1,78 @@
+# Snakemake LSF profile for DKFZ HPC execution
+# Usage: snakemake --profile workflow/profiles/lsf [other options]
+#
+# Requirements: snakemake-executor-plugin-lsf
+#   pip install snakemake-executor-plugin-lsf
+#
+# Submit manually with bsub on bsub01.lsf.dkfz.de or bsub02.lsf.dkfz.de.
+# Adjust lsf_queue values to match available queues (short, medium, long, etc.).
+
+executor: lsf
+
+# Default LSF job options (overridden per-rule via resources: in .smk files)
+default-resources:
+  lsf_queue: "medium"              # Change to your preferred default queue
+  lsf_extra: ""                    # Extra bsub flags (e.g. "-P project_name")
+  mem_mb: 8192                     # Default memory (MB)
+  runtime: 120                     # Default wall time (minutes)
+  threads: 1
+
+# Job submission settings
+jobs: 100                          # Max concurrent LSF jobs
+rerun-incomplete: true
+latency-wait: 60                   # Wait for NFS file visibility (seconds)
+keep-going: false                  # Stop all jobs on first failure
+
+# Conda environments
+use-conda: true
+# Store conda envs outside home (20 GB quota!) — update path to your analysis share
+conda-prefix: "/omics/odcf/analysis/YOUR_GROUP/conda_envs"
+
+# Retries on job failure
+retries: 1
+
+# Per-rule resource overrides for long/heavy steps.
+# These supplement the resources: directives already in each .smk rule.
+set-resources:
+  bwa_mem2_index:
+    mem_mb: 65536
+    runtime: 480
+    lsf_queue: "verylong"            # No runtime limit — safe for large genomes
+  bowtie2_index:
+    mem_mb: 16384
+    runtime: 240
+  bwa_mem2_align:
+    mem_mb: 49152
+    runtime: 360
+    lsf_queue: "long"
+  bowtie2_align:
+    mem_mb: 24576
+    runtime: 360
+    lsf_queue: "long"
+  sort_bam:
+    mem_mb: 40960
+    runtime: 120
+  mark_duplicates:
+    mem_mb: 32768
+    runtime: 180
+  bam_filter:
+    mem_mb: 32768
+    runtime: 120
+  shift_bam:
+    mem_mb: 49152
+    runtime: 180
+  macs3_callpeak_tn5:
+    mem_mb: 16384
+    runtime: 120
+  deeptools_compute_matrix_scale_regions:
+    mem_mb: 24576
+    runtime: 120
+  deeptools_compute_matrix_reference_point:
+    mem_mb: 24576
+    runtime: 120
+  deeptools_plot_fingerprint:
+    mem_mb: 16384
+    runtime: 60
+  multiqc:
+    mem_mb: 8192
+    runtime: 60

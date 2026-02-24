@@ -1,5 +1,9 @@
 rule delete_tmp:
     # Clean up temporary files after analysis is complete
+    input:
+        done = os.path.join("{outdir}", "multiqc", "{sample_id}.multiqc.html")
+    output:
+        log = os.path.join("{outdir}", "logs", "{sample_id}.deletion.log")
     params:
         bam_dir = os.path.join("{outdir}", "bam"),
         fq1 = os.path.join("{outdir}", "trim", "{sample_id}_trimmed_1.fastq.gz"),
@@ -9,22 +13,21 @@ rule delete_tmp:
         raw_fq1 = os.path.join("{outdir}", "raw_merged", "{sample_id}_merged_1.fastq.gz"),
         raw_fq2 = os.path.join("{outdir}", "raw_merged", "{sample_id}_merged_2.fastq.gz"),
         raw_dir = os.path.join("{outdir}", "raw_merged"),
-        delete_trimming = lambda wildcards: str(is_enabled("trimming")).lower()
-    input:
-        done = os.path.join("{outdir}", "multiqc", "{sample_id}.multiqc.html")
-    output:
-        log = os.path.join("{outdir}", "logs", "{sample_id}.deletion.log")
-    log:
-        os.path.join("{outdir}", "logs", "cleanup", "{sample_id}.cleanup.log")
+        delete_trimming = lambda wildcards: str(
+            is_enabled("trimming") and
+            as_bool(config.get("trimming", {}).get("delete_trimming", True))
+        ).lower()
     message:
         "{wildcards.sample_id}: Cleaning up temporary files"
+    log:
+        os.path.join("{outdir}", "logs", "cleanup", "{sample_id}.cleanup.log")
     shell:
         """
         mkdir -p $(dirname {log})
 
         # Start logging
         echo "[INFO] Starting cleanup for {wildcards.sample_id}" > {log}
-        
+
         # Delete FASTQ files only if trimming is enabled
         if [ "{params.delete_trimming}" = "true" ]; then
             echo "[INFO] Trimming is enabled (delete_trimming={params.delete_trimming})." >> {log}

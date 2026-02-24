@@ -10,25 +10,27 @@ default_bam_filter_params = "-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400 -q 
 
 
 rule bam_filter:
-    params:
-        bam_filter_params = bam_filter_cfg.get("params", default_bam_filter_params),
-        bamtools_script = os.path.join(workflow.basedir, "scripts", "bamtools_filter_pe.json"),
-        bampe_rm_orphan_script = os.path.join(workflow.basedir, "scripts", "bampe_rm_orphan.py"),
-        tempdir = os.path.join("{outdir}", "bam", "tmp"),
-        memory_per_thread = "4G"
     input:
         bam = get_bam_for_filter,
         include_regions = config["ref"]["include_regions"]
     output:
         bam = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam"),
         bai = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam.bai")
-    message:
-        "{wildcards.sample_id}: Filtering BAM"
-    log:
-        os.path.join("{outdir}", "logs", "samtools", "{sample_id}.bam_filter.log")
+    params:
+        bam_filter_params = bam_filter_cfg.get("params", default_bam_filter_params),
+        bamtools_script = os.path.join(workflow.basedir, "scripts", "bamtools_filter_pe.json"),
+        bampe_rm_orphan_script = os.path.join(workflow.basedir, "scripts", "bampe_rm_orphan.py"),
+        tempdir = os.path.join("{outdir}", "bam", "tmp"),
+        memory_per_thread = "4G"
     conda:
         os.path.join(workflow.basedir, "envs", "samtools.yml")
+    message:
+        "{wildcards.sample_id}: Filtering BAM"
     threads: 8
+    resources:
+        mem_mb = 32768  # 4 GB per thread (matches memory_per_thread param)
+    log:
+        os.path.join("{outdir}", "logs", "samtools", "{sample_id}.bam_filter.log")
     benchmark:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.bam_filter.benchmark.txt")
     shell:
@@ -102,7 +104,7 @@ rule bam_filter:
         samtools sort \
             --write-index \
             -m {params.memory_per_thread} \
-            -T "{params.tempdir}/{wildcards.sample_id}.coord_sort_tmp" \
+            -T "{params.tempdir}/{wildcards.sample_id}.filtered" \
             -@ {threads} \
             -o "{output.bam}##idx##{output.bai}" \
             "$FINAL_INPUT" >> "{log}" 2>&1 || {{

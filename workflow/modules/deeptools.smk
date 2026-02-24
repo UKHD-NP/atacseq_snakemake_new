@@ -1,22 +1,24 @@
 rule deeptools_compute_matrix_scale_regions:
-    params:
-        region_body_length = 1000,
-        flank_length = 3000
     input:
         regions = config["ref"]["bed"],
         bigwig = os.path.join("{outdir}", "bigwig", "{sample_id}.shifted.bigWig")
     output:
         matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.computeMatrix.mat.gz"),
         values = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.computeMatrix.vals.mat.tab")
-    log:
-        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.computeMatrix.scale_regions.log")
+    params:
+        region_body_length = 1000,
+        flank_length = 3000
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
-    threads: 12
-    benchmark:
-        os.path.join("{outdir}", "benchmarks", "{sample_id}.computeMatrix.scale_regions.benchmark.txt")
     message:
         "{wildcards.sample_id}: Running deepTools computeMatrix (scale-regions)"
+    threads: 12
+    resources:
+        mem_mb = 24576
+    log:
+        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.computeMatrix.scale_regions.log")
+    benchmark:
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.computeMatrix.scale_regions.benchmark.txt")
     shell:
         """
         mkdir -p "$(dirname "{output.matrix}")"
@@ -47,24 +49,26 @@ rule deeptools_compute_matrix_scale_regions:
 
 
 rule deeptools_compute_matrix_reference_point:
-    params:
-        upstream = 3000,
-        downstream = 3000
     input:
         regions = config["ref"]["tss"],
         bigwig = os.path.join("{outdir}", "bigwig", "{sample_id}.shifted.bigWig")
     output:
         matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.mat.gz"),
         values = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.vals.mat.tab")
-    log:
-        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.computeMatrix.reference_point.log")
+    params:
+        upstream = 3000,
+        downstream = 3000
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
-    threads: 12
-    benchmark:
-        os.path.join("{outdir}", "benchmarks", "{sample_id}.computeMatrix.reference_point.benchmark.txt")
     message:
         "{wildcards.sample_id}: Running deepTools computeMatrix (reference-point)"
+    threads: 12
+    resources:
+        mem_mb = 24576
+    log:
+        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.computeMatrix.reference_point.log")
+    benchmark:
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.computeMatrix.reference_point.benchmark.txt")
     shell:
         """
         mkdir -p "$(dirname "{output.matrix}")"
@@ -99,15 +103,17 @@ rule deeptools_plot_profile:
     output:
         plot = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.plotProfile.pdf"),
         table = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.plotProfile.tab")
-    log:
-        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.plotProfile.log")
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
-    threads: 12
-    benchmark:
-        os.path.join("{outdir}", "benchmarks", "{sample_id}.plotProfile.benchmark.txt")
     message:
         "{wildcards.sample_id}: Running deepTools plotProfile"
+    threads: 12
+    resources:
+        mem_mb = 8192
+    log:
+        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.plotProfile.log")
+    benchmark:
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.plotProfile.benchmark.txt")
     shell:
         """
         mkdir -p "$(dirname "{output.plot}")"
@@ -134,15 +140,17 @@ rule deeptools_plot_heatmap:
     output:
         plot = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.plotHeatmap.pdf"),
         table = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.plotHeatmap.mat.tab")
-    log:
-        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.plotHeatmap.log")
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
-    threads: 12
-    benchmark:
-        os.path.join("{outdir}", "benchmarks", "{sample_id}.plotHeatmap.benchmark.txt")
     message:
         "{wildcards.sample_id}: Running deepTools plotHeatmap"
+    threads: 12
+    resources:
+        mem_mb = 8192
+    log:
+        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.plotHeatmap.log")
+    benchmark:
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.plotHeatmap.benchmark.txt")
     shell:
         """
         mkdir -p "$(dirname "{output.plot}")"
@@ -164,24 +172,26 @@ rule deeptools_plot_heatmap:
 
 
 rule deeptools_plot_fingerprint:
-    params:
-        label = lambda wildcards: wildcards.sample_id,
-        num_samples = 500000
     input:
-        bam = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam")
+        bam = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam")
     output:
         plot = os.path.join("{outdir}", "deeptools", "{sample_id}.plotFingerprint.pdf"),
         raw_counts = os.path.join("{outdir}", "deeptools", "{sample_id}.plotFingerprint.raw.txt"),
         qc_metrics = os.path.join("{outdir}", "deeptools", "{sample_id}.plotFingerprint.qcmetrics.txt")
-    log:
-        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.plotFingerprint.log")
+    params:
+        label = lambda wildcards: wildcards.sample_id,
+        num_samples = 500000
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
-    threads: 12
-    benchmark:
-        os.path.join("{outdir}", "benchmarks", "{sample_id}.plotFingerprint.benchmark.txt")
     message:
         "{wildcards.sample_id}: Running deepTools plotFingerprint"
+    threads: 12
+    resources:
+        mem_mb = 16384
+    log:
+        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.plotFingerprint.log")
+    benchmark:
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.plotFingerprint.benchmark.txt")
     shell:
         """
         mkdir -p "$(dirname "{output.plot}")"

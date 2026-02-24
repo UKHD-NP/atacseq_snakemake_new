@@ -1,9 +1,4 @@
 rule mark_duplicates:
-    params:
-        tmp_dir = os.path.join("{outdir}", "bam", "tmp"),
-        max_records_in_ram = 500000,
-        duplicate_scoring_strategy = "SUM_OF_BASE_QUALITIES",
-        sorting_collection_size_ratio = 0.25
     input:
         bam = os.path.join("{outdir}", "bam", "{sample_id}.bam"),
         fasta = config['ref']['fasta']
@@ -11,17 +6,22 @@ rule mark_duplicates:
         bam = os.path.join("{outdir}", "bam", "{sample_id}.markdup.sorted.bam"),
         bai = os.path.join("{outdir}", "bam", "{sample_id}.markdup.sorted.bam.bai"),
         metrics = os.path.join("{outdir}", "bam", "{sample_id}.markdup.sorted.MarkDuplicates.metrics.txt")
-    log:
-        os.path.join("{outdir}", "logs", "markdup", "{sample_id}.markduplicates.log")
+    params:
+        tmp_dir = os.path.join("{outdir}", "bam", "tmp"),
+        max_records_in_ram = 500000,
+        duplicate_scoring_strategy = "SUM_OF_BASE_QUALITIES",
+        sorting_collection_size_ratio = 0.25
     conda:
         os.path.join(workflow.basedir, "envs", "picard_markduplicates.yml")
+    message:
+        "{wildcards.sample_id}: Marking duplicate reads"
     threads: 10
     resources:
         mem_mb = 29491
+    log:
+        os.path.join("{outdir}", "logs", "markdup", "{sample_id}.markduplicates.log")
     benchmark:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.markdup.benchmark.txt")
-    message:
-        "{wildcards.sample_id}: Marking duplicate reads"
     shell:
         """
         mkdir -p "{params.tmp_dir}"

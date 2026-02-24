@@ -61,15 +61,20 @@ bam_filter  --->  filtered.bam / filtered.bam.bai
         |                    |
         |                    +--> align_stats (samtools stats/flagstat/idxstats)
         |                    +--> bedtools_genomecov -> bedGraphToBigWig -> bigWig
-        |                    +--> shift_bam -> shifted.bam + shifted.bigWig
-        |                    +--> filtered.bam -> bamtobed + Tn5 shift -> *.tn5_shifted.bed -> macs3_callpeak_tn5
+        |                    +--> shift_bam (alignmentSieve --ATACshift) -> shifted.bam + shifted.bigWig
         |                               |
-        |                               +--> frip_score (+ MultiQC TSVs)
-        |                               +--> macs3_peak_qc_plot 
-        |                               +--> annotate_peaks (optional)
-        |                               +--> featurecounts_in_peaks (optional; uses shifted.bam)
-        |                               +--> ataqv -> ataqv_mkarv (optional)
-        |                    +--> deeptools (optional; uses shifted.bigWig / shifted.bam)
+        |                               +--> macs3_callpeak_tn5 (narrow: shifted.bam -> bamtobed -> MACS3 BED mode)
+        |                               |                      (broad:  filtered.bam -> MACS3 BAMPE mode)
+        |                               |    |
+        |                               |    +--> frip_score (filtered.bam + peaks → MultiQC TSVs)
+        |                               |    +--> macs3_peak_qc_plot
+        |                               |    +--> annotate_peaks (optional)
+        |                               |    +--> featurecounts_in_peaks (optional; narrow=shifted.bam, broad=filtered.bam)
+        |                               |    +--> ataqv -> ataqv_mkarv (optional; filtered.bam)
+        |                               |
+        |                               +--> deeptools (optional)
+        |                                        +--> computeMatrix / plotProfile / plotHeatmap (shifted.bigWig)
+        |                                        +--> plotFingerprint (filtered.bam)
         |
         v
 multiqc
@@ -130,7 +135,7 @@ Notes:
 
 Set in `config/config.yml -> ref`.
 
-- `assembly`: `hg19`, `hg38`, `m39`, or `custom`
+- `assembly`: `hg19`, `hg38`, or `custom`
 - For `custom`, provide:
   - `ref.fasta`
   - `ref.gtf`
@@ -138,6 +143,7 @@ Set in `config/config.yml -> ref`.
 
 Pipeline stages references into `references/{assembly}/` and derives:
 - `.fai`, `.sizes` (`chromsizes`), `.autosomes.txt`, `.tss.bed`, `.include_regions.bed`
+- `ref.bed` is generated from GTF by `prepare_genome` using the dedicated env `workflow/envs/gtf2bed.yml` (Perl + gzip/unzip) for portable HPC runs.
 
 ## Run
 
@@ -159,6 +165,139 @@ Optional:
 snakemake -s workflow/Snakefile --configfile config/config.yml --use-conda --cores 24 --latency-wait 60
 ```
 
+## Running on DKFZ HPC (LSF)
+
+The DKFZ cluster uses **IBM Spectrum LSF**.
+A ready-made LSF profile is provided at `workflow/profiles/lsf/config.yaml`.
+
+### Node roles at DKFZ
+
+| Node | Purpose | Allowed |
+|------|---------|---------|
+| `odcf-worker01/02` | Dev, install, testing | ✅ Software install, small runs |
+| `bsub01/02` | Job submission only | ✅ Run Snakemake (lightweight), ❌ Processing |
+| Cluster nodes | Computation | Jobs submitted automatically via `bsub` |
+
+### Step 1 — Set up Snakemake environment (on odcf-worker01)
+
+Worker nodes allow software installation; submission hosts (`bsub01`) do not.
+
+```bash
+ssh YOUR_USERNAME@odcf-worker01.dkfz.de
+```
+
+Configure conda channels — required by DKFZ because the `defaults` channel (Anaconda) is banned due to licensing:
+
+```bash
+cat > ~/.condarc << 'EOF'
+channels:
+  - conda-forge
+  - bioconda
+EOF
+```
+
+Load Mamba and initialise your shell:
+
+```bash
+module load Mamba/24.11.2-1
+mamba init bash
+source ~/.bashrc
+```
+
+Create the Snakemake controller environment **outside home** (home quota is only 20 GB):
+
+```bash
+YOUR_WORKDIR="/omics/groups/OE0146/internal/YOUR_USERNAME"
+mkdir -p ${YOUR_WORKDIR}/conda_envs
+
+mamba create -p ${YOUR_WORKDIR}/conda_envs/snakemake \
+    -c conda-forge -c bioconda \
+    snakemake \
+    snakemake-executor-plugin-lsf \
+    -y
+```
+
+`snakemake-executor-plugin-lsf` lets Snakemake translate rule resources (`mem_mb`, `runtime`, `threads`) into `bsub` flags automatically.
+
+### Step 2 — Clone the pipeline
+
+```bash
+cd ${YOUR_WORKDIR}
+git clone https://github.com/UKHD-NPS/atacseq_snakemake.git
+cd atacseq_snakemake
+```
+
+### Step 3 — Edit configuration
+
+Edit `config/config.yml`: set `samples_csv`, `ref.assembly`, output directories, and enable/disable modules.
+
+### Step 4 — Update conda-prefix in the LSF profile
+
+Open `workflow/profiles/lsf/config.yaml` and update the `conda-prefix` line, or use sed:
+
+```bash
+sed -i "s|/omics/odcf/analysis/YOUR_GROUP/conda_envs|${YOUR_WORKDIR}/conda_envs|g" \
+    workflow/profiles/lsf/config.yaml
+```
+
+**Why this matters:** `conda-prefix` tells Snakemake where to build and cache per-rule conda environments (from `workflow/envs/*.yml`). All rule environments together take 5–15 GB. This path must be outside home to avoid hitting the 20 GB home quota.
+
+Verify it was applied:
+
+```bash
+grep "conda-prefix" workflow/profiles/lsf/config.yaml
+```
+
+### Step 5 — Dry-run (validate without submitting any jobs)
+
+```bash
+mamba activate ${YOUR_WORKDIR}/conda_envs/snakemake
+
+snakemake -s workflow/Snakefile \
+    --configfile config/config.yml \
+    --use-conda -n
+```
+
+A dry-run prints every rule Snakemake would execute without running anything. Confirm the job count and sample names look correct before submitting to the cluster.
+
+### Step 6 — Run on HPC (from bsub01)
+
+Snakemake must be launched from a **submission host** (`bsub01` or `bsub02`).
+Use `screen` to keep the session alive if SSH disconnects.
+
+```bash
+ssh YOUR_USERNAME@bsub01.lsf.dkfz.de
+
+# Activate Snakemake env
+module load Mamba/24.11.2-1
+mamba activate ${YOUR_WORKDIR}/conda_envs/snakemake
+
+# Go to the pipeline directory
+cd ${YOUR_WORKDIR}/atacseq_snakemake
+
+# Start a persistent screen session (survives SSH disconnect)
+screen -S atacseq
+
+# Run — Snakemake submits each rule as a bsub job automatically
+snakemake --profile workflow/profiles/lsf -j 100
+```
+
+| `screen` command | Action |
+|-----------------|--------|
+| `screen -S atacseq` | Start new named session |
+| `Ctrl+A`, then `D` | Detach — session keeps running after SSH disconnect |
+| `screen -ls` | List all active sessions |
+| `screen -r atacseq` | Re-attach to session |
+
+### Monitoring jobs
+
+```bash
+bjobs -w           # list all running/pending jobs
+bjobs -w -r        # running only
+bjobs -w -p        # pending only
+bjobs -l JOB_ID    # detailed info for one job
+```
+
 ## Key Configuration
 
 Below is the default-style config block with practical explanation:
@@ -168,20 +307,20 @@ Below is the default-style config block with practical explanation:
 samples_csv: "test_data/samplesheet_test.csv"
 
 ref:
-  assembly: "custom"            # hg19 / hg38 / m39 / custom
+  assembly: "custom"            # hg19 / hg38 / custom
   fasta: "test_data/references/genome.fa"
   gtf: "test_data/references/genes.gtf"
   blacklist: "test_data/references/ce11-blacklist.v2.bed"
   bwa_index: ""                 # optional prebuilt BWA prefix; auto-generated if empty
   bowtie2_index: ""             # optional prebuilt Bowtie2 prefix; auto-generated if empty
-  mito_name: "MT"               # mitochondrial contig name used by filtering/ataqv
+  mito_name: "MT"               # MUST match FASTA mito contig exactly (e.g. MT/chrM/M)
   keep_mito: false              # keep mitochondrial reads in include_regions or not
 
 trimming:
   enabled: true
   tool: "trim_galore"           # fastp / trim_galore
-  trim_galore_params: "--nextseq 25 --length 36"
-  fastp_params: "--cut_tail --cut_tail_window_size 4 --cut_tail_mean_quality 25 --trim_poly_g --length_required 36"
+  trim_galore_params: "--nextseq 20 --length 36"
+  fastp_params: "--cut_tail --cut_tail_window_size 4 --cut_tail_mean_quality 20 --trim_poly_g --length_required 36"
 
 align:
   tool: "bowtie2"               # bwa / bowtie2
@@ -203,7 +342,7 @@ call_peaks:
   peak_type: "narrow"           # narrow / broad
   macs3_gsize: "2701262066"     # effective genome size (preferred); if empty, auto-sum from chromsizes
   macs3_narrow_params: "--trackline --shift 75 --extsize 150 --keep-dup all --nomodel --call-summits -q 0.01"
-  macs3_broad_params: "--trackline --shift 75 --extsize 150 --keep-dup all --nomodel --broad --broad-cutoff 0.1"
+  macs3_broad_params: "--trackline --keep-dup all --nomodel --broad --broad-cutoff 0.1"
   frip_overlap_fraction: 0.2
 
 annotate_peaks:
@@ -225,6 +364,7 @@ latency-wait: 60
 Explanation by block:
 - `samples_csv`: input table for sample discovery and lane merging.
 - `ref`: reference genome/annotation source. For `custom`, paths are required. `bwa_index` / `bowtie2_index` can be left empty to auto-build.
+- `ref.mito_name`: critical setting for `bam_filter` and `ataqv`; must exactly match your FASTA mitochondrial contig name (often `MT`, `chrM`, or `M`, depending on the exact reference release/file).
 - `trimming`: choose one trimming engine and pass tool-specific options.
 - `align`: choose aligner and set aligner-specific CLI parameters.
 - `bam_filter.params`: core read-quality filtering flags (unmapped/secondary/duplicates/MAPQ etc.).
@@ -239,7 +379,7 @@ Explanation by block:
 
 ### Why these default params were chosen
 
-- `trimming.tool: trim_galore` with `--nextseq 25 --length 36`:
+- `trimming.tool: trim_galore` with `--nextseq 20 --length 36`:
   chosen for two-color Illumina runs (poly-G prone) and to remove very short reads that are usually uninformative for peak calling.
 - `align.tool: bowtie2` with `--very-sensitive --no-discordant -X 2000`:
   chosen to maximize paired-end sensitivity while constraining improbable pair structure for ATAC fragment lengths.
@@ -435,6 +575,16 @@ Pipeline removes some intermediates to reduce storage, for example:
 ## Acknowledgments
 
 A huge thank you to Dr. Isabell Bludau, Dr.med.Abigail Suwala, Dr. Paul Kerbs, Quynh Nhu Nguyen and Temesvari-Nagy Levente from Heidelberg University Hospital and the German Cancer Research Center (DKFZ) for their support, feedback, and contributions to this pipeline.
+
+## References
+
+Key resources and prior work this pipeline draws from:
+
+1. Niu Y. ATAC-seq data analysis: from FASTQ to peaks. Published March 20, 2019. https://yiweiniu.github.io/blog/2019/03/ATAC-seq-data-analysis-from-FASTQ-to-peaks/
+
+2. Patel H, Espinosa-Carrasco J, Langer B, Ewels P, et al. nf-core/atacseq [v2.1.2]. Zenodo; 2022. https://nf-co.re/atacseq/2.1.2/
+
+3. Yuan B. ATAC-seq Data Analysis. Presented at: BaRC Hot Topics; April 4, 2024; Whitehead Institute for Biomedical Research. http://barc.wi.mit.edu/education/hot_topics/ATACseq_2024/ATACseq2024_4slidesPerPage.pdf
 
 ## License
 

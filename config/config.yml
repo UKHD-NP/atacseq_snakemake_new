@@ -3,30 +3,33 @@ samples_csv: "test_data/samplesheet_test.csv"
 
 ref:
   # Reference assembly mode:
-  # - hg19/hg38/m39: auto-download and stage references into references/{assembly}/
+  # - hg19/hg38: auto-download and stage references into references/{assembly}/
   # - custom: use user-provided fasta/gtf/blacklist below
-  assembly: "custom"  # choices: hg19, hg38, m39, custom
+  assembly: "custom"  # choices: hg19, hg38, custom
   fasta: "test_data/references/genome.fa"
   gtf: "test_data/references/genes.gtf"
   blacklist: "test_data/references/ce11-blacklist.v2.bed"
   # Optional prebuilt index prefixes (leave empty to auto-build in references/{assembly}/)
   bwa_index: ""      # BWA index prefix
   bowtie2_index: ""  # Bowtie2 index prefix
-  # Mito contig naming for filtering/ataqv (e.g. MT, chrM)
+  # Mito contig naming for bam_filter/ataqv.
+  # IMPORTANT: must exactly match the mitochondrial contig name in your FASTA
+  # (e.g. MT, chrM, or M depending on the exact reference files), otherwise mito filtering/QC is wrong.
   mito_name: "MT"
   # Keep mitochondrial contig in include_regions (bam_filter); false = remove mito
   keep_mito: false
 
 trimming:
   enabled: true
+  delete_trimming: true  # Delete trimmed FASTQ files after pipeline completes (only applies when enabled: true)
   tool: "trim_galore"  # Choose trimming tool: "fastp" or "trim_galore"
-  trim_galore_params: "--nextseq 25 --length 36"
-  fastp_params: "--cut_tail --cut_tail_window_size 4 --cut_tail_mean_quality 25 --trim_poly_g --length_required 36"
+  trim_galore_params: "--nextseq 20 --length 36"
+  fastp_params: "--cut_tail --cut_tail_window_size 4 --cut_tail_mean_quality 20 --trim_poly_g --length_required 36"
 
 align:
   # Alignment engine
   tool: "bowtie2"  # choices: bwa-mem2, bowtie2
-  bowtie2_params: "--very-sensitive --no-discordant -p 2 -X 2000"
+  bowtie2_params: "--very-sensitive --no-discordant -X 2000"
   bwa_params: "-I 0,2000"
 
 bam_filter:
@@ -36,7 +39,7 @@ bam_filter:
   # - keep proper pairs
   # - MAPQ threshold
   params: "-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400 -q 30"
-  
+
 markduplicates:
   # Mark duplicates with Picard before bam_filter
   enabled: true
@@ -54,10 +57,11 @@ call_peaks:
   # - If left empty, this pipeline auto-sums chromsizes as fallback
   macs3_gsize: "2701262066"
   macs3_narrow_params: >-
-    --trackline --shift 75 --extsize 150 --keep-dup all --nomodel --call-summits -q 0.01 
+    --trackline --shift 75 --extsize 150 --keep-dup all --nomodel --call-summits -q 0.01
+  # Broad peaks always use -f BAMPE (paired-end fragments, no --shift/--extsize needed).
   macs3_broad_params: >-
-    --trackline --shift 75 --extsize 150 --keep-dup all --nomodel --broad --broad-cutoff 0.1
-  frip_overlap_fraction: 0.2
+    --trackline --keep-dup all --nomodel --broad --broad-cutoff 0.1
+  frip_overlap_fraction: 0.2     
 
 annotate_peaks:
   # HOMER annotatePeaks + summary table
@@ -65,7 +69,8 @@ annotate_peaks:
 
 feature_counts:
   enabled: true
-  # true = count using shifted BAM, false = filtered BAM
+  # Narrow peaks: use shifted BAM (true, recommended) to count Tn5 cut sites — consistent with MACS3 input.
+  # Broad peaks:  not use shifted BAM regardless of this setting (BAMPE fragment-level counting).
   use_shifted_bam: true
 
 ataqv:

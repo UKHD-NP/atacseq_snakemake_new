@@ -118,8 +118,7 @@ def bampe_rm_orphan(BAMIn, BAMOut, onlyFRPairs=False):
             try:
                 totalReads += 1
                 currRead = next(iter)
-            except:
-                StopIteration
+            except StopIteration:
                 EOF = 1
 
         ## READS WHERE ONLY ONE OF A PAIR IS IN FILE

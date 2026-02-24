@@ -1,18 +1,17 @@
-import os
-
-
 TRUE_VALUES = {"true", "yes", "1", "t", "y"}
-
-
-def error_msg(msg):
-    """Format parser/config errors consistently across modules."""
-    return f"[ERROR] {msg}"
 
 
 def as_bool(value, default=False):
     """
     Normalize config values to boolean.
-    Accepts bool, common truthy strings, and integer 1.
+    
+    Accepts various representations of 'True':
+    - True (boolean)
+    - 'true' (lowercase string)
+    - 'True' (capitalized string)
+    - 'TRUE' (uppercase string)
+    - 1 (integer)
+    Returns False for other values.
     """
     if isinstance(value, bool):
         return value
@@ -70,7 +69,7 @@ def get_effective_genome_size(chromsizes_path, configured_value=""):
                 total += int(fields[1])
 
     if total <= 0:
-        raise ValueError(error_msg(f"Failed to compute effective genome size from chromsizes: {chromsizes_path}"))
+        fatal(f"Failed to compute effective genome size from chromsizes: {chromsizes_path}")
     return str(total)
 
 
@@ -78,7 +77,7 @@ def get_sample_rows(sample_id):
     """Return all samplesheet rows matching a sample ID."""
     sample_rows = samplesheet[samplesheet['sample_id'] == sample_id]
     if sample_rows.empty:
-        raise ValueError(error_msg(f"Sample ID '{sample_id}' not found in samplesheet"))
+        fatal(f"Sample ID '{sample_id}' not found in samplesheet")
     return sample_rows
 
 
@@ -87,11 +86,9 @@ def get_outdir(sample_id):
     sample_rows = get_sample_rows(sample_id)
     outdirs = sample_rows['outdir'].dropna().unique().tolist()
     if len(outdirs) != 1:
-        raise ValueError(
-            error_msg(
-                f"Sample ID '{sample_id}' maps to multiple outdir values in samplesheet: {outdirs}. "
-                "Please keep outdir consistent for duplicated sample_id rows."
-            )
+        fatal(
+            f"Sample ID '{sample_id}' maps to multiple outdir values in samplesheet: {outdirs}. "
+            "Please keep outdir consistent for duplicated sample_id rows."
         )
     return outdirs[0]
 
@@ -105,11 +102,21 @@ def get_raw_lane_fastqs(wildcards):
     fq1s = sample_rows['fq1'].tolist()
     fq2s = sample_rows['fq2'].tolist()
     if len(fq1s) != len(fq2s):
-        raise ValueError(
-            error_msg(
-                f"Sample ID '{wildcards.sample_id}' has unequal fq1/fq2 counts: {len(fq1s)} vs {len(fq2s)}"
-            )
+        fatal(f"Sample ID '{wildcards.sample_id}' has unequal fq1/fq2 counts: {len(fq1s)} vs {len(fq2s)}")
+
+    invalid_fq1 = [str(path) for path in fq1s if not str(path).strip().lower().endswith(".gz")]
+    invalid_fq2 = [str(path) for path in fq2s if not str(path).strip().lower().endswith(".gz")]
+    if invalid_fq1 or invalid_fq2:
+        invalid_parts = []
+        if invalid_fq1:
+            invalid_parts.append(f"fq1={invalid_fq1}")
+        if invalid_fq2:
+            invalid_parts.append(f"fq2={invalid_fq2}")
+        fatal(
+            f"Sample ID '{wildcards.sample_id}' requires gzipped FASTQ inputs (*.gz); "
+            f"found non-gz paths: {'; '.join(invalid_parts)}"
         )
+
     return fq1s, fq2s
 
 
@@ -119,6 +126,50 @@ def get_raw_lane_fq1(wildcards):
 
 def get_raw_lane_fq2(wildcards):
     return get_raw_lane_fastqs(wildcards)[1]
+
+
+# Merge raw FASTQ lanes for duplicated sample IDs.
+# For samples with one lane, this is a simple copy-through via cat.
+rule merge_raw_fastqs:
+    input:
+        fq1 = get_raw_lane_fq1,
+        fq2 = get_raw_lane_fq2
+    output:
+        fq1 = os.path.join("{outdir}", "raw_merged", "{sample_id}_merged_1.fastq.gz"),
+        fq2 = os.path.join("{outdir}", "raw_merged", "{sample_id}_merged_2.fastq.gz")
+    log:
+        os.path.join("{outdir}", "logs", "raw_merge", "{sample_id}.merge_raw_fastqs.log")
+    message:
+        "{wildcards.sample_id}: Merging raw FASTQ lanes"
+    shell:
+        """
+        mkdir -p $(dirname {output.fq1})
+        mkdir -p $(dirname {log})
+        rm -f {output.fq1} {output.fq2}
+
+        N_R1=$(echo {input.fq1} | wc -w)
+        N_R2=$(echo {input.fq2} | wc -w)
+
+        if [ "$N_R1" -eq 1 ] && [ "$N_R2" -eq 1 ]; then
+            # Single-lane sample: use symlink to avoid duplicate storage
+            ln -sf "$(readlink -f {input.fq1})" {output.fq1}
+            ln -sf "$(readlink -f {input.fq2})" {output.fq2}
+            echo "[INFO] Mode: symlink (single lane)" > {log}
+        else
+            # Multi-lane sample: concatenate lanes in listed order
+            cat {input.fq1} > {output.fq1}
+            cat {input.fq2} > {output.fq2}
+            echo "[INFO] Mode: merge (multi-lane)" > {log}
+        fi
+
+        if [ ! -s "{output.fq1}" ] || [ ! -s "{output.fq2}" ]; then
+            echo "[ERROR] Merged FASTQ output is empty." >> {log}
+            exit 1
+        fi
+
+        echo "[INFO] Merged R1 inputs: {input.fq1}" >> {log}
+        echo "[INFO] Merged R2 inputs: {input.fq2}" >> {log}
+        """
 
 
 def get_paired_fq(wildcards):
@@ -144,6 +195,7 @@ def get_paired_trimmed_fq(wildcards):
         ]
     else:
         return get_paired_fq(wildcards)
+        
 
 
 def get_target_files(sample_ids):

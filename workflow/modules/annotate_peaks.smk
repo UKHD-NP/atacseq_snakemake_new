@@ -1,7 +1,5 @@
 rule homer_annotate_peaks:
     # Annotate called peaks with HOMER annotatePeaks.pl.
-    params:
-        plot_homer = os.path.join(workflow.basedir, "scripts", "plot_homer_annotatepeaks.r"),
     input:
         peaks = os.path.join("{outdir}", "peaks", "{sample_id}_peaks.peak"),
         fasta = config["ref"]["fasta"],
@@ -9,15 +7,17 @@ rule homer_annotate_peaks:
     output:
         annotation = os.path.join("{outdir}", "annotation", "{sample_id}_peaks.annotatePeaks.txt"),
         summary = os.path.join("{outdir}", "annotation", "{sample_id}.macs_annotatePeaks.summary.txt")
-    log:
-        os.path.join("{outdir}", "logs", "homer", "{sample_id}.annotatePeaks.log")
+    params:
+        plot_homer = os.path.join(workflow.basedir, "scripts", "plot_homer_annotatepeaks.r"),
     conda:
         os.path.join(workflow.basedir, "envs", "homer.yml")
-    threads: 8
-    benchmark:
-        os.path.join("{outdir}", "benchmarks", "{sample_id}.homer_annotatePeaks.benchmark.txt")
     message:
         "{wildcards.sample_id}: Annotating peaks with HOMER"
+    threads: 8
+    log:
+        os.path.join("{outdir}", "logs", "homer", "{sample_id}.annotatePeaks.log")
+    benchmark:
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.homer_annotatePeaks.benchmark.txt")
     shell:
         """
         set -euo pipefail

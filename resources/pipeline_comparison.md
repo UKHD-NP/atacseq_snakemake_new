@@ -6,7 +6,7 @@
 |---|---|---|
 | Structure | Single monolithic Snakefile | 20 modular `.smk` files |
 | Configuration | Hardcoded in rules | YAML-driven, each module toggleable on/off |
-| References | Manual setup | Auto-download hg19/hg38/m39 |
+| References | Manual setup | Auto-download hg19/hg38 |
 
 ---
 
@@ -30,7 +30,7 @@
 | Feature | Notes |
 |---------|-------|
 | **Fragment size distribution** (`bamPEFragmentSize`) | No equivalent rule in NEW |
-| **PBC calculation** (PCR Bottleneck Coefficient) | Completely absent |
+| **PBC calculation** (PCR Bottleneck Coefficient) | Completely absent — recommended insertion point: after `mark_duplicates`, before duplicate removal (see Section 8) |
 | **Merged Lorenz curve plots** | NEW only has per-sample, no merge |
 | **FastQC on BAMs** | Not present in NEW |
 | **Soft-clip filter** (`sclen < 15`) | Not in NEW |
@@ -49,7 +49,7 @@
 | **featureCounts quantification** | Read counting in peaks |
 | **ataqv** | ATAC-seq specific QC + interactive HTML report |
 | **deepTools heatmap/plotProfile** | TSS-centered heatmap, gene-body profiles |
-| **Auto reference download** | hg19/hg38/m39 |
+| **Auto reference download** | hg19/hg38 |
 | **Auto include-regions** | Genome minus blacklist minus mito |
 | **Disk cleanup** | Auto-deletes intermediate files |
 
@@ -137,3 +137,155 @@ the aligner's `-f 0x002` flag because it verifies orientation and positioning at
 Two valid approaches for soft-clip:
 - **Option A**: Drop it entirely -- NM + MAPQ filters already catch most problematic alignments.
 - **Option B**: Add `samtools view -e 'sclen < 15'` as an additional pipe step to match OLD behavior.
+
+---
+
+## 8. PBC Calculation — where to add in NEW pipeline
+
+### Why PBC is not replaced by ataqv
+
+| Metric | What it measures | Tool |
+|--------|-----------------|------|
+| PBC1, PBC2 | Library complexity / PCR over-amplification (coordinate-level read stacking) | Must be computed separately |
+| Duplicate rate | Flag-based duplicate fraction | Picard MarkDuplicates (already in NEW) |
+| TSS enrichment | Chromatin accessibility quality | ataqv |
+| Fragment size distribution | Nucleosome occupancy | ataqv / deepTools |
+
+**ataqv does NOT compute PBC.** They answer different questions:
+- PBC = how much of the library is PCR artifact?
+- ataqv = how good is the ATAC signal?
+
+### Recommended insertion point
+
+```
+Trim -> Align -> Sort -> Mark dup -> [PBC HERE] -> Filter -> ...
+```
+
+**Input:** marked BAM (output of Picard MarkDuplicates, duplicates flagged but NOT yet removed)
+**Output:** `{sample}.pbc.txt`
+
+Rationale:
+- Computing BEFORE duplicate removal: still have all reads including duplicates to count stacking at each position.
+- Computing AFTER duplicate removal (`-F 0x0400`): information is lost — M1/M2 counts will be wrong.
+- Computing BEFORE MarkDup: duplicates not yet identified — cannot separate PCR from natural overlaps.
+
+### PBC computation (shell)
+
+From the **marked BAM**, apply basic read filters (unmapped/secondary/MAPQ) but NOT `-F 0x0400`:
+
+```bash
+samtools view -F 0x004 -F 0x0008 -F 0x0100 -f 0x001 -q 30 {sample}.marked.bam \
+  | awk '{print $3"\t"$4}' \
+  | sort \
+  | uniq -c \
+  | awk '
+    BEGIN { Mt=0; M1=0; M2=0 }
+    {
+      Mt += $1
+      if ($1 == 1) M1++
+      if ($1 == 2) M2++
+    }
+    END {
+      printf "PBC1\t%.4f\n", M1/Mt
+      printf "PBC2\t%.4f\n", (M2 > 0 ? M1/M2 : "NA")
+      printf "NRF\t%.4f\n",  (NR > 0 ? NR/Mt : "NA")
+    }' > {sample}.pbc.txt
+```
+
+### ENCODE thresholds
+
+| Metric | Severe bottleneck | Moderate | Ideal |
+|--------|------------------|----------|-------|
+| PBC1 | < 0.5 | 0.5–0.8 | > 0.9 |
+| PBC2 | < 1 | 1–3 | > 3 |
+| NRF | < 0.5 | 0.5–0.8 | > 0.9 |
+
+---
+
+## 9. Running on HPC (DKFZ LSF cluster)
+
+### OLD vs NEW — HPC support comparison
+
+| | OLD | NEW |
+|---|---|---|
+| Cluster scheduler | Manual `bsub` scripts or none | `snakemake-executor-plugin-lsf` (automatic) |
+| LSF profile | Not provided | `workflow/profiles/lsf/config.yaml` |
+| Resource declaration | Not per-rule | Per-rule: `mem_mb`, `runtime`, `threads` → auto-translated to `bsub` flags |
+| Conda environments | Single shared env (or none) | Per-rule isolated envs under `workflow/envs/*.yml` |
+| Conda prefix | In home directory | Must be set outside home (home quota = 20 GB) |
+| Session persistence | Not documented | `screen` recommended on `bsub01` |
+
+### Node roles at DKFZ
+
+| Node | Purpose | Allowed |
+|------|---------|---------|
+| `odcf-worker01/02` | Dev, install, testing | Software install, small runs |
+| `bsub01/02` | Job submission only | Run Snakemake (lightweight); **no** processing |
+| Cluster nodes | Computation | Jobs submitted automatically via `bsub` |
+
+### Quick setup (NEW pipeline)
+
+**Step 1 — Set up env on `odcf-worker01`:**
+
+```bash
+module load Mamba/24.11.2-1
+mamba init bash && source ~/.bashrc
+
+YOUR_WORKDIR="/omics/groups/OE0146/internal/YOUR_USERNAME"
+mkdir -p ${YOUR_WORKDIR}/conda_envs
+
+mamba create -p ${YOUR_WORKDIR}/conda_envs/snakemake \
+    -c conda-forge -c bioconda \
+    snakemake snakemake-executor-plugin-lsf -y
+```
+
+**Step 2 — Clone and configure:**
+
+```bash
+cd ${YOUR_WORKDIR}
+git clone https://github.com/UKHD-NPS/atacseq_snakemake.git
+cd atacseq_snakemake
+
+# Update conda-prefix in LSF profile to your workdir
+sed -i "s|/omics/odcf/analysis/YOUR_GROUP/conda_envs|${YOUR_WORKDIR}/conda_envs|g" \
+    workflow/profiles/lsf/config.yaml
+```
+
+**Step 3 — Dry-run (validate from bsub01):**
+
+```bash
+ssh YOUR_USERNAME@bsub01.lsf.dkfz.de
+module load Mamba/24.11.2-1
+mamba activate ${YOUR_WORKDIR}/conda_envs/snakemake
+
+snakemake -s workflow/Snakefile --configfile config/config.yml --use-conda -n
+```
+
+**Step 4 — Run in a persistent screen session:**
+
+```bash
+screen -S atacseq
+snakemake --profile workflow/profiles/lsf -j 100
+```
+
+| screen command | Action |
+|---------------|--------|
+| `screen -S atacseq` | Start new named session |
+| `Ctrl+A`, then `D` | Detach (keeps running) |
+| `screen -ls` | List all active sessions |
+| `screen -r atacseq` | Re-attach to session |
+
+**Monitor LSF jobs:**
+
+```bash
+bjobs -w           # all running/pending jobs
+bjobs -w -r        # running only
+bjobs -w -p        # pending only
+bjobs -l JOB_ID    # detailed info for one job
+```
+
+### Important notes for DKFZ
+
+- `~/.condarc` must list only `conda-forge` and `bioconda` — `defaults` (Anaconda) channel is banned at DKFZ due to licensing.
+- `conda-prefix` in `workflow/profiles/lsf/config.yaml` must point **outside** home (`/omics/...`). All rule envs together take 5–15 GB.
+- Always launch Snakemake from `bsub01/bsub02`, never from `odcf-worker01` (worker nodes cannot submit LSF jobs).
