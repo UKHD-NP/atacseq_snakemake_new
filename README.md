@@ -64,13 +64,12 @@ bam_filter  --->  filtered.bam / filtered.bam.bai
         |                    +--> shift_bam (alignmentSieve --ATACshift) -> shifted.bam + shifted.bigWig
         |                               |
         |                               +--> macs3_callpeak_tn5 (narrow: shifted.bam -> bamtobed -> MACS3 BED mode)
-        |                               |                      (broad:  filtered.bam -> MACS3 BAMPE mode)
+        |                               |                       (broad:  filtered.bam -> MACS3 BAMPE mode)
         |                               |    |
         |                               |    +--> frip_score (filtered.bam + peaks → MultiQC TSVs)
-        |                               |    +--> macs3_peak_qc_plot
         |                               |    +--> annotate_peaks (optional)
         |                               |    +--> featurecounts_in_peaks (optional; narrow=shifted.bam, broad=filtered.bam)
-        |                               |    +--> ataqv -> ataqv_mkarv (optional; filtered.bam)
+        |                               |    +--> ataqv (optional; filtered.bam)
         |                               |
         |                               +--> deeptools (optional)
         |                                        +--> computeMatrix / plotProfile / plotHeatmap (shifted.bigWig)

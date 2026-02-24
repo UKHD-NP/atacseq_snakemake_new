@@ -9,7 +9,7 @@ rule bedtools_genomecov:
     conda:
         os.path.join(workflow.basedir, "envs", "bedtools.yml")
     message:
-        "{wildcards.sample_id}: Generating scaled bedGraph — [Source: Filtered BAM, NOT SHIFTED]""
+        "{wildcards.sample_id}: Generating scaled bedGraph — [Source: Filtered BAM, NOT SHIFTED]"
     threads: 8
     log:
         os.path.join("{outdir}", "logs", "bedtools", "{sample_id}.genomecov.log")
