@@ -80,6 +80,8 @@ module_order:
         - "*.plotFingerprint.qcmetrics.txt"
         - "*.plotFingerprint.raw_counts.txt"
         - "*.plotProfile.tab"
+        - "*.fragment_size.qcmetrics.txt"
+        - "*.fragment_size.raw_lengths.txt"
   - ataqv:
       anchor: "ataqv"
       name: "ataqv"
@@ -130,6 +132,10 @@ sp:
     fn: "*.plotFingerprint.raw_counts.txt"
   deeptools_profile:
     fn: "*.plotProfile.tab"
+  deeptools_fragment_size_table:
+    fn: "*.fragment_size.qcmetrics.txt"
+  deeptools_fragment_size_raw:
+    fn: "*.fragment_size.raw_lengths.txt"
   ataqv:
     fn: "*.ataqv.json"
   homer_annotation_summary:
