@@ -148,13 +148,13 @@ rule genome_blacklist_regions:
     log:
         os.path.join(ref_dir, "include_regions", f"{config['ref']['assembly']}.log")
     shell:
-    """
+        """
         mkdir -p $(dirname {output})
         mkdir -p $(dirname {log})
-        
+
         # Sort sizes file to match expected chromosome order
         LC_ALL=C sort -k1,1 "{input.sizes}" > "{params.tmp}.sizes"
-        
+
         if [ -n "{params.blacklist}" ] && [ -s "{params.blacklist}" ]; then
             LC_ALL=C sort -k1,1 -k2,2n "{params.blacklist}" > "{params.tmp}.blacklist"
             bedtools complement -i "{params.tmp}.blacklist" -g "{params.tmp}.sizes" > "{params.tmp}"
@@ -163,7 +163,7 @@ rule genome_blacklist_regions:
             awk 'BEGIN{{OFS="\\t"}} {{print $1,0,$2}}' "{params.tmp}.sizes" > "{params.tmp}"
         fi
         rm -f "{params.tmp}.sizes"
-        
+
         if [ "{params.keep_mito}" = "true" ] || [ -z "{params.mito_name}" ]; then
             mv "{params.tmp}" "{output}"
         else
@@ -174,4 +174,4 @@ rule genome_blacklist_regions:
             echo "[ERROR] include regions output is empty: {output}" >> "{log}"
             exit 1
         fi
-    """
+        """
