@@ -207,11 +207,15 @@ def get_target_files(sample_ids):
     align_stats_on = is_enabled("align_stats", default=True) and bam_filter_on
     markdup_on = is_enabled("markduplicates")
     call_peaks_on = is_enabled("call_peaks") and bam_filter_on
+    call_peaks_qc_on = call_peaks_on and as_bool(
+        config.get("call_peaks", {}).get("macs3_peak_qc_plot", True),
+        default=True,
+    )
     annotate_peaks_on = call_peaks_on and is_enabled("annotate_peaks")
     feature_counts_on = call_peaks_on and is_enabled("feature_counts")
     deeptools_on = is_enabled("deeptools") and bam_filter_on
     ataqv_on = is_enabled("ataqv") and call_peaks_on
-    
+       
     # Process each sample
     for sample_id in sample_ids:
         outdir = get_outdir(sample_id)
@@ -250,6 +254,9 @@ def get_target_files(sample_ids):
                 _path("peaks", f"{sample_id}_peaks.peak"),
                 _path("peaks", f"{sample_id}_peaks.xls"),
                 _path("peaks", f"{sample_id}.FRiP.txt"),
+            ])
+        if call_peaks_qc_on:
+            targets.extend([
                 _path("peaks", f"{sample_id}.macs_peakqc.summary.txt"),
                 _path("peaks", f"{sample_id}.macs_peakqc.plots.pdf"),
             ])
@@ -285,8 +292,11 @@ def get_target_files(sample_ids):
                 _path("deeptools", f"{sample_id}.reference_point.plotHeatmap.pdf"),
                 _path("deeptools", f"{sample_id}.reference_point.plotHeatmap.mat.tab"),
                 _path("deeptools", f"{sample_id}.plotFingerprint.pdf"),
-                _path("deeptools", f"{sample_id}.plotFingerprint.raw.txt"),
+                _path("deeptools", f"{sample_id}.plotFingerprint.raw_counts.txt"),
                 _path("deeptools", f"{sample_id}.plotFingerprint.qcmetrics.txt"),
+                _path("deeptools", f"{sample_id}.fragment_size_distribution.pdf"),
+                _path("deeptools", f"{sample_id}.fragment_size.raw_lengths.txt"),
+                _path("deeptools", f"{sample_id}.fragment_size.qcmetrics.txt"),
             ])
 
         # ataqv outputs.

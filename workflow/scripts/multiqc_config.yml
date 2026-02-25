@@ -78,7 +78,7 @@ module_order:
       info: "Fingerprint and profile QC metrics."
       path_filters:
         - "*.plotFingerprint.qcmetrics.txt"
-        - "*.plotFingerprint.raw.txt"
+        - "*.plotFingerprint.raw_counts.txt"
         - "*.plotProfile.tab"
   - ataqv:
       anchor: "ataqv"
@@ -127,7 +127,7 @@ sp:
   deeptools:
     fn: "*.plotFingerprint.qcmetrics.txt"
   deeptools_raw_counts:
-    fn: "*.plotFingerprint.raw.txt"
+    fn: "*.plotFingerprint.raw_counts.txt"
   deeptools_profile:
     fn: "*.plotProfile.tab"
   ataqv:

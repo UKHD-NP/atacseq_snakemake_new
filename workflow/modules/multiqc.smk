@@ -10,6 +10,10 @@ def get_input_multiqc(wildcards):
     bam_filter_on = is_enabled("bam_filter", default=True)
     align_stats_on = is_enabled("align_stats", default=True) and bam_filter_on
     call_peaks_on = is_enabled("call_peaks") and bam_filter_on
+    call_peaks_qc_on = call_peaks_on and as_bool(
+        config.get("call_peaks", {}).get("macs3_peak_qc_plot", True),
+        default=True,
+    )
     feature_counts_on = call_peaks_on and is_enabled("feature_counts")
     deeptools_on = is_enabled("deeptools") and bam_filter_on
     annotation_on = is_enabled("annotate_peaks") and call_peaks_on
@@ -55,6 +59,7 @@ def get_input_multiqc(wildcards):
     if call_peaks_on:
         targets.append(_path("peaks", f"{sample_id}_peaks.FRiP_mqc.tsv"))
         targets.append(_path("peaks", f"{sample_id}_peaks.count_mqc.tsv"))
+    if call_peaks_qc_on:
         targets.append(_path("peaks", f"{sample_id}.macs_peakqc.summary.txt"))
 
     # Add annotation summaries.
@@ -68,8 +73,10 @@ def get_input_multiqc(wildcards):
     # Add deepTools fingerprint QC metrics.
     if deeptools_on:
         targets.append(_path("deeptools", f"{sample_id}.plotFingerprint.qcmetrics.txt"))
-        targets.append(_path("deeptools", f"{sample_id}.plotFingerprint.raw.txt"))
+        targets.append(_path("deeptools", f"{sample_id}.plotFingerprint.raw_counts.txt"))
         targets.append(_path("deeptools", f"{sample_id}.scale_regions.plotProfile.tab"))
+        targets.append(_path("deeptools", f"{sample_id}.fragment_size.qcmetrics.txt"))
+        targets.append(_path("deeptools", f"{sample_id}.fragment_size.raw_lengths.txt"))
 
     # Add ataqv JSON metrics for ATAC QC.
     if ataqv_on:

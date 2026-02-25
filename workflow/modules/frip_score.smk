@@ -31,7 +31,7 @@ rule frip_score:
             -bed \
             -c \
             -f {params.overlap} \
-            | awk 'BEGIN{{sum=0}}{{sum += $NF}} END{{print sum}}') || {{
+            | awk 'BEGIN{{sum=0}} $NF > 0 {{sum++}} END{{print sum}}') || {{
             echo "[ERROR] Failed to compute reads in peaks." >> "{log}"
             exit 1
         }}

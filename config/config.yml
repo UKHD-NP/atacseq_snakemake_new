@@ -15,7 +15,7 @@ ref:
   # Mito contig naming for bam_filter/ataqv.
   # IMPORTANT: must exactly match the mitochondrial contig name in your FASTA
   # (e.g. MT, chrM, or M depending on the exact reference files), otherwise mito filtering/QC is wrong.
-  mito_name: "MT"
+  mito_name: "chrM"
   # Keep mitochondrial contig in include_regions (bam_filter); false = remove mito
   keep_mito: false
 
@@ -55,12 +55,14 @@ call_peaks:
   # - Recommended: use effective genome size values
   #   https://deeptools.readthedocs.io/en/latest/content/feature/effectiveGenomeSize.html
   # - If left empty, this pipeline auto-sums chromsizes as fallback
-  macs3_gsize: "2701262066"
+  macs3_gsize: "2701495711"
   macs3_narrow_params: >-
-    --trackline --shift 75 --extsize 150 --keep-dup all --nomodel --call-summits -q 0.01
+    --trackline --shift -75 --extsize 150 --keep-dup all --nomodel --call-summits -q 0.01
   # Broad peaks always use -f BAMPE (paired-end fragments, no --shift/--extsize needed).
   macs3_broad_params: >-
     --trackline --keep-dup all --nomodel --broad --broad-cutoff 0.1
+  # Toggle MACS3 peak QC summary + plot generation (rule: macs3_peak_qc_plot)
+  macs3_peak_qc_plot: true
   frip_overlap_fraction: 0.2     
 
 annotate_peaks:

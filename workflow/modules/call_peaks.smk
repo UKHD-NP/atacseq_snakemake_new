@@ -6,7 +6,7 @@ if CALL_PEAKS_PEAK_TYPE not in {"narrow", "broad"}:
 CALL_PEAKS_MACS3_NARROW_PARAMS = cfg_str(
     CALL_PEAKS_CFG,
     "macs3_narrow_params",
-    "--shift 75 --extsize 150 --keep-dup all --nomodel --call-summits -q 0.01",
+    "--shift -75 --extsize 150 --keep-dup all --nomodel --call-summits -q 0.01",
 )
 
 # Broad peaks always use BAMPE (-f BAMPE, no --shift/--extsize needed).
@@ -14,6 +14,11 @@ CALL_PEAKS_MACS3_BROAD_PARAMS = cfg_str(
     CALL_PEAKS_CFG,
     "macs3_broad_params",
     "--keep-dup all --nomodel --broad --broad-cutoff 0.1",
+)
+
+CALL_PEAKS_MACS3_PEAK_QC_PLOT_ON = as_bool(
+    CALL_PEAKS_CFG.get("macs3_peak_qc_plot", True),
+    default=True,
 )
 
 
@@ -129,43 +134,44 @@ rule macs3_callpeak_tn5:
         """
 
 
-rule macs3_peak_qc_plot:
-    # Build MACS peak QC summary table and distribution plots.
-    input:
-        peak = os.path.join("{outdir}", "peaks", "{sample_id}_peaks.peak"),
-    output:
-        summary = os.path.join("{outdir}", "peaks", "{sample_id}.macs_peakqc.summary.txt"),
-        plots = os.path.join("{outdir}", "peaks", "{sample_id}.macs_peakqc.plots.pdf"),
-    params:
-        script = os.path.join(workflow.basedir, "scripts", "plot_macs_qc.r"),
-        outprefix = "{sample_id}.macs_peakqc",
-    conda:
-        os.path.join(workflow.basedir, "envs", "peakcalling.yml")
-    message:
-        "{wildcards.sample_id}: Plotting MACS peak QC"
-    threads: 4
-    log:
-        os.path.join("{outdir}", "logs", "macs3", "{sample_id}.peak_qc.log"),
-    benchmark:
-        os.path.join("{outdir}", "benchmarks", "{sample_id}.macs3_peak_qc.benchmark.txt")
-    shell:
-        """
-        set -euo pipefail
+if CALL_PEAKS_MACS3_PEAK_QC_PLOT_ON:
+    rule macs3_peak_qc_plot:
+        # Build MACS peak QC summary table and distribution plots.
+        input:
+            peak = os.path.join("{outdir}", "peaks", "{sample_id}_peaks.peak"),
+        output:
+            summary = os.path.join("{outdir}", "peaks", "{sample_id}.macs_peakqc.summary.txt"),
+            plots = os.path.join("{outdir}", "peaks", "{sample_id}.macs_peakqc.plots.pdf"),
+        params:
+            script = os.path.join(workflow.basedir, "scripts", "plot_macs_qc.r"),
+            outprefix = "{sample_id}.macs_peakqc",
+        conda:
+            os.path.join(workflow.basedir, "envs", "peakcalling.yml")
+        message:
+            "{wildcards.sample_id}: Plotting MACS peak QC"
+        threads: 4
+        log:
+            os.path.join("{outdir}", "logs", "macs3", "{sample_id}.peak_qc.log"),
+        benchmark:
+            os.path.join("{outdir}", "benchmarks", "{sample_id}.macs3_peak_qc.benchmark.txt")
+        shell:
+            """
+            set -euo pipefail
 
-        mkdir -p "{wildcards.outdir}/peaks"
-        mkdir -p "$(dirname "{log}")"
+            mkdir -p "{wildcards.outdir}/peaks"
+            mkdir -p "$(dirname "{log}")"
 
-        Rscript "{params.script}" \
-            -i "{input.peak}" \
-            -s "{wildcards.sample_id}" \
-            -o "{wildcards.outdir}/peaks" \
-            -p "{params.outprefix}" > "{log}" 2>&1 || {{
-            echo "[ERROR] plot_macs2_qc.r failed." >> "{log}"
-            exit 1
-        }}
+            Rscript "{params.script}" \
+                -i "{input.peak}" \
+                -s "{wildcards.sample_id}" \
+                -o "{wildcards.outdir}/peaks" \
+                -p "{params.outprefix}" > "{log}" 2>&1 || {{
+                echo "[ERROR] plot_macs2_qc.r failed." >> "{log}"
+                exit 1
+            }}
 
-        if [ ! -s "{output.summary}" ] || [ ! -s "{output.plots}" ]; then
-            echo "[ERROR] MACS peak QC outputs are missing or empty." >> "{log}"
-            exit 1
-        fi
-        """
+            if [ ! -s "{output.summary}" ] || [ ! -s "{output.plots}" ]; then
+                echo "[ERROR] MACS peak QC outputs are missing or empty." >> "{log}"
+                exit 1
+            fi
+            """

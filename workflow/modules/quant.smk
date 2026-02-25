@@ -20,7 +20,7 @@ rule featurecounts_in_peaks:
         summary = os.path.join("{outdir}", "featurecounts", "{sample_id}.readCountInPeaks.txt.summary"),
     params:
         frac_overlap = float(CALL_PEAKS_CFG.get("frip_overlap_fraction", 0.20)),
-        strand = 0,
+        strand = 0, # unstranded
     conda:
         os.path.join(workflow.basedir, "envs", "subread.yml")
     message:

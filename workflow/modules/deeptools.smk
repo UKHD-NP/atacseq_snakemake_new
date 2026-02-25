@@ -1,3 +1,9 @@
+DEEPTOOLS_CFG = config.get("deeptools", {})
+FRAGMENT_SIZE_PLOT_FORMAT = str(DEEPTOOLS_CFG.get("fragment_size_plot_format", "pdf")).strip().lower() or "pdf"
+if FRAGMENT_SIZE_PLOT_FORMAT not in {"pdf", "png", "svg", "eps"}:
+    FRAGMENT_SIZE_PLOT_FORMAT = "pdf"
+
+
 rule deeptools_compute_matrix_scale_regions:
     input:
         regions = config["ref"]["bed"],
@@ -176,15 +182,16 @@ rule deeptools_plot_fingerprint:
         bam = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam")
     output:
         plot = os.path.join("{outdir}", "deeptools", "{sample_id}.plotFingerprint.pdf"),
-        raw_counts = os.path.join("{outdir}", "deeptools", "{sample_id}.plotFingerprint.raw.txt"),
+        raw_counts = os.path.join("{outdir}", "deeptools", "{sample_id}.plotFingerprint.raw_counts.txt"),
         qc_metrics = os.path.join("{outdir}", "deeptools", "{sample_id}.plotFingerprint.qcmetrics.txt")
     params:
         label = lambda wildcards: wildcards.sample_id,
-        num_samples = 500000
+        num_samples = 500000,
+        bin_size = 500
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
-        "{wildcards.sample_id}: Running deepTools plotFingerprint"
+        "{wildcards.sample_id}: Plotting Lorenz curves-Fingerprint"
     threads: 12
     resources:
         mem_mb = 16384
@@ -200,6 +207,7 @@ rule deeptools_plot_fingerprint:
         plotFingerprint \
             --skipZeros \
             --numberOfSamples {params.num_samples} \
+            --binSize {params.bin_size} \
             --labels "{params.label}" \
             --bamfiles "{input.bam}" \
             --plotFile "{output.plot}" \
@@ -212,6 +220,55 @@ rule deeptools_plot_fingerprint:
 
         if [ ! -s "{output.plot}" ] || [ ! -s "{output.raw_counts}" ] || [ ! -s "{output.qc_metrics}" ]; then
             echo "[ERROR] plotFingerprint outputs are missing or empty." >> "{log}"
+            exit 1
+        fi
+        """
+
+
+rule deeptools_fragment_size_distribution:
+    input:
+        bam = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam"),
+        bai = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam.bai")
+    output:
+        plot = os.path.join("{outdir}", "deeptools", "{sample_id}.fragment_size_distribution.pdf"),
+        raw_lengths = os.path.join("{outdir}", "deeptools", "{sample_id}.fragment_size.raw_lengths.txt"),
+        qc_metrics = os.path.join("{outdir}", "deeptools", "{sample_id}.fragment_size.qcmetrics.txt")
+    params:
+        label = lambda wildcards: wildcards.sample_id,
+        bin_size = 1000,
+        max_fragment_length = 1500
+    conda:
+        os.path.join(workflow.basedir, "envs", "deeptools.yml")
+    message:
+        "{wildcards.sample_id}: Plotting the fragment size distribution"
+    threads: 12
+    resources:
+        mem_mb = 8192
+    log:
+        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.fragment_size.log")
+    benchmark:
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.fragment_size.benchmark.txt")
+    shell:
+        """
+        mkdir -p "$(dirname "{output.plot}")"
+        mkdir -p "$(dirname "{log}")"
+
+        bamPEFragmentSize \
+            --binSize {params.bin_size} \
+            --maxFragmentLength {params.max_fragment_length} \
+            --plotTitle "{params.label}" \
+            --samplesLabel "{params.label}" \
+            --bamfiles "{input.bam}" \
+            --histogram "{output.plot}" \
+            --outRawFragmentLengths "{output.raw_lengths}" \
+            --table "{output.qc_metrics}" \
+            --numberOfProcessors {threads} > "{log}" 2>&1 || {{
+            echo "[ERROR] bamPEFragmentSize failed." >> "{log}"
+            exit 1
+        }}
+
+        if [ ! -s "{output.plot}" ] || [ ! -s "{output.raw_lengths}" ] || [ ! -s "{output.qc_metrics}" ]; then
+            echo "[ERROR] bamPEFragmentSize outputs are missing or empty." >> "{log}"
             exit 1
         fi
         """

@@ -7,6 +7,7 @@
 | Structure | Single monolithic Snakefile | 20 modular `.smk` files |
 | Configuration | Hardcoded in rules | YAML-driven, each module toggleable on/off |
 | References | Manual setup | Auto-staged for hg19/hg38; fully `custom` mode supported |
+| Samplesheet columns | `sample`, `replicate`, `fq1`, `fq2`; no lane merging | `sample_id`, `fq1`, `fq2`, `outdir` → supports multi-lane FASTQ merging |
 
 ---
 
@@ -14,19 +15,26 @@
 
 | Step | OLD | NEW | Key difference |
 |------|-----|-----|----------------|
-| **Trimming** | cutadapt | **trim_galore (default)** or fastp | trim_galore is now default (NextSeq poly-G aware); fastp available as alternative |
-| **FastQC trimmed** | Not present | `fastqc_trimmed` run only in `trim_galore` mode | fastp mode produces its own HTML/JSON report instead |
+| **Trimming** | cutadapt with FIXED Nextera adapter `CTGTCTCTTATACACATCT` | **trim_galore (default)** or fastp | trim_galore uses automatic adapter detection; OLD used fixed hardcoded Nextera adapter |
+| **FastQC raw** | **Not present** | `fastqc_raw` module | Completely absent in OLD |
+| **FastQC trimmed** | Present | Present | Both run FastQC on trimmed reads |
 | **Alignment** | bwa-mem2 only | **bowtie2 (default)** or bwa-mem2 | bowtie2 is now default (`--very-sensitive --no-discordant -X 2000`); both aligners add RG tags |
-| **Filtering** | samtools `-e '([NM]<=4) && sclen<15'` + `-F 0x100 -f 3` | bamtools JSON filter + `-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400 -q 30` | NEW adds orphan removal, uses include-regions BED instead of `grep chrM` |
-| **Mark dup** | GATK `MarkDuplicatesWithMateCigar` (removes dups) | Picard `MarkDuplicates` (marks only; removed at filter step via `-F 0x0400`) | Different order: OLD filters then marks; NEW marks then filters (more correct) |
-| **Tn5 shift** | 1 massive rule: BAM→BED→shift→BEDPE→shift again→blacklist→RPM→bigwig | 2 separate mechanisms: (1) awk shift BED for peak calling, (2) `alignmentSieve --ATACshift` → `shifted.bam` for BAM-based signal | NEW cleanly separates peak calling from signal track generation |
-| **BigWig** | 1 RPM track from shifted data | 2 tracks: RPGC (`shifted.bigWig`) + unscaled bedGraph→bigWig (`bigWig`) | RPGC is more appropriate for cross-sample comparison |
-| **Peak calling** | MACS3 on shifted BED (narrow only) | MACS3, **narrow or broad** mode configurable | NEW adds broad mode (`filtered.bam` BAMPE), peak QC plots, FRiP TSVs |
-| **Peak annotation** | Not present | HOMER `annotatePeaks` + summary plot | NEW |
-| **featureCounts** | Not present | `featurecounts_in_peaks` (SAF-based); configurable shifted vs filtered BAM | NEW; `use_shifted_bam: true` by default |
-| **ataqv** | Not present | ataqv JSON + mkarv interactive HTML | NEW |
-| **MultiQC** | Not present | Full MultiQC report aggregating all QC modules | NEW |
-| **Cleanup** | Not present | `delete_tmp` removes merged FASTQ, pre-filter BAM, unsorted BAM | NEW |
+| **Filtering** | samtools `-q 20 -F 0x100 -e '([NM] <= 4) && sclen < 15' -f 3 -F 0x0008` then `grep -v chrM` via idxstats | samtools `-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400 -q 30` + bamtools JSON filter + pysam | NEW adds orphan removal, uses include-regions BED instead of `grep chrM` |
+| **GATK FixMateInformation** | After initial filter, before MarkDup: `gatk FixMateInformation --ADD_MATE_CIGAR true` | **Not present** | OLD required this to ensure mate CIGAR tags are present for MarkDuplicatesWithMateCigar |
+| **Mark dup** | `gatk MarkDuplicatesWithMateCigar` (removes dups via `--REMOVE_DUPLICATES true`) | `picard MarkDuplicates` (marks only; removed at filter step via `samtools view -F 0x0400`) | Different tools; OLD used mate-CIGAR-aware marking |
+| **Tn5 shift** | filtered BAM → `bedtools bamtobed` BED → shift | filtered BAM → `alignmentSieve --ATACshift` shifted BAM -> BED | NEW uses deepTools ; OLD uses bedtools + awk |
+| **BigWig** | 1 RPM track from shifted data | 2 tracks: RPGC (`shifted.bigWig`) + scaled bedGraph→bigWig (`unshifted.bigWig`) | RPGC is more appropriate for cross-sample comparison |
+| **Peak calling** | MACS3 on shifted BED(narrow only) | MACS3, **narrow** (on shifted BAM → BED) or **broad** (on unshifted BAM) | NEW adds broad mode, peak QC plots |
+| **TSS enrichment** | Custom `tss3.py` (Greenleaf lab script, `--greenleaf_norm --bins 400 --bp_edge 2000`) | deepTools `computeMatrix` / `plotProfile` / `plotHeatmap` (TSS-centered) | Different approaches; OLD used a custom Python script |
+| **Fragment size distribution** | Present | Present | Both use the same tool |
+| **Lorenz curve** | Present | Present | Both use the same tool |
+| **PBC** | `calculate_pbc` → `merge_pbc_results` (bedtools bedpe method, M0/M1/M2 awk) | **Not present** | Completely absent in NEW — see Section 8 for recommended insertion |
+| **Peak annotation** | **Not present** | HOMER `annotatePeaks` + summary plot | NEW |
+| **featureCounts** | count reads in peaks from unshifted BAM | count reads in peaks from configurable unshifted vs. shifted BAMs | NEW; `use_shifted_bam: true` by default |
+| **ataqv** | **Not present** | ataqv JSON + mkarv interactive HTML | NEW |
+| **MultiQC** | Separate per-module: `multiQC_trimmed_fastq` + `multiQC_BAMs` (not unified) | Single unified MultiQC report aggregating all QC modules | NEW provides a single aggregated report |
+| **FastQC on BAMs** | `fastQC_BAMs` rule (FastQC on final filtered BAM) | **Not present** | OLD ran FastQC on the final BAM |
+| **Cleanup** | **Not present** | `delete_tmp` removes merged FASTQ, pre-filter BAM, unsorted BAM | NEW |
 
 ---
 
@@ -34,12 +42,12 @@
 
 | Feature | Notes |
 |---------|-------|
-| **Fragment size distribution** (`bamPEFragmentSize`) | No dedicated rule in NEW; partially covered by ataqv and deepTools |
-| **PBC calculation** (PCR Bottleneck Coefficient) | Completely absent — recommended insertion point: after `mark_duplicates`, before `bam_filter` (see Section 8) |
-| **Merged Lorenz curve plots** | NEW only has per-sample fingerprint; no cross-sample merge |
-| **FastQC on BAMs** | Not present in NEW |
+| **PBC calculation** (PCR Bottleneck Coefficient) | Completely absent — recommended insertion point: after `mark_duplicates`, before `bam_filter` (see Section 8). OLD used bedtools bedpe method (`M0/M1/M2` awk pipeline). |
+| **FastQC on BAMs** | OLD ran FastQC on the final filtered BAM (`fastQC_BAMs` rule); NOT present in NEW |
 | **Soft-clip filter** (`sclen < 15`) | Not in NEW — bamtools JSON uses `!cigar *S*` (any soft-clip rejected, too aggressive; see Section 7) |
-| **BEDPE-based shifting** | NEW only shifts single-end BED for MACS3; BAM shifting via `--ATACshift` |
+| **GATK FixMateInformation** | OLD ran `gatk FixMateInformation --ADD_MATE_CIGAR true` between initial filter and MarkDuplicates to ensure mate CIGAR tags are present; entirely absent in NEW |
+| **TSS enrichment** (custom) | OLD used custom Greenleaf-lab `tss3.py` script with `--greenleaf_norm`; NEW uses deepTools `computeMatrix`/`plotProfile` instead |
+| **Per-module MultiQC** (split reports) | OLD ran separate MultiQC per data type (`multiQC_trimmed_fastq`, `multiQC_BAMs`); NEW merges everything into one unified report |
 
 ---
 
@@ -47,15 +55,13 @@
 
 | Feature | Notes |
 |---------|-------|
-| **Multi-lane FASTQ merging** | Multiple sequencing lanes per `sample_id` supported via samplesheet |
+| **Multi-lane FASTQ merging** | Multiple sequencing lanes per `sample_id` supported via samplesheet (`lane` column); OLD used `sample` + `replicate` with no lane merging |
 | **FastQC on raw reads** | Pre-trimming QC (`fastqc_raw`) |
-| **FastQC on trimmed reads** | Post-trimming QC (`fastqc_trimmed`; trim_galore mode only) |
 | **Bowtie2 support** | Alternative aligner, now the default |
 | **HOMER peak annotation** | Annotates peaks to genomic features with summary plot |
 | **featureCounts quantification** | Read counting in peaks (SAF format); configurable BAM source |
 | **ataqv** | ATAC-seq-specific QC + interactive mkarv HTML report |
 | **deepTools heatmap / plotProfile** | TSS-centered heatmap, gene-body profiles (shifted.bigWig) |
-| **deepTools plotFingerprint** | Lorenz curve from filtered.bam |
 | **Auto include-regions** | Genome minus blacklist, optionally minus mito (`ref.keep_mito`) |
 | **Mito name configurable** | `ref.mito_name` — must match FASTA contig exactly (MT / chrM / M) |
 | **Broad peak mode** | `call_peaks.peak_type: broad` uses filtered.bam in BAMPE mode |
@@ -66,12 +72,9 @@
 
 ## 5. Pipeline order
 
-**OLD:** Trim → Align → **Filter → Mark dup** → Shift+BigWig → Peak call → QC
+**OLD:** Trim → Align (`bwa-mem2` + `fixmate`) → Filter (samtools + grep chrM) → **FixMateInformation** → **MarkDuplicatesWithMateCigar** → Shift BED (bedtools + awk) + BigWig (RPM) → Peak call → QC → MultiQC (per-module)
 
-**NEW:** Trim → Align → Sort → **Mark dup → Filter** → Shift BAM → BigWig → Peak call → Annotation → QC → MultiQC → Cleanup
-
-> **Important:** OLD filters before marking duplicates. NEW marks duplicates first, then filters.
-> The NEW order is more correct because duplicate detection needs to see all reads (including potential duplicates) to accurately identify them.
+**NEW:** Trim → Align (`bowtie2`/`bwa-mem2`) → **MarkDuplicates** → Filter (samtools + bamtools + pysam) → Shift BAM (`alignmentSieve`) + BigWig (RPGC) → BED → Peak call → Annotation → QC → MultiQC (unified) → Cleanup
 
 ---
 
@@ -79,21 +82,24 @@
 
 | Parameter | OLD | NEW |
 |-----------|-----|-----|
-| Default trimmer | cutadapt | **trim_galore** (`--nextseq 20 --length 36`) |
-| Default aligner | bwa-mem2 | **bowtie2** (`--very-sensitive --no-discordant -p 2 -X 2000`) |
-| MAPQ threshold | Configurable `-q MAPQ` | `-q 30` (configurable via `bam_filter.params`) |
-| SAM flag filters | `-F 0x100 -f 3 -F 0x0008` | `-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400 -q 30` |
-| NM mismatch filter | `[NM] <= 4` (samtools expression) | `NM:<=4` via bamtools JSON |
-| Soft-clip filter | `sclen < 15` (allows small soft-clips) | `!cigar *S*` (rejects ANY soft-clip — too aggressive; see Section 7) |
-| Insert size filter | Not filtered | `insertSize >= -2000 && <= 2000` via bamtools JSON |
-| Tn5 shift values | +4 (forward) / -5 (reverse) | +4/-5 for BED (peak calling); `--ATACshift` for BAM (signal tracks) |
-| MACS3 narrow params | Not specified | `--shift 75 --extsize 150 --keep-dup all --nomodel --call-summits -q 0.01` |
+| Default trimmer | cutadapt with FIXED adapter `CTGTCTCTTATACACATCT` (hardcoded Nextera); `--nextseq-trim=20 --minimum-length 20` | **trim_galore** with automatic adapter detection (`--nextseq 20 --length 36`) |
+| Default aligner | bwa-mem2 (piped with `samtools fixmate -m` during alignment) | **bowtie2** (`--very-sensitive --no-discordant -p 2 -X 2000`) |
+| MAPQ threshold | `-q 20` (configurable via `MAPQ_threshold`) | `-q 30` (configurable via `bam_filter.params`) |
+| SAM flag filters | `-q 20 -F 0x100 -e '([NM] <= 4) && sclen < 15' -f 3 -F 0x0008` | `-q 30 -F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400` |
+| NM mismatch filter | `[NM] <= 4` (samtools `-e` expression, inline with flag filters) | `NM:<=4` via bamtools JSON |
+| Soft-clip filter | `sclen < 15` (inline samtools expression; allows small soft-clips) | `!cigar *S*` (rejects ANY soft-clip — too aggressive; see Section 7) |
+| Insert size filter | Not filtered at samtools step | `insertSize >= -2000 && <= 2000` via bamtools JSON |
+| Fragment length filter | `minFragmentLength 0, maxFragmentLength 2000` applied at Tn5 shift step | Not explicitly filtered |
+| MT / chrM removal | `grep -v chrM` | `-L include_regions` BED (controlled by `ref.keep_mito` + `ref.mito_name`) |
+| Mate CIGAR repair | `gatk FixMateInformation --ADD_MATE_CIGAR true` (between filter and MarkDup) | Not present |
+| Tn5 shift values | +4 (forward) / -5 (reverse) via bedtools + awk | +4 (forward) / -5 (reverse) via `alignmentSieve --ATACshift` |
+| MACS3 narrow params | `--shift -75 --extsize 150 --keep-dup all --nomodel --call-summits --nolambda -q 0.05` | `--shift -75 --extsize 150 --keep-dup all --nomodel --call-summits -q 0.01` |
 | MACS3 broad params | Not present | `--keep-dup all --nomodel --broad --broad-cutoff 0.1` |
-| Effective genome size | Manually configured | Configurable via `macs3_gsize`; auto-sum from chromsizes if empty |
+| Effective genome size | Configurable via `effective_genomeSize` | Configurable via `macs3_gsize`; auto-sum from chromsizes if empty |
 | FRiP overlap threshold | Not present | `frip_overlap_fraction: 0.2` |
-| featureCounts BAM source | Not present | `feature_counts.use_shifted_bam: true` (shifted.bam by default) |
-| Normalization | RPM | RPGC (shifted.bigWig) + unscaled bedGraph→bigWig |
-| Duplicate handling | GATK MarkDuplicatesWithMateCigar (removes) | Picard MarkDuplicates (marks only; `-F 0x0400` removes downstream) |
+| featureCounts BAM source | Unshifted filtered BAM | Configurable via `feature_counts.use_shifted_bam: true` (shifted.bam by default) |
+| Normalization | RPM (1 `shifted.bigWig` per sample) | RPGC (`shifted.bigWig`) + scaled bedGraph→bigWig (`unshifted.bigWig`) |
+| Duplicate handling | `gatk MarkDuplicatesWithMateCigar` (removes if `--REMOVE_DUPLICATES true`) | `picard MarkDuplicates` (marks only; `samtools view -F 0x0400` removes downstream at filter step) |
 
 ---
 
@@ -101,19 +107,21 @@
 
 ### Filter-by-filter breakdown
 
-| Filter | OLD (`samtools -e`) | NEW (`samtools flags` + `bamtools JSON`) | Winner |
+| Filter | OLD (`samtools -e` + `grep -v chrM`) | NEW (`samtools flags` + `bamtools JSON` + `pysam`) | Winner |
 |--------|---------------------|------------------------------------------|--------|
-| Unmapped reads | Not explicitly filtered | `-F 0x004` (remove unmapped) | NEW |
+| Unmapped reads | Not explicitly filtered (relies on proper-pair flag) | `-F 0x004` (remove unmapped) | NEW |
 | Mate unmapped | `-F 0x0008` | `-F 0x0008` | Same |
-| Proper pair | `-f 3` (mapped + proper pair) | `-f 0x001` (paired only) + `bampe_rm_orphan.py --only_fr_pairs` (same-chr, FR orientation) | NEW (stricter in practice) |
+| Proper pair | `-f 3` (mapped + proper pair; trusts aligner) | `-f 0x001` (paired only) + `bampe_rm_orphan.py --only_fr_pairs` (same-chr, FR orientation) | NEW (stricter in practice) |
 | Secondary alignments | `-F 0x100` | `-F 0x0100` | Same |
-| Duplicates | Not filtered (handled separately) | `-F 0x0400` (remove dup-flagged reads) | NEW |
-| MAPQ | `-q MAPQ` (configurable) | `-q 30` (configurable via `bam_filter.params`) | NEW (stricter default) |
-| NM mismatch | `[NM] <= 4` (samtools expression) | `NM:<=4` via bamtools JSON | Same (threshold identical) |
-| Soft-clip | `sclen < 15` (allows small soft-clips) | `!cigar *S*` (rejects ANY soft-clip) | OLD (NEW is too aggressive) |
-| Insert size | Not filtered | `insertSize >= -2000 && <= 2000` via bamtools | NEW |
-| MT / blacklist | `grep -v chrM` | `-L include_regions` BED (controlled by `ref.keep_mito` + `ref.mito_name`) | NEW (more flexible) |
-| Orphan reads | Not handled | `bampe_rm_orphan.py --only_fr_pairs` | NEW |
+| Duplicates | `gatk MarkDuplicatesWithMateCigar --REMOVE_DUPLICATES true` (removes immediately) | `picard MarkDuplicates` marks; `samtools view -F 0x0400` removes at filter step | Same outcome |
+| MAPQ | `-q 20` (configurable via `MAPQ_threshold`) | `-q 30` (configurable via `bam_filter.params`) | NEW (stricter default) |
+| NM mismatch | `[NM] <= 4` (inline samtools `-e` expression) | `NM:<=4` via bamtools JSON | Same (threshold identical) |
+| Soft-clip | `sclen < 15` (inline; allows small soft-clips) | `!cigar *S*` (rejects ANY soft-clip) | OLD (NEW is too aggressive) |
+| Insert size | Not filtered at samtools step | `insertSize >= -2000 && <= 2000` via bamtools | NEW |
+| Fragment length | `minFragmentLength 0, maxFragmentLength 2000` applied at Tn5 shift step (post-filter) | Not explicitly filtered | OLD |
+| MT / chrM removal | `grep -v chrM` (hardcoded contig name) | `-L include_regions` BED (controlled by `ref.keep_mito` + `ref.mito_name`) | NEW (more flexible, contig-name agnostic) |
+| Mate CIGAR repair | `gatk FixMateInformation --ADD_MATE_CIGAR true` (after filter, before MarkDup) | Not present | OLD (required for MarkDuplicatesWithMateCigar) |
+| Orphan reads | Not explicitly handled (`-f 3` relies on aligner flags) | `bampe_rm_orphan.py --only_fr_pairs` (removes singletons + wrong-orientation pairs) | NEW |
 
 ### How NEW pipeline handles proper-pair filtering
 
@@ -226,116 +234,4 @@ samtools view -F 0x004 -F 0x0008 -F 0x0100 -f 0x001 -q 30 {sample}.marked.bam \
 | Conda prefix | In home directory | Must be set outside home (home quota = 20 GB; rule envs take 5–15 GB total) |
 | Session persistence | Not documented | `screen` required on `bsub01` to survive SSH disconnects |
 
-### Node roles at DKFZ
 
-| Node | Purpose | Allowed |
-|------|---------|---------|
-| `odcf-worker01/02` | Dev, install, testing | ✅ Software install, small test runs |
-| `bsub01/02` | Job submission only | ✅ Run Snakemake controller (lightweight); ❌ No data processing |
-| Cluster nodes | Computation | Jobs submitted automatically via `bsub` |
-
-### Quick setup (NEW pipeline)
-
-**Step 1 — Configure conda and set up env on `odcf-worker01`:**
-
-> Do this on `odcf-worker01`, not on `bsub01`. Worker nodes allow software installation.
-
-```bash
-ssh YOUR_USERNAME@odcf-worker01.dkfz.de
-
-# Required: DKFZ bans the defaults (Anaconda) channel due to licensing
-cat > ~/.condarc << 'EOF'
-channels:
-  - conda-forge
-  - bioconda
-EOF
-
-# Load Mamba and initialise shell permanently
-module load Mamba/24.11.2-1
-mamba init bash
-source ~/.bashrc
-
-# Create controller env outside home (home quota = 20 GB)
-YOUR_WORKDIR="/omics/groups/OE0146/internal/YOUR_USERNAME"
-mkdir -p ${YOUR_WORKDIR}/conda_envs
-
-mamba create -p ${YOUR_WORKDIR}/conda_envs/snakemake \
-    -c conda-forge -c bioconda \
-    snakemake snakemake-executor-plugin-lsf -y
-
-mamba activate ${YOUR_WORKDIR}/conda_envs/snakemake
-
-# Pin numpy/pandas to versions tested with the pipeline's helper scripts
-python -m pip install "snakemake==8.*" "snakemake-executor-plugin-lsf" "numpy==1.26.4" "pandas==2.2.3"
-
-# Verify
-python -c "import snakemake, numpy, pandas; print(snakemake.__version__, numpy.__version__, pandas.__version__)"
-```
-
-**Step 2 — Clone and configure:**
-
-```bash
-cd ${YOUR_WORKDIR}
-git clone https://github.com/UKHD-NP/atacseq_snakemake_new.git
-cd atacseq_snakemake_new
-
-# Edit config: set samples_csv, ref.assembly, enable/disable modules
-# See README Key Configuration section for all options
-nano config/config.yml
-
-# Update conda-prefix in LSF profile to point outside home
-sed -i "s|/omics/odcf/analysis/YOUR_GROUP/conda_envs|${YOUR_WORKDIR}/conda_envs|g" \
-    workflow/profiles/lsf/config.yaml
-
-# Confirm the replacement was applied
-grep "conda-prefix" workflow/profiles/lsf/config.yaml
-```
-
-**Step 3 — Dry-run from `bsub01` (validate before submitting):**
-
-> Switch to `bsub01` for all Snakemake operations that interact with LSF.
-
-```bash
-ssh YOUR_USERNAME@bsub01.lsf.dkfz.de
-
-YOUR_WORKDIR="/omics/groups/OE0146/internal/YOUR_USERNAME"
-mamba activate ${YOUR_WORKDIR}/conda_envs/snakemake
-cd ${YOUR_WORKDIR}/atacseq_snakemake_new
-
-# Dry-run: resolves full DAG, prints all rules, submits nothing
-snakemake -s workflow/Snakefile --configfile config/config.yml --use-conda -n
-```
-
-**Step 4 — Run in a persistent screen session:**
-
-```bash
-# Start named screen session — survives SSH disconnect
-screen -S atacseq
-
-# Launch pipeline — Snakemake submits each rule as a separate bsub job
-# -j 100: allow up to 100 concurrent cluster jobs
-snakemake --profile workflow/profiles/lsf -j 100
-```
-
-| screen command | Action |
-|---------------|--------|
-| `screen -S atacseq` | Start new named session |
-| `Ctrl+A`, then `D` | Detach (session keeps running) |
-| `screen -ls` | List all active sessions |
-| `screen -r atacseq` | Re-attach to session |
-
-**Monitor LSF jobs:**
-
-```bash
-bjobs -w           # all running/pending jobs
-bjobs -w -r        # running only
-bjobs -w -p        # pending only
-bjobs -l JOB_ID    # detailed info for one job
-```
-
-### Important notes for DKFZ
-
-- `~/.condarc` must list only `conda-forge` and `bioconda` — `defaults` (Anaconda) is banned at DKFZ.
-- `conda-prefix` in `workflow/profiles/lsf/config.yaml` must point **outside** home (`/omics/...`). All rule envs together take 5–15 GB.
-- Always launch Snakemake from `bsub01/bsub02`, never from `odcf-worker01` — worker nodes cannot submit LSF jobs.
-- `ref.mito_name` in `config.yml` must exactly match the mitochondrial contig name in your FASTA (e.g. `MT`, `chrM`, or `M`).

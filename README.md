@@ -7,13 +7,52 @@ This repository currently uses:
 - `config/config.yml`
 - per-rule Conda environments in `workflow/envs/`
 
+## Table of Contents
+
+- [Pipeline Summary](#pipeline-summary)
+- [Workflow DAG](#workflow-dag)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Input Files](#input-files)
+  - [1. Samplesheet](#1-samplesheet)
+  - [2. Reference](#2-reference)
+- [Local Run](#local-run)
+- [Running on DKFZ HPC (LSF)](#running-on-dkfz-hpc-lsf)
+  - [Node roles at DKFZ](#node-roles-at-dkfz)
+  - [Step 1 — Set up Snakemake environment](#step-1---set-up-snakemake-environment-on-odcf-worker01)
+  - [Step 2 — Clone the pipeline](#step-2---clone-the-pipeline)
+  - [Step 3 — Edit configuration](#step-3---edit-configuration)
+  - [Step 4 — Update conda-prefix](#step-4---update-conda-prefix-in-the-lsf-profile)
+  - [Step 5 — Validate with a dry-run](#step-5---validate-with-a-dry-run)
+  - [Step 6 — Submit to HPC](#step-6---submit-to-hpc)
+  - [Monitoring jobs](#monitoring-jobs)
+- [Key Configuration](#key-configuration)
+  - [Why these default params were chosen](#why-these-default-params-were-chosen)
+  - [How to choose macs3_gsize](#how-to-choose-macs3_gsize)
+- [Module Dependencies](#module-dependencies-important)
+- [BAM Filtering Criteria](#re-mark-duplicates-and-bam-filtering-criteria)
+  - [1) SAMtools core filter](#1-samtools-core-filter-from-configyml)
+  - [2) BAMTools extra filter](#2-bamtools-extra-filter-optional-but-enabled-when-bamtools-exists)
+  - [3) Pysam pair/orphan cleanup](#3-pysam-pairorphan-cleanup-optional-but-enabled-when-python3pysam-exists)
+- [Main Outputs](#main-outputs)
+- [MultiQC Content](#multiqc-content)
+- [QC Visual Guide](#qc-visual-guide-from-resources)
+- [ENCODE QC Benchmarks](#encode-qc-benchmarks)
+- [Space-saving behavior](#space-saving-behavior)
+- [Troubleshooting](#troubleshooting)
+- [Acknowledgments](#acknowledgments)
+- [References](#references)
+- [License](#license)
+
+---
+
 ## Pipeline Summary
 
 Main workflow (per sample):
 1. Merge lanes by `sample_id` (from samplesheet)
 2. Raw FastQC
-3. Trimming (`fastp` or `trim_galore`)
-4. Alignment (`bwa` = BWA-MEM2, or `bowtie2`)
+3. Trimming (`trim_galore` default, or `fastp`)
+4. Alignment (`bowtie2` default, or `bwa` = BWA-MEM2)
 5. Re-mark duplicates (Picard MarkDuplicates; optional by config)
 6. BAM filtering to produce `*.filtered.bam`
 7. BAM stats on filtered BAM (`samtools stats/flagstat/idxstats`)
@@ -25,7 +64,7 @@ Main workflow (per sample):
 11. FRiP + MultiQC-ready FRiP / peak-count TSV
 12. Peak annotation (HOMER + summary)
 13. featureCounts in peaks (SAF)
-14. deepTools matrix/profile/heatmap/fingerprint
+14. deepTools matrix/profile/heatmap/fingerprint/bamPEFragmentSize
 15. ataqv JSON + mkarv HTML report
 16. MultiQC
 17. Cleanup temporary/intermediate FASTQ files
@@ -73,7 +112,7 @@ bam_filter  --->  filtered.bam / filtered.bam.bai
         |                               |
         |                               +--> deeptools (optional)
         |                                        +--> computeMatrix / plotProfile / plotHeatmap (shifted.bigWig)
-        |                                        +--> plotFingerprint (filtered.bam)
+        |                                        +--> plotFingerprint / bamPEFragmentSize (filtered.bam)
         |
         v
 multiqc
@@ -85,23 +124,26 @@ delete_tmp
 ## Requirements
 
 - Linux
-- Snakemake (recommended in a controller env)
+- Snakemake ≥ 8 (in a dedicated controller environment)
 - Conda/Mamba
 
-Example controller environment:
+> **DKFZ HPC users:** skip this section and follow [Running on DKFZ HPC (LSF)](#running-on-dkfz-hpc-lsf) instead, which covers environment setup outside your home directory.
+
+For local use, create a minimal controller environment:
 
 ```bash
 mamba create -n atacseq_snakemake -c conda-forge -c bioconda snakemake
 mamba activate atacseq_snakemake
 ```
 
-Then run workflow rules with `--use-conda` so each rule uses its own env from `workflow/envs/*.yml`.
+Each rule uses its own isolated Conda environment defined in `workflow/envs/*.yml`.
+Pass `--use-conda` on every Snakemake invocation so these per-rule envs are built and activated automatically.
 
 ## Installation
 
 ```bash
-git clone https://github.com/UKHD-NP/atacseq_snakemake.git
-cd atacseq_snakemake
+git clone https://github.com/UKHD-NP/atacseq_snakemake_new.git
+cd atacseq_snakemake_new
 ```
 
 ## Input Files
@@ -144,25 +186,40 @@ Pipeline stages references into `references/{assembly}/` and derives:
 - `.fai`, `.sizes` (`chromsizes`), `.autosomes.txt`, `.tss.bed`, `.include_regions.bed`
 - `ref.bed` is generated from GTF by `prepare_genome` using the dedicated env `workflow/envs/gtf2bed.yml` (Perl + gzip/unzip) for portable HPC runs.
 
-## Run
+## Local Run
 
-Dry run:
+> For cluster execution on DKFZ HPC, see [Running on DKFZ HPC (LSF)](#running-on-dkfz-hpc-lsf) below.
+> The commands here are for single-machine (local) execution only.
 
-```bash
-snakemake -s workflow/Snakefile --configfile config/config.yml --use-conda -n
-```
-
-Run:
+**Step 1 — Dry-run first (always).**
+Resolves the full DAG and prints every rule that would run — without executing anything:
 
 ```bash
-snakemake -s workflow/Snakefile --configfile config/config.yml --use-conda --cores 24 --rerun-incomplete
+snakemake -s workflow/Snakefile --use-conda -n
 ```
 
-Optional:
+**Step 2 — Optionally verify with the bundled test dataset.**
+Runs the full pipeline end-to-end on small test data:
 
 ```bash
-snakemake -s workflow/Snakefile --configfile config/config.yml --use-conda --cores 24 --latency-wait 60
+snakemake -s workflow/Snakefile \
+    --configfile config/config_test.yml \
+    --use-conda --conda-frontend mamba \
+    --cores all
 ```
+
+**Step 3 — Run with your real config.**
+
+```bash
+# Normal run
+snakemake -s workflow/Snakefile --use-conda --conda-frontend mamba --cores 24
+
+# Rerun only failed/incomplete jobs after fixing an error
+snakemake -s workflow/Snakefile --use-conda --conda-frontend mamba --cores 24 --rerun-incomplete
+```
+
+> `config/config.yml` is loaded automatically by the Snakefile as the default configfile.
+> Pass `--configfile path/to/other.yml` only when you want to override it.
 
 ## Running on DKFZ HPC (LSF)
 
@@ -267,25 +324,22 @@ sed -i "s|/omics/odcf/analysis/YOUR_GROUP/conda_envs|${YOUR_WORKDIR}/conda_envs|
 grep "conda-prefix" workflow/profiles/lsf/config.yaml
 ```
 
-### Step 5 - Dry-run (validate before submitting)
+### Step 5 - Validate with a dry-run
 
-A dry-run resolves the full DAG and prints every rule that would run - **without executing or submitting anything**.
-Always do this first to catch config errors, missing inputs, or unexpected rule counts.
+Resolves the full DAG and prints every rule that would run — **without executing or submitting any jobs**.
+Always do this before submitting to the cluster to catch config errors, missing inputs, or unexpected rule counts.
 
 ```bash
 mamba activate ${YOUR_WORKDIR}/conda_envs/snakemake
+cd ${YOUR_WORKDIR}/atacseq_snakemake_new
 
-# Dry-run with your real config - check that rule count and sample names look correct.
-# config/config.yml is loaded automatically by the Snakefile; no --configfile needed.
+# Dry-run: prints all rules, checks all inputs, submits nothing
 snakemake -s workflow/Snakefile --use-conda -n
-
-# Optional: full run with the bundled test dataset to verify the pipeline end-to-end.
-# Use --configfile here to override the default config with the test dataset config.
-snakemake -s workflow/Snakefile \
-    --configfile config/config_test.yml \
-    --use-conda --conda-frontend mamba \
-    --cores all
 ```
+
+Confirm that the printed rule count and sample names match expectations before proceeding to Step 6.
+
+> For local testing with the bundled test dataset, see the [Local Run](#local-run) section.
 
 ### Step 6 - Submit to HPC
 
@@ -386,8 +440,9 @@ call_peaks:
   enabled: true
   peak_type: "narrow"           # narrow / broad
   macs3_gsize: "2701262066"     # effective genome size (preferred); if empty, auto-sum from chromsizes
-  macs3_narrow_params: "--trackline --shift 75 --extsize 150 --keep-dup all --nomodel --call-summits -q 0.01"
+  macs3_narrow_params: "--trackline --shift -75 --extsize 150 --keep-dup all --nomodel --call-summits -q 0.01"
   macs3_broad_params: "--trackline --keep-dup all --nomodel --broad --broad-cutoff 0.1"
+  macs3_peak_qc_plot: true      # run plot_macs_qc.r to generate peak QC summary/plots
   frip_overlap_fraction: 0.2
 
 annotate_peaks:
@@ -408,19 +463,23 @@ latency-wait: 60
 
 Explanation by block:
 - `samples_csv`: input table for sample discovery and lane merging.
-- `ref`: reference genome/annotation source. For `custom`, paths are required. `bwa_index` / `bowtie2_index` can be left empty to auto-build.
-- `ref.mito_name`: critical setting for `bam_filter` and `ataqv`; must exactly match your FASTA mitochondrial contig name (often `MT`, `chrM`, or `M`, depending on the exact reference release/file).
+- `ref`: reference genome/annotation source. For `custom`, paths to `fasta`, `gtf`, and `blacklist` are required. `bwa_index` / `bowtie2_index` can be left empty to auto-build.
+- `ref.mito_name`: **critical** — must exactly match the mitochondrial contig name in your FASTA (often `MT`, `chrM`, or `M`). Used by `bam_filter` to build `include_regions` and by `ataqv`.
+- `ref.keep_mito`: set `true` to retain mitochondrial reads in `include_regions`; `false` (default) excludes them.
 - `trimming`: choose one trimming engine and pass tool-specific options.
 - `align`: choose aligner and set aligner-specific CLI parameters.
-- `bam_filter.params`: core read-quality filtering flags (unmapped/secondary/duplicates/MAPQ etc.).
-- `markduplicates.enabled`: run Picard MarkDuplicates before filtering.
+- `bam_filter.enabled`: disabling this skips all downstream modules that depend on `filtered.bam` (peaks, deeptools, align_stats). See [Module Dependencies](#module-dependencies-important).
+- `bam_filter.params`: SAMtools core filter flags; see [BAM Filtering](#re-mark-duplicates-and-bam-filtering-criteria) for full breakdown.
+- `markduplicates.enabled`: run Picard MarkDuplicates before filtering. When disabled, duplicates are not flagged and `-F 0x0400` in `bam_filter.params` has no effect.
 - `deeptools.enabled`: run computeMatrix/plotProfile/plotHeatmap/plotFingerprint modules.
-- `call_peaks`: MACS3 behavior and FRiP overlap threshold.
-- `annotate_peaks.enabled`: run HOMER annotatePeaks and summary plotting.
-- `feature_counts.use_shifted_bam`: useful for ATAC peak counting strategy; enabled by default.
-- `ataqv.enabled`: run ATAC-specific QC (`ataqv`) and render HTML (`mkarv`).
+- `call_peaks.peak_type`: `narrow` uses Tn5-shifted BAM → BED → MACS3 BED mode; `broad` uses filtered BAM in MACS3 BAMPE mode.
+- `call_peaks.macs3_peak_qc_plot`: when `true`, runs `plot_macs_qc.r` to produce `*.macs_peakqc.summary.txt` and `*.macs_peakqc.plots.pdf`.
+- `call_peaks.frip_overlap_fraction`: minimum overlap fraction for FRiP calculation (passed to bedtools intersect).
+- `annotate_peaks.enabled`: run HOMER `annotatePeaks` and summary plotting.
+- `feature_counts.use_shifted_bam`: `true` = count reads from `shifted.bam` (recommended for narrow peaks); `false` = use `filtered.bam`.
+- `ataqv.enabled`: run ATAC-specific QC (`ataqv`) and render interactive HTML (`mkarv`). Requires `call_peaks.enabled=true`.
 - `multiqc.config`: path to MultiQC config used by this pipeline.
-- `latency-wait`: useful on slow filesystems to avoid false missing-output errors.
+- `latency-wait`: useful on slow/network filesystems to avoid false missing-output errors.
 
 ### Why these default params were chosen
 
@@ -430,8 +489,8 @@ Explanation by block:
   chosen to maximize paired-end sensitivity while constraining improbable pair structure for ATAC fragment lengths.
 - `bam_filter.params: ... -q 30`:
   chosen as a relatively strict default to retain high-confidence alignments for downstream peak calling and signal tracks.
-- `call_peaks` defaults (`--shift 75 --extsize 150 --nomodel`):
-  chosen to reflect ATAC Tn5 insertion behavior and common MACS3 ATAC settings.
+- `call_peaks` defaults (`--shift -75 --extsize 150 --nomodel`):
+  negative shift centers 150 bp windows on Tn5 cut sites (reads are already Tn5-shifted by `alignmentSieve --ATACshift`; `--shift -75` pulls each cut-site tag upstream by 75 bp so the 150 bp extension lands symmetrically around the insertion site). Positive shift would offset windows 75 bp away from the cut site.
 - `feature_counts.use_shifted_bam: true`:
   chosen to count reads against peaks using the same ATAC-shifted representation used by deepTools signal modules.
 
@@ -444,15 +503,17 @@ Explanation by block:
 - Common values (from deepTools table):
   - `hg19`: `2864785220`
   - `hg38`: `2913022398`
-  - `mm10`: `2652783500`
 
 ## Module Dependencies (important)
 
-- `call_peaks` targets are only active when `bam_filter.enabled=true`.
-- `deeptools` targets are only active when `bam_filter.enabled=true`.
-- `align_stats` targets are only active when `bam_filter.enabled=true`.
+- `call_peaks` requires `bam_filter.enabled=true`.
+- `deeptools` requires `bam_filter.enabled=true`.
+- `align_stats` requires `bam_filter.enabled=true`.
+- `annotate_peaks` requires `call_peaks.enabled=true`.
+- `feature_counts` requires `call_peaks.enabled=true`.
 - `ataqv` requires `call_peaks.enabled=true`.
-- `feature_counts` targets require `call_peaks.enabled=true`.
+
+Disabling `bam_filter` effectively disables all downstream analysis — only raw QC (FastQC, trimming) will run.
 
 ## Re-mark Duplicates and BAM Filtering Criteria
 
@@ -483,7 +544,7 @@ Meaning:
 
 From `workflow/scripts/bamtools_filter_pe.json`, extra constraints are:
 - mismatches `NM <= 4`
-- remove soft-clipped reads (`CIGAR` containing `S`)
+- remove soft-clipped reads (`CIGAR` containing `S`) — **note:** this rejects any read with even 1 bp soft-clip, which can be overly aggressive; see `resources/pipeline_comparison.md` Section 7 for a recommended fix
 - keep insert size in `[-2000, 2000]`
 
 ### 3) Pysam pair/orphan cleanup (optional but enabled when `python3+pysam` exists)
@@ -534,6 +595,9 @@ Per sample under `<outdir>`:
   - `deeptools/*.plotProfile.*`
   - `deeptools/*.plotHeatmap.*`
   - `deeptools/*.plotFingerprint.*`
+  - `deeptools/{sample}.fragment_size_distribution.pdf`
+  - `deeptools/{sample}.fragment_size.raw_lengths.txt`
+  - `deeptools/{sample}.fragment_size.qcmetrics.txt`
 - ataqv
   - `ataqv/{sample}.ataqv.json`
   - `ataqv/{sample}.mkarv_html/index.html`
@@ -572,6 +636,8 @@ How to read:
 - After trimming, adapter signal should drop strongly (ideally near zero across most cycles).
 
 ### 3. Fragment-size distribution
+
+Produced by: `bamPEFragmentSize` → `deeptools/{sample}.fragment_size_distribution.pdf`
 
 ![ATAC fragment size examples](resources/fragmentSize_distribution_examples.svg)
 
