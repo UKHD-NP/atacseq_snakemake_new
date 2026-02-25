@@ -177,7 +177,7 @@ A ready-made LSF profile is provided at `workflow/profiles/lsf/config.yaml`.
 | `bsub01/02` | Job submission only | ✅ Run Snakemake (lightweight), ❌ Processing |
 | Cluster nodes | Computation | Jobs submitted automatically via `bsub` |
 
-### Step 1 — Set up Snakemake environment (on odcf-worker01)
+### Step 1 - Set up Snakemake environment (on odcf-worker01)
 
 > **Do this on `odcf-worker01`, not on `bsub01`.**
 > Worker nodes (`odcf-worker01/02`) allow software installation. Submission hosts (`bsub01/02`) do not.
@@ -232,9 +232,9 @@ python -m pip install "snakemake==8.*" "snakemake-executor-plugin-lsf" "numpy==1
 python -c "import snakemake, numpy, pandas; print(snakemake.__version__, numpy.__version__, pandas.__version__)"
 ```
 
-> `snakemake-executor-plugin-lsf` translates Snakemake rule resources (`mem_mb`, `runtime`, `threads`) into `bsub` submission flags automatically — no manual `bsub` scripting needed.
+> `snakemake-executor-plugin-lsf` translates Snakemake rule resources (`mem_mb`, `runtime`, `threads`) into `bsub` submission flags automatically - no manual `bsub` scripting needed.
 
-### Step 2 — Clone the pipeline
+### Step 2 - Clone the pipeline
 
 ```bash
 cd ${YOUR_WORKDIR}
@@ -242,7 +242,7 @@ git clone https://github.com/UKHD-NP/atacseq_snakemake_new.git
 cd atacseq_snakemake_new
 ```
 
-### Step 3 — Edit configuration
+### Step 3 - Edit configuration
 
 Open `config/config.yml` and set at minimum:
 - `samples_csv`: path to your samplesheet CSV
@@ -252,7 +252,7 @@ Open `config/config.yml` and set at minimum:
 
 See the [Key Configuration](#key-configuration) section below for all options and defaults.
 
-### Step 4 — Update `conda-prefix` in the LSF profile
+### Step 4 - Update `conda-prefix` in the LSF profile
 
 `conda-prefix` tells Snakemake where to build and cache the per-rule conda environments (from `workflow/envs/*.yml`).
 All rule environments combined take roughly **5–15 GB** and must live outside your home directory.
@@ -267,27 +267,27 @@ sed -i "s|/omics/odcf/analysis/YOUR_GROUP/conda_envs|${YOUR_WORKDIR}/conda_envs|
 grep "conda-prefix" workflow/profiles/lsf/config.yaml
 ```
 
-### Step 5 — Dry-run (validate before submitting)
+### Step 5 - Dry-run (validate before submitting)
 
-A dry-run resolves the full DAG and prints every rule that would run — **without executing or submitting anything**.
+A dry-run resolves the full DAG and prints every rule that would run - **without executing or submitting anything**.
 Always do this first to catch config errors, missing inputs, or unexpected rule counts.
 
 ```bash
 mamba activate ${YOUR_WORKDIR}/conda_envs/snakemake
 
-# Dry-run with your real config — check that rule count and sample names look correct
-snakemake -s workflow/Snakefile \
-    --configfile config/config.yml \
-    --use-conda -n
+# Dry-run with your real config - check that rule count and sample names look correct.
+# config/config.yml is loaded automatically by the Snakefile; no --configfile needed.
+snakemake -s workflow/Snakefile --use-conda -n
 
-# Optional: full run with the bundled test dataset to verify the pipeline end-to-end
+# Optional: full run with the bundled test dataset to verify the pipeline end-to-end.
+# Use --configfile here to override the default config with the test dataset config.
 snakemake -s workflow/Snakefile \
     --configfile config/config_test.yml \
     --use-conda --conda-frontend mamba \
     --cores all
 ```
 
-### Step 6 — Submit to HPC (from bsub01)
+### Step 6 - Submit to HPC
 
 > **Do this on `bsub01` or `bsub02`**, not on `odcf-worker01`.
 > Snakemake must run on a submission host to dispatch jobs via `bsub`.
@@ -297,7 +297,7 @@ Use `screen` so the Snakemake controller process survives SSH disconnects:
 ```bash
 ssh YOUR_USERNAME@bsub01.lsf.dkfz.de
 
-# Create a named screen session — it keeps running after SSH disconnect
+# Create a named screen session - it keeps running after SSH disconnect
 screen -S atacseq
 
 # Set your working directory (same value as used in Step 1)
@@ -309,16 +309,28 @@ mamba activate ${YOUR_WORKDIR}/conda_envs/snakemake
 # Move into the pipeline directory
 cd ${YOUR_WORKDIR}/atacseq_snakemake_new
 
-# Launch the pipeline
-# Snakemake submits each rule as a separate bsub job automatically
-# -j 100 allows up to 100 concurrent cluster jobs
+# Launch the pipeline - Snakemake submits each rule as a separate bsub job automatically.
+# The config/config.yml is loaded automatically from the Snakefile; no --configfile needed.
+# -j 100 allows up to 100 concurrent cluster jobs.
 snakemake --profile workflow/profiles/lsf -j 100
+```
+
+To rerun only failed/incomplete jobs after fixing an error:
+
+```bash
+snakemake --profile workflow/profiles/lsf -j 100 --rerun-incomplete
+```
+
+To rerun with the test dataset config:
+
+```bash
+snakemake --profile workflow/profiles/lsf -j 100 --rerun-incomplete --configfile config/config_test.yml
 ```
 
 | `screen` command | Action |
 |-----------------|--------|
 | `screen -S atacseq` | Start new named session |
-| `Ctrl+A`, then `D` | Detach — session keeps running after SSH disconnect |
+| `Ctrl+A`, then `D` | Detach - session keeps running after SSH disconnect |
 | `screen -ls` | List all active sessions |
 | `screen -r atacseq` | Re-attach to session |
 
