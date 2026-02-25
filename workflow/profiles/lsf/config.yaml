@@ -27,7 +27,7 @@ keep-going: false                  # Stop all jobs on first failure
 use-conda: true
 conda-frontend: mamba
 # Store conda envs outside home (20 GB quota!) — update path to your analysis share
-conda-prefix: "/omics/groups/OE0146/internal/Nhu/conda_envs"
+conda-prefix: "/omics/odcf/analysis/YOUR_GROUP/conda_envs"
 
 # Retries on job failure
 retries: 1
