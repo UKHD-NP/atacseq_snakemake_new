@@ -179,13 +179,16 @@ A ready-made LSF profile is provided at `workflow/profiles/lsf/config.yaml`.
 
 ### Step 1 — Set up Snakemake environment (on odcf-worker01)
 
-Worker nodes allow software installation; submission hosts (`bsub01`) do not.
+> **Do this on `odcf-worker01`, not on `bsub01`.**
+> Worker nodes (`odcf-worker01/02`) allow software installation. Submission hosts (`bsub01/02`) do not.
 
 ```bash
 ssh YOUR_USERNAME@odcf-worker01.dkfz.de
 ```
 
-Configure conda channels — required by DKFZ because the `defaults` channel (Anaconda) is banned due to licensing:
+**Configure conda channels.**
+The DKFZ cluster bans the `defaults` (Anaconda) channel due to licensing restrictions.
+You must explicitly restrict to `conda-forge` and `bioconda`:
 
 ```bash
 cat > ~/.condarc << 'EOF'
@@ -195,89 +198,120 @@ channels:
 EOF
 ```
 
-Load Mamba and initialise your shell:
+**Load Mamba and initialise your shell.**
+This adds `mamba`/`conda` to your `PATH` permanently via `~/.bashrc`:
 
 ```bash
 module load Mamba/24.11.2-1
 mamba init bash
-source ~/.bashrc
+source ~/.bashrc   # apply changes to the current shell without re-logging in
 ```
 
-Create the Snakemake controller environment **outside home** (home quota is only 20 GB):
+**Create the Snakemake controller environment outside your home directory.**
+Home quota at DKFZ is only 20 GB. Conda environments can easily exceed this - install them on group storage:
 
 ```bash
+# Set your working directory on group storage (adjust group/username as needed)
 YOUR_WORKDIR="/omics/groups/OE0146/internal/YOUR_USERNAME"
 mkdir -p ${YOUR_WORKDIR}/conda_envs
 
+# Create the controller environment with Snakemake + the LSF executor plugin
 mamba create -p ${YOUR_WORKDIR}/conda_envs/snakemake \
     -c conda-forge -c bioconda \
     snakemake \
     snakemake-executor-plugin-lsf \
     -y
+
+# Activate the new environment
+mamba activate ${YOUR_WORKDIR}/conda_envs/snakemake
+
+# Pin numpy/pandas to versions tested with this pipeline's helper scripts
+python -m pip install "snakemake==8.*" "snakemake-executor-plugin-lsf" "numpy==1.26.4" "pandas==2.2.3"
+
+# Verify that all three packages are importable and print their versions
+python -c "import snakemake, numpy, pandas; print(snakemake.__version__, numpy.__version__, pandas.__version__)"
 ```
 
-`snakemake-executor-plugin-lsf` lets Snakemake translate rule resources (`mem_mb`, `runtime`, `threads`) into `bsub` flags automatically.
+> `snakemake-executor-plugin-lsf` translates Snakemake rule resources (`mem_mb`, `runtime`, `threads`) into `bsub` submission flags automatically — no manual `bsub` scripting needed.
 
 ### Step 2 — Clone the pipeline
 
 ```bash
 cd ${YOUR_WORKDIR}
-git clone https://github.com/UKHD-NPS/atacseq_snakemake.git
-cd atacseq_snakemake
+git clone https://github.com/UKHD-NP/atacseq_snakemake_new.git
+cd atacseq_snakemake_new
 ```
 
 ### Step 3 — Edit configuration
 
-Edit `config/config.yml`: set `samples_csv`, `ref.assembly`, output directories, and enable/disable modules.
+Open `config/config.yml` and set at minimum:
+- `samples_csv`: path to your samplesheet CSV
+- `ref.assembly`: `hg19`, `hg38`, or `custom`
+- Output directories (via the `outdir` column in the samplesheet)
+- Enable/disable optional modules (`deeptools`, `ataqv`, `annotate_peaks`, etc.)
 
-### Step 4 — Update conda-prefix in the LSF profile
+See the [Key Configuration](#key-configuration) section below for all options and defaults.
 
-Open `workflow/profiles/lsf/config.yaml` and update the `conda-prefix` line, or use sed:
+### Step 4 — Update `conda-prefix` in the LSF profile
+
+`conda-prefix` tells Snakemake where to build and cache the per-rule conda environments (from `workflow/envs/*.yml`).
+All rule environments combined take roughly **5–15 GB** and must live outside your home directory.
+
+Update the placeholder path to your actual working directory:
 
 ```bash
 sed -i "s|/omics/odcf/analysis/YOUR_GROUP/conda_envs|${YOUR_WORKDIR}/conda_envs|g" \
     workflow/profiles/lsf/config.yaml
-```
 
-**Why this matters:** `conda-prefix` tells Snakemake where to build and cache per-rule conda environments (from `workflow/envs/*.yml`). All rule environments together take 5–15 GB. This path must be outside home to avoid hitting the 20 GB home quota.
-
-Verify it was applied:
-
-```bash
+# Confirm the replacement was applied correctly
 grep "conda-prefix" workflow/profiles/lsf/config.yaml
 ```
 
-### Step 5 — Dry-run (validate without submitting any jobs)
+### Step 5 — Dry-run (validate before submitting)
+
+A dry-run resolves the full DAG and prints every rule that would run — **without executing or submitting anything**.
+Always do this first to catch config errors, missing inputs, or unexpected rule counts.
 
 ```bash
 mamba activate ${YOUR_WORKDIR}/conda_envs/snakemake
 
+# Dry-run with your real config — check that rule count and sample names look correct
 snakemake -s workflow/Snakefile \
     --configfile config/config.yml \
     --use-conda -n
+
+# Optional: full run with the bundled test dataset to verify the pipeline end-to-end
+snakemake -s workflow/Snakefile \
+    --configfile config/config_test.yml \
+    --use-conda --conda-frontend mamba \
+    --cores all
 ```
 
-A dry-run prints every rule Snakemake would execute without running anything. Confirm the job count and sample names look correct before submitting to the cluster.
+### Step 6 — Submit to HPC (from bsub01)
 
-### Step 6 — Run on HPC (from bsub01)
+> **Do this on `bsub01` or `bsub02`**, not on `odcf-worker01`.
+> Snakemake must run on a submission host to dispatch jobs via `bsub`.
 
-Snakemake must be launched from a **submission host** (`bsub01` or `bsub02`).
-Use `screen` to keep the session alive if SSH disconnects.
+Use `screen` so the Snakemake controller process survives SSH disconnects:
 
 ```bash
 ssh YOUR_USERNAME@bsub01.lsf.dkfz.de
 
-# Activate Snakemake env
-module load Mamba/24.11.2-1
-mamba activate ${YOUR_WORKDIR}/conda_envs/snakemake
-
-# Go to the pipeline directory
-cd ${YOUR_WORKDIR}/atacseq_snakemake
-
-# Start a persistent screen session (survives SSH disconnect)
+# Create a named screen session — it keeps running after SSH disconnect
 screen -S atacseq
 
-# Run — Snakemake submits each rule as a bsub job automatically
+# Set your working directory (same value as used in Step 1)
+YOUR_WORKDIR="/omics/groups/OE0146/internal/YOUR_USERNAME"
+
+# Activate the Snakemake controller environment
+mamba activate ${YOUR_WORKDIR}/conda_envs/snakemake
+
+# Move into the pipeline directory
+cd ${YOUR_WORKDIR}/atacseq_snakemake_new
+
+# Launch the pipeline
+# Snakemake submits each rule as a separate bsub job automatically
+# -j 100 allows up to 100 concurrent cluster jobs
 snakemake --profile workflow/profiles/lsf -j 100
 ```
 
