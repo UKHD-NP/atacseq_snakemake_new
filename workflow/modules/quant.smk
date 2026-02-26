@@ -44,7 +44,6 @@ rule featurecounts_in_peaks:
 
         featureCounts \
             -F SAF \
-            -O \
             --fracOverlap {params.frac_overlap} \
             -p \
             -T {threads} \
