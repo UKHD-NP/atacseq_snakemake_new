@@ -12,7 +12,7 @@ This repository currently uses:
 > For downstream differential accessibility analysis you must:
 > 1. Generate a **consensus peak set** across all samples.
 > 2. Re-quantify reads against the consensus peaks to create a **unified count matrix**.
-> 3. Run differential accessibility analysis (DESeq2 or limma) on that count matrix.
+> 3. Run differential accessibility analysis on that count matrix.
 
 ## Table of Contents
 
