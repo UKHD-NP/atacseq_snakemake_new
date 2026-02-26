@@ -82,7 +82,7 @@
 
 | Parameter | OLD | NEW |
 |-----------|-----|-----|
-| Default trimmer | cutadapt with FIXED adapter `CTGTCTCTTATACACATCT` (hardcoded Nextera); `--nextseq-trim=20 --minimum-length 20` | **trim_galore** with automatic adapter detection (`--nextseq 20 --length 36`) |
+| Default trimmer | cutadapt with FIXED adapter `CTGTCTCTTATACACATCT` (hardcoded Nextera); `--nextseq-trim=20 --minimum-length 20` | **trim_galore** with automatic adapter detection (`--nextseq 25 --length 36`) |
 | Default aligner | bwa-mem2 (piped with `samtools fixmate -m` during alignment) | **bowtie2** (`--very-sensitive --no-discordant -p 2 -X 2000`) |
 | MAPQ threshold | `-q 20` (configurable via `MAPQ_threshold`) | `-q 30` (configurable via `bam_filter.params`) |
 | SAM flag filters | `-q 20 -F 0x100 -e '([NM] <= 4) && sclen < 15' -f 3 -F 0x0008` | `-q 30 -F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400` |
