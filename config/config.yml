@@ -23,7 +23,7 @@ trimming:
   enabled: true
   delete_trimming: true  # Delete trimmed FASTQ files after pipeline completes (only applies when enabled: true)
   tool: "trim_galore"  # Choose trimming tool: "fastp" or "trim_galore"
-  trim_galore_params: "--nextseq 20 --length 36"
+  trim_galore_params: "--nextseq 25 --length 36"
   fastp_params: "--cut_tail --cut_tail_window_size 4 --cut_tail_mean_quality 20 --trim_poly_g --length_required 36"
 
 align:
