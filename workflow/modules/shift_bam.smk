@@ -28,6 +28,7 @@ rule shift_bam:
     shell:
         """
         ulimit -n 65536
+        
         mkdir -p "$(dirname "{output.bam}")"
         mkdir -p "$(dirname "{output.bigwig}")"
         mkdir -p "$(dirname "{log}")"
