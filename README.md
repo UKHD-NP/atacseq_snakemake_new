@@ -8,7 +8,7 @@ This repository currently uses:
 - per-rule Conda environments in `workflow/envs/`
 
 > **WARNING:** This pipeline covers **upstream data analysis only** (QC → alignment → peak calling → QC per-sample counts).
-> The per-sample count output (`featurecounts/{sample}.readCountInPeaks.txt`) is **not** ready for differential accessibility analysis with DESeq2 or edgeR.
+> The per-sample count output (`featurecounts/{sample}.readCountInPeaks.txt`) is **not** ready for differential accessibility (DA) analysis with DESeq2 or edgeR.
 > For downstream differential accessibility analysis you must:
 > 1. Generate a **consensus peak set** across all samples.
 > 2. Re-quantify reads against the consensus peaks to create a **unified count matrix**.
