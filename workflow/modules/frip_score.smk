@@ -39,7 +39,7 @@ rule frip_score:
             -bed \
             -c \
             -f {params.overlap} \
-            | awk 'BEGIN{{sum=0}} $NF > 0 {{sum++}} END{{print sum}}') 2>> "{log}" || {{
+            2>> "{log}" | awk 'BEGIN{{sum=0}} $NF > 0 {{sum++}} END{{print sum}}') || {{
             echo "[ERROR] bedtools intersect failed." >> "{log}"
             exit 1
         }}

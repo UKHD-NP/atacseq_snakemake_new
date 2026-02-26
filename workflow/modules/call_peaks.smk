@@ -78,7 +78,8 @@ rule macs3_callpeak_tn5:
 
             macs3 callpeak \
                 -t "{input.bam}" \
-                -n "{params.prefix}" \
+                -n "{wildcards.sample_id}" \
+                --outdir "$(dirname "{output.peak}")" \
                 -f BAMPE \
                 --gsize "{params.gsize}" \
                 {params.macs3_params} >> "{log}" 2>&1 || {{
@@ -98,7 +99,8 @@ rule macs3_callpeak_tn5:
 
             macs3 callpeak \
                 -t "{output.tn5_bed}" \
-                -n "{params.prefix}" \
+                -n "{wildcards.sample_id}" \
+                --outdir "$(dirname "{output.peak}")" \
                 -f BED \
                 --gsize "{params.gsize}" \
                 {params.macs3_params} >> "{log}" 2>&1 || {{

@@ -73,9 +73,6 @@ annotate_peaks:
 feature_counts:
   # Enable featureCounts quantification of gene-level counts
   enabled: true
-  # Narrow peaks: use shifted BAM (true, recommended) to count Tn5 cut sites — consistent with MACS3 input.
-  # Broad peaks:  not use shifted BAM regardless of this setting (BAMPE fragment-level counting).
-  use_shifted_bam: false
 
 ataqv:
   # ATAC-specific QC JSON + mkarv HTML

@@ -189,9 +189,12 @@ custom_data:
     headers:
       sample:
         title: "Sample"
-      frip:
-        title: "FRiP"
-        format: "{:,.4f}"
+      FRiP_bedtools:
+        title: "FRiP (bedtools %)"
+        format: "{:,.2f}"
+      FRiP_featureCounts:
+        title: "FRiP (featureCounts %)"
+        format: "{:,.2f}"
   homer_annotation_summary:
     id: "homer_annotation_summary"
     section_name: "HOMER Annotation Summary"

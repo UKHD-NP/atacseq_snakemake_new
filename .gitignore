@@ -1,7 +1,4 @@
 .snakemake/
 references/
 test_data/results/
-!test_data/references/
-!test_data/references/**
-config1.yml
-samplesheet.csv
+
