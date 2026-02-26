@@ -7,6 +7,13 @@ This repository currently uses:
 - `config/config.yml`
 - per-rule Conda environments in `workflow/envs/`
 
+> **WARNING:** This pipeline covers **upstream data analysis only** (QC → alignment → peak calling → QC per-sample counts).
+> The per-sample count output (`featurecounts/{sample}.readCountInPeaks.txt`) is **not** ready for differential accessibility analysis with DESeq2 or edgeR.
+> For downstream differential accessibility analysis you must:
+> 1. Generate a **consensus peak set** across all samples.
+> 2. Re-quantify reads against the consensus peaks to create a **unified count matrix**.
+> 3. Run differential accessibility analysis (DESeq2 or limma) on that count matrix.
+
 ## Table of Contents
 
 - [Pipeline Summary](#pipeline-summary)
@@ -61,7 +68,7 @@ Main workflow (per sample):
    - ATAC-shifted BAM + shifted RPGC bigWig
 9. Peak calling (MACS3 with Tn5-shifted BED)
 10. Peak QC summary plots (`plot_macs2_qc.r`)
-11. FRiP + MultiQC-ready FRiP / peak-count TSV
+11. FRiP (two methods: bedtools intersect + featureCounts log)
 12. Peak annotation (HOMER + summary)
 13. featureCounts in peaks (SAF)
 14. deepTools matrix/profile/heatmap/fingerprint/bamPEFragmentSize
@@ -90,7 +97,7 @@ trimming (fastp | trim_galore)
 alignment (bwa-mem2 | bowtie2)
         |
         v
-sort_bam
+    sort_bam
         |
         v
 mark_duplicates (optional)
@@ -101,24 +108,22 @@ bam_filter  --->  filtered.bam / filtered.bam.bai
         |                    +--> align_stats (samtools stats/flagstat/idxstats)
         |                    +--> bedtools_genomecov -> bedGraphToBigWig -> bigWig
         |                    +--> shift_bam (alignmentSieve --ATACshift) -> shifted.bam + shifted.bigWig
-        |                               |
-        |                               +--> macs3_callpeak_tn5 (narrow: shifted.bam -> bamtobed -> MACS3 BED mode)
-        |                               |                       (broad:  filtered.bam -> MACS3 BAMPE mode)
-        |                               |    |
-        |                               |    +--> frip_score (filtered.bam + peaks → MultiQC TSVs)
-        |                               |    +--> annotate_peaks (optional)
-        |                               |    +--> featurecounts_in_peaks (optional; narrow=shifted.bam, broad=filtered.bam)
-        |                               |    +--> ataqv (optional; filtered.bam)
-        |                               |
+        |                    +--> macs3_callpeak_tn5 (narrow: filtered.bam -> bamtobed -> awk Tn5 shift -> MACS3 BED mode)
+        |                               |            (broad:  filtered.bam -> MACS3 BAMPE mode)
+        |                               |    
+        |                               +--> frip_score (filtered.bam + peaks → MultiQC TSVs)
+        |                               +--> annotate_peaks (optional)
+        |                               +--> featurecounts_in_peaks (optional; always filtered.bam)
+        |                               +--> ataqv (optional; filtered.bam)
         |                               +--> deeptools (optional)
-        |                                        +--> computeMatrix / plotProfile / plotHeatmap (shifted.bigWig)
-        |                                        +--> plotFingerprint / bamPEFragmentSize (filtered.bam)
+        |                                    +--> computeMatrix / plotProfile / plotHeatmap (shifted.bigWig)
+        |                                    +--> plotFingerprint / bamPEFragmentSize (filtered.bam)
         |
         v
-multiqc
+     multiqc
         |
         v
-delete_tmp
+    delete_tmp
 ```
 
 ## Requirements
@@ -418,7 +423,7 @@ ref:
 trimming:
   enabled: true
   tool: "trim_galore"           # fastp / trim_galore
-  trim_galore_params: "--nextseq 20 --length 36"
+  trim_galore_params: "--nextseq 25 --length 36"
   fastp_params: "--cut_tail --cut_tail_window_size 4 --cut_tail_mean_quality 20 --trim_poly_g --length_required 36"
 
 align:
@@ -444,13 +449,13 @@ call_peaks:
   macs3_broad_params: "--trackline --keep-dup all --nomodel --broad --broad-cutoff 0.1"
   macs3_peak_qc_plot: true      # run plot_macs_qc.r to generate peak QC summary/plots
   frip_overlap_fraction: 0.2
+  frip_threshold: 20
 
 annotate_peaks:
   enabled: true
 
 feature_counts:
   enabled: true
-  use_shifted_bam: true         # true = count from shifted.bam, false = filtered.bam
 
 ataqv:
   enabled: true
@@ -472,27 +477,25 @@ Explanation by block:
 - `bam_filter.params`: SAMtools core filter flags; see [BAM Filtering](#re-mark-duplicates-and-bam-filtering-criteria) for full breakdown.
 - `markduplicates.enabled`: run Picard MarkDuplicates before filtering. When disabled, duplicates are not flagged and `-F 0x0400` in `bam_filter.params` has no effect.
 - `deeptools.enabled`: run computeMatrix/plotProfile/plotHeatmap/plotFingerprint modules.
-- `call_peaks.peak_type`: `narrow` uses Tn5-shifted BAM → BED → MACS3 BED mode; `broad` uses filtered BAM in MACS3 BAMPE mode.
+- `call_peaks.peak_type`: `narrow` uses filtered BAM → `bamtobed` → awk Tn5 shift (+4 forward / -5 reverse) → MACS3 BED mode; `broad` uses filtered BAM directly in MACS3 BAMPE mode.
 - `call_peaks.macs3_peak_qc_plot`: when `true`, runs `plot_macs_qc.r` to produce `*.macs_peakqc.summary.txt` and `*.macs_peakqc.plots.pdf`.
-- `call_peaks.frip_overlap_fraction`: minimum overlap fraction for FRiP calculation (passed to bedtools intersect).
+- `call_peaks.frip_overlap_fraction`: minimum read-peak overlap fraction for FRiP (passed to both `bedtools intersect -f` and featureCounts `--fracOverlap`).
+- `call_peaks.frip_threshold`: FRiP percentage threshold for quality label in `*.FRiP.txt`; samples at or above this value are labelled `good`, below is `bad` (default: 20%).
 - `annotate_peaks.enabled`: run HOMER `annotatePeaks` and summary plotting.
-- `feature_counts.use_shifted_bam`: `true` = count reads from `shifted.bam` (recommended for narrow peaks); `false` = use `filtered.bam`.
 - `ataqv.enabled`: run ATAC-specific QC (`ataqv`) and render interactive HTML (`mkarv`). Requires `call_peaks.enabled=true`.
 - `multiqc.config`: path to MultiQC config used by this pipeline.
 - `latency-wait`: useful on slow/network filesystems to avoid false missing-output errors.
 
 ### Why these default params were chosen
 
-- `trimming.tool: trim_galore` with `--nextseq 20 --length 36`:
+- `trimming.tool: trim_galore` with `--nextseq 25 --length 36`:
   chosen for two-color Illumina runs (poly-G prone) and to remove very short reads that are usually uninformative for peak calling.
 - `align.tool: bowtie2` with `--very-sensitive --no-discordant -X 2000`:
   chosen to maximize paired-end sensitivity while constraining improbable pair structure for ATAC fragment lengths.
 - `bam_filter.params: ... -q 30`:
   chosen as a relatively strict default to retain high-confidence alignments for downstream peak calling and signal tracks.
 - `call_peaks` defaults (`--shift -75 --extsize 150 --nomodel`):
-  negative shift centers 150 bp windows on Tn5 cut sites (reads are already Tn5-shifted by `alignmentSieve --ATACshift`; `--shift -75` pulls each cut-site tag upstream by 75 bp so the 150 bp extension lands symmetrically around the insertion site). Positive shift would offset windows 75 bp away from the cut site.
-- `feature_counts.use_shifted_bam: true`:
-  chosen to count reads against peaks using the same ATAC-shifted representation used by deepTools signal modules.
+  for narrow peaks, reads are Tn5-shifted inline by awk (+4 on forward strand, -5 on reverse strand) before being passed to MACS3 BED mode. `--shift -75` then pulls each cut-site tag a further 75 bp upstream so that the 150 bp extension lands symmetrically around the insertion site. Positive shift would offset windows away from the cut site.
 
 ### How to choose `macs3_gsize`
 
@@ -582,7 +585,6 @@ Per sample under `<outdir>`:
   - `annotation/{sample}_peaks.annotatePeaks.txt`
   - `annotation/{sample}.macs_annotatePeaks.summary.txt`
 - Peak counts
-  - `featurecounts/{sample}_peaks.saf`
   - `featurecounts/{sample}.readCountInPeaks.txt`
   - `featurecounts/{sample}.readCountInPeaks.txt.summary`
 - Signal tracks

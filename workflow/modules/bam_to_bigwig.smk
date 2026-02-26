@@ -17,6 +17,8 @@ rule bedtools_genomecov:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.bedtools_genomecov.benchmark.txt")
     shell:
         """
+        ulimit -n 65536
+        
         mkdir -p "$(dirname "{output.bedgraph}")"
         mkdir -p "$(dirname "{log}")"
 

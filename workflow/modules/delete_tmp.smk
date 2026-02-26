@@ -5,7 +5,6 @@ rule delete_tmp:
     output:
         log = os.path.join("{outdir}", "logs", "{sample_id}.deletion.log")
     params:
-        bam_dir = os.path.join("{outdir}", "bam"),
         fq1 = os.path.join("{outdir}", "trim", "{sample_id}_trimmed_1.fastq.gz"),
         fq2 = os.path.join("{outdir}", "trim", "{sample_id}_trimmed_2.fastq.gz"),
         fq1_fail = os.path.join("{outdir}", "trim", "{sample_id}_1.fail.fastq.gz"),

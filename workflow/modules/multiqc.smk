@@ -7,15 +7,13 @@ def get_input_multiqc(wildcards):
         return os.path.join(outdir, *parts)
 
     targets = []
-    bam_filter_on = is_enabled("bam_filter", default=True)
-    align_stats_on = is_enabled("align_stats", default=True) and bam_filter_on
-    call_peaks_on = is_enabled("call_peaks") and bam_filter_on
+    call_peaks_on = is_enabled("call_peaks")
     call_peaks_qc_on = call_peaks_on and as_bool(
         config.get("call_peaks", {}).get("macs3_peak_qc_plot", True),
         default=True,
     )
     feature_counts_on = call_peaks_on and is_enabled("feature_counts")
-    deeptools_on = is_enabled("deeptools") and bam_filter_on
+    deeptools_on = is_enabled("deeptools")
     annotation_on = is_enabled("annotate_peaks") and call_peaks_on
     ataqv_on = is_enabled("ataqv") and call_peaks_on
 
@@ -44,12 +42,11 @@ def get_input_multiqc(wildcards):
             # Add FastP quality control JSON
             targets.append(_path("trim", f"{sample_id}.fastp.json"))
 
-    # Add BAM stats outputs from align_stats module.
-    if align_stats_on:
-        targets.extend(
-            _path("bam", f"{sample_id}.filtered.bam.{ext}")
-            for ext in ("stats", "flagstat", "idxstats")
-        )
+    # Add BAM stats outputs
+    targets.extend(
+        _path("bam", f"{sample_id}.filtered.bam.{ext}")
+        for ext in ("stats", "flagstat", "idxstats")
+    )
 
     # Add Picard MarkDuplicates metrics if enabled
     if is_enabled("markduplicates"):

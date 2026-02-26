@@ -22,15 +22,15 @@
 | **Filtering** | samtools `-q 20 -F 0x100 -e '([NM] <= 4) && sclen < 15' -f 3 -F 0x0008` then `grep -v chrM` via idxstats | samtools `-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400 -q 30` + bamtools JSON filter + pysam | NEW adds orphan removal, uses include-regions BED instead of `grep chrM` |
 | **GATK FixMateInformation** | After initial filter, before MarkDup: `gatk FixMateInformation --ADD_MATE_CIGAR true` | **Not present** | OLD required this to ensure mate CIGAR tags are present for MarkDuplicatesWithMateCigar |
 | **Mark dup** | `gatk MarkDuplicatesWithMateCigar` (removes dups via `--REMOVE_DUPLICATES true`) | `picard MarkDuplicates` (marks only; removed at filter step via `samtools view -F 0x0400`) | Different tools; OLD used mate-CIGAR-aware marking |
-| **Tn5 shift** | filtered BAM → `bedtools bamtobed` BED → shift | filtered BAM → `alignmentSieve --ATACshift` shifted BAM -> BED | NEW uses deepTools ; OLD uses bedtools + awk |
+| **Tn5 shift** | filtered BAM → `bedtools bamtobed` BED → awk shift (+4/-5) | **Peaks:** filtered BAM → `bedtools bamtobed` → awk shift (+4/-5) → BED (same approach as OLD); **Signal tracks:** `alignmentSieve --ATACshift` → `shifted.bam` → RPGC bigWig | Peak calling uses inline awk shift; deepTools signal tracks use alignmentSieve shifted BAM |
 | **BigWig** | 1 RPM track from shifted data | 2 tracks: RPGC (`shifted.bigWig`) + scaled bedGraph→bigWig (`unshifted.bigWig`) | RPGC is more appropriate for cross-sample comparison |
-| **Peak calling** | MACS3 on shifted BED(narrow only) | MACS3, **narrow** (on shifted BAM → BED) or **broad** (on unshifted BAM) | NEW adds broad mode, peak QC plots |
+| **Peak calling** | MACS3 on shifted BED (narrow only) | MACS3 **narrow** on shifted BED (same approach as OLD) or **broad** on unshifted BAM with BAMPE mode | NEW adds broad mode, peak QC plots |
 | **TSS enrichment** | Custom `tss3.py` (Greenleaf lab script, `--greenleaf_norm --bins 400 --bp_edge 2000`) | deepTools `computeMatrix` / `plotProfile` / `plotHeatmap` (TSS-centered) | Different approaches; OLD used a custom Python script |
 | **Fragment size distribution** | Present | Present | Both use the same tool |
 | **Lorenz curve** | Present | Present | Both use the same tool |
 | **PBC** | `calculate_pbc` → `merge_pbc_results` (bedtools bedpe method, M0/M1/M2 awk) | **Not present** | Completely absent in NEW — see Section 8 for recommended insertion |
 | **Peak annotation** | **Not present** | HOMER `annotatePeaks` + summary plot | NEW |
-| **featureCounts** | count reads in peaks from unshifted BAM | count reads in peaks from configurable unshifted vs. shifted BAMs | NEW; `use_shifted_bam: true` by default |
+| **featureCounts** | count reads in peaks from unshifted BAM | count reads in peaks from unshifted BAM (`--fracOverlap 0.2`) | NEW with extra parameters |
 | **ataqv** | **Not present** | ataqv JSON + mkarv interactive HTML | NEW |
 | **MultiQC** | Separate per-module: `multiQC_trimmed_fastq` + `multiQC_BAMs` (not unified) | Single unified MultiQC report aggregating all QC modules | NEW provides a single aggregated report |
 | **FastQC on BAMs** | `fastQC_BAMs` rule (FastQC on final filtered BAM) | **Not present** | OLD ran FastQC on the final BAM |
@@ -59,22 +59,21 @@
 | **FastQC on raw reads** | Pre-trimming QC (`fastqc_raw`) |
 | **Bowtie2 support** | Alternative aligner, now the default |
 | **HOMER peak annotation** | Annotates peaks to genomic features with summary plot |
-| **featureCounts quantification** | Read counting in peaks (SAF format); configurable BAM source |
 | **ataqv** | ATAC-seq-specific QC + interactive mkarv HTML report |
 | **deepTools heatmap / plotProfile** | TSS-centered heatmap, gene-body profiles (shifted.bigWig) |
 | **Auto include-regions** | Genome minus blacklist, optionally minus mito (`ref.keep_mito`) |
 | **Mito name configurable** | `ref.mito_name` — must match FASTA contig exactly (MT / chrM / M) |
 | **Broad peak mode** | `call_peaks.peak_type: broad` uses filtered.bam in BAMPE mode |
 | **Disk cleanup** | Auto-deletes unsorted BAM, pre-filter BAM, merged/trimmed FASTQ after MultiQC |
-| **FRiP TSVs for MultiQC** | `*_peaks.FRiP_mqc.tsv` + `*_peaks.count_mqc.tsv` picked up by MultiQC |
+| **Dual FRiP reporting** | FRiP reported two ways: (1) `bedtools intersect` (reads-in-peaks / total mapped) and (2) featureCounts log ("Successfully assigned %"); both in `*.FRiP.txt` and `*_peaks.FRiP_mqc.tsv` for MultiQC |
 
 ---
 
 ## 5. Pipeline order
 
-**OLD:** Trim → Align (`bwa-mem2` + `fixmate`) → Filter (samtools + grep chrM) → **FixMateInformation** → **MarkDuplicatesWithMateCigar** → Shift BED (bedtools + awk) + BigWig (RPM) → Peak call → QC → MultiQC (per-module)
+**OLD:** Trim → Align (`bwa-mem2` + `fixmate`) → Filter (samtools + grep chrM) → **FixMateInformation** → **MarkDuplicatesWithMateCigar** → Shift BED (`bamtobed` → awk Tn5 shift) + BigWig (RPM) → Peak call → FRiP (featureCounts) → deepTools → MultiQC (per-module)
 
-**NEW:** Trim → Align (`bowtie2`/`bwa-mem2`) → **MarkDuplicates** → Filter (samtools + bamtools + pysam) → Shift BAM (`alignmentSieve`) + BigWig (RPGC) → BED → Peak call → Annotation → QC → MultiQC (unified) → Cleanup
+**NEW:** Trim → Align (`bowtie2`/`bwa-mem2`) → **MarkDuplicates** → Filter (samtools + bamtools + pysam) → Signal tracks: `alignmentSieve` shifted.bam + RPGC bigWig; Shift BED (`bamtobed` → awk Tn5 shift) → Peak call → Annotation → FRiP (bedtools + featureCounts) → deepTools → ataqv → MultiQC (unified) → Cleanup
 
 ---
 
@@ -92,12 +91,12 @@
 | Fragment length filter | `minFragmentLength 0, maxFragmentLength 2000` applied at Tn5 shift step | Not explicitly filtered |
 | MT / chrM removal | `grep -v chrM` | `-L include_regions` BED (controlled by `ref.keep_mito` + `ref.mito_name`) |
 | Mate CIGAR repair | `gatk FixMateInformation --ADD_MATE_CIGAR true` (between filter and MarkDup) | Not present |
-| Tn5 shift values | +4 (forward) / -5 (reverse) via bedtools + awk | +4 (forward) / -5 (reverse) via `alignmentSieve --ATACshift` |
+| Tn5 shift values | +4 (forward) / -5 (reverse) via bedtools + awk | **Peaks:** +4 (forward) / -5 (reverse) via bedtools + awk (same as OLD); **Signal tracks:** `alignmentSieve --ATACshift` |
 | MACS3 narrow params | `--shift -75 --extsize 150 --keep-dup all --nomodel --call-summits --nolambda -q 0.05` | `--shift -75 --extsize 150 --keep-dup all --nomodel --call-summits -q 0.01` |
 | MACS3 broad params | Not present | `--keep-dup all --nomodel --broad --broad-cutoff 0.1` |
 | Effective genome size | Configurable via `effective_genomeSize` | Configurable via `macs3_gsize`; auto-sum from chromsizes if empty |
-| FRiP overlap threshold | Not present | `frip_overlap_fraction: 0.2` |
-| featureCounts BAM source | Unshifted filtered BAM | Configurable via `feature_counts.use_shifted_bam: true` (shifted.bam by default) |
+| FRiP overlap threshold | Not present | `frip_overlap_fraction: 0.2` (bedtools + featureCounts) |
+| featureCounts BAM source | Unshifted filtered BAM | Unshifted filtered BAM; `--fracOverlap 0.2` |
 | Normalization | RPM (1 `shifted.bigWig` per sample) | RPGC (`shifted.bigWig`) + scaled bedGraph→bigWig (`unshifted.bigWig`) |
 | Duplicate handling | `gatk MarkDuplicatesWithMateCigar` (removes if `--REMOVE_DUPLICATES true`) | `picard MarkDuplicates` (marks only; `samtools view -F 0x0400` removes downstream at filter step) |
 

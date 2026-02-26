@@ -33,35 +33,19 @@ def get_gsize(wildcards, input):
     return get_effective_genome_size(input.chromsizes, call_peaks_gsize)
 
 
-def get_bam_for_callpeaks(wildcards):
-    """
-    Broad peaks:  filtered BAM with -f BAMPE (fragment-level; shifting not applicable).
-    Narrow peaks: Tn5-shifted BAM (alignmentSieve).
-    """
-    if CALL_PEAKS_PEAK_TYPE == "broad":
-        return os.path.join(wildcards.outdir, "bam", f"{wildcards.sample_id}.filtered.bam")
-    return os.path.join(wildcards.outdir, "bam", f"{wildcards.sample_id}.shifted.bam")
-
-
-def get_bai_for_callpeaks(wildcards):
-    if CALL_PEAKS_PEAK_TYPE == "broad":
-        return os.path.join(wildcards.outdir, "bam", f"{wildcards.sample_id}.filtered.bam.bai")
-    return os.path.join(wildcards.outdir, "bam", f"{wildcards.sample_id}.shifted.bam.bai")
-
-
 rule macs3_callpeak_tn5:
     # Call peaks with MACS3.
-    # Narrow peaks: Tn5-shifted BAM (alignmentSieve) → bamtobed → macs3 BED mode.
+    # Narrow peaks: filtered BAM → bamtobed → awk Tn5 shift → macs3 BED mode.
     # Broad peaks:  filtered BAM → macs3 BAMPE fragment mode.
     input:
-        bam = get_bam_for_callpeaks,
-        bai = get_bai_for_callpeaks,
+        bam = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam"),
         chromsizes = config["ref"]["chromsizes"]
     output:
         tn5_bed = os.path.join("{outdir}", "peaks", "{sample_id}.tn5_shifted.bed"),
         peak = os.path.join("{outdir}", "peaks", "{sample_id}_peaks.peak"),
         peaks_xls = os.path.join("{outdir}", "peaks", "{sample_id}_peaks.xls")
     params:
+        bed = os.path.join("{outdir}", "peaks", "{sample_id}.bed"),
         prefix = lambda wildcards: os.path.join(wildcards.outdir, "peaks", wildcards.sample_id),
         gsize = get_gsize,
         macs3_params = get_macs3_params(),
@@ -102,9 +86,13 @@ rule macs3_callpeak_tn5:
                 exit 1
             }}
         else
-            # BED mode: BAM is already Tn5-shifted by alignmentSieve; convert to BED directly.
-            bedtools bamtobed -i "{input.bam}" > "{output.tn5_bed}" 2> "{log}" || {{
+            bedtools bamtobed -i "{input.bam}" > "{params.bed}" 2> "{log}" || {{
                 echo "[ERROR] bedtools bamtobed failed." >> "{log}"
+                exit 1
+            }}
+
+            awk -F $'\\t' 'BEGIN{{OFS=FS}}{{if ($6 == "+"){{$2 = $2 + 4}} else if ($6 == "-"){{$3 = $3 - 5}} print $0}}' "{params.bed}" > "{output.tn5_bed}" 2>> "{log}" || {{
+                echo "[ERROR] Tn5 shifting with awk failed." >> "{log}"
                 exit 1
             }}
 
@@ -114,7 +102,7 @@ rule macs3_callpeak_tn5:
                 -f BED \
                 --gsize "{params.gsize}" \
                 {params.macs3_params} >> "{log}" 2>&1 || {{
-                echo "[ERROR] macs3 callpeak (BED) failed." >> "{log}"
+                echo "[ERROR] macs3 callpeak failed." >> "{log}"
                 exit 1
             }}
         fi

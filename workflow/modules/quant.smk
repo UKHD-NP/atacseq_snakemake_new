@@ -1,26 +1,15 @@
-FEATURE_COUNTS_CFG = config.get("feature_counts", {}) if isinstance(config.get("feature_counts", {}), dict) else {}
-FEATURE_COUNTS_USE_SHIFTED_BAM = as_bool(FEATURE_COUNTS_CFG.get("use_shifted_bam", True), default=True)
-
-
-def get_bam_for_peak_counting(wildcards):
-    """Use filtered BAM for broad peaks (BAMPE); shifted or filtered BAM for narrow peaks (configurable)."""
-    if CALL_PEAKS_PEAK_TYPE == "narrow" and not FEATURE_COUNTS_USE_SHIFTED_BAM:
-        return os.path.join(wildcards.outdir, "bam", f"{wildcards.sample_id}.filtered.bam")
-    return get_bam_for_callpeaks(wildcards)
-
-
 rule featurecounts_in_peaks:
     # Count paired-end reads overlapping called peaks (SAF) with featureCounts.
     input:
         peaks = os.path.join("{outdir}", "peaks", "{sample_id}_peaks.peak"),
-        bam = get_bam_for_peak_counting,
+        bam = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam"),
     output:
-        saf = os.path.join("{outdir}", "featurecounts", "{sample_id}_peaks.saf"),
+        saf = temp(os.path.join("{outdir}", "featurecounts", "{sample_id}_peaks.saf")),
         counts = os.path.join("{outdir}", "featurecounts", "{sample_id}.readCountInPeaks.txt"),
         summary = os.path.join("{outdir}", "featurecounts", "{sample_id}.readCountInPeaks.txt.summary"),
     params:
+        strand = 0,  # unstranded
         frac_overlap = float(CALL_PEAKS_CFG.get("frip_overlap_fraction", 0.20)),
-        strand = 0, # unstranded
     conda:
         os.path.join(workflow.basedir, "envs", "subread.yml")
     message:
@@ -44,8 +33,8 @@ rule featurecounts_in_peaks:
 
         featureCounts \
             -F SAF \
-            --fracOverlap {params.frac_overlap} \
             -p \
+            --fracOverlap {params.frac_overlap} \
             -T {threads} \
             -a "{output.saf}" \
             -s {params.strand} \

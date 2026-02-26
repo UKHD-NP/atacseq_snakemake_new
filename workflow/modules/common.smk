@@ -202,18 +202,16 @@ def get_target_files(sample_ids):
     """Determine target files for the workflow based on enabled modules."""
     targets = []
 
-    multiqc_on = is_enabled("multiqc", default=True)
-    bam_filter_on = is_enabled("bam_filter", default=True)
-    align_stats_on = is_enabled("align_stats", default=True) and bam_filter_on
     markdup_on = is_enabled("markduplicates")
-    call_peaks_on = is_enabled("call_peaks") and bam_filter_on
+    call_peaks_on = is_enabled("call_peaks")
     call_peaks_qc_on = call_peaks_on and as_bool(
         config.get("call_peaks", {}).get("macs3_peak_qc_plot", True),
         default=True,
     )
     annotate_peaks_on = call_peaks_on and is_enabled("annotate_peaks")
     feature_counts_on = call_peaks_on and is_enabled("feature_counts")
-    deeptools_on = is_enabled("deeptools") and bam_filter_on
+    shift_bam_on = CALL_PEAKS_PEAK_TYPE == "narrow"
+    deeptools_on = is_enabled("deeptools")
     ataqv_on = is_enabled("ataqv") and call_peaks_on
        
     # Process each sample
@@ -224,16 +222,14 @@ def get_target_files(sample_ids):
             return os.path.join(outdir, *parts)
         
         # MultiQC report
-        if multiqc_on:
-            targets.append(_path("multiqc", f"{sample_id}.multiqc.html"))
+        targets.append(_path("multiqc", f"{sample_id}.multiqc.html"))
 
         # Core BAM-derived stats outputs.
-        if align_stats_on:
-            targets.extend([
-                _path("bam", f"{sample_id}.filtered.bam.stats"),
-                _path("bam", f"{sample_id}.filtered.bam.flagstat"),
-                _path("bam", f"{sample_id}.filtered.bam.idxstats"),
-            ])
+        targets.extend([
+            _path("bam", f"{sample_id}.filtered.bam.stats"),
+            _path("bam", f"{sample_id}.filtered.bam.flagstat"),
+            _path("bam", f"{sample_id}.filtered.bam.idxstats"),
+        ])
 
         # Duplicate marking outputs (optional).
         if markdup_on:
@@ -241,48 +237,47 @@ def get_target_files(sample_ids):
                 _path("bam", f"{sample_id}.markdup.sorted.MarkDuplicates.metrics.txt"),
             ])
 
-        # Filtered BAM outputs (default on).
-        if bam_filter_on:
-            targets.extend([
-                _path("bam", f"{sample_id}.filtered.bam"),
-                _path("bam", f"{sample_id}.filtered.bam.bai"),
-            ])
-
         # Peak calling and annotation outputs.
         if call_peaks_on:
             targets.extend([
                 _path("peaks", f"{sample_id}_peaks.peak"),
                 _path("peaks", f"{sample_id}_peaks.xls"),
-                _path("peaks", f"{sample_id}.FRiP.txt"),
             ])
+
+        # Shifted BAM + bigWig (narrow peaks only, Tn5-shift via alignmentSieve).
+        if shift_bam_on and call_peaks_on:
+            targets.extend([
+                _path("bam",    f"{sample_id}.shifted.bam"),
+                _path("bam",    f"{sample_id}.shifted.bam.bai"),
+                _path("bigwig", f"{sample_id}.shifted.bigWig"),
+            ])
+            
         if call_peaks_qc_on:
             targets.extend([
                 _path("peaks", f"{sample_id}.macs_peakqc.summary.txt"),
                 _path("peaks", f"{sample_id}.macs_peakqc.plots.pdf"),
             ])
 
-        # featureCounts outputs (requires called peaks).
-        if feature_counts_on:
-            targets.extend([
-                _path("featurecounts", f"{sample_id}_peaks.saf"),
-                _path("featurecounts", f"{sample_id}.readCountInPeaks.txt"),
-                _path("featurecounts", f"{sample_id}.readCountInPeaks.txt.summary"),
-            ])
-
         # Peak annotation outputs (optional, requires called peaks).
         if annotate_peaks_on:
             targets.append(_path("annotation", f"{sample_id}_peaks.annotatePeaks.txt"))
 
-        # bigWig and deepTools outputs.
-        if deeptools_on:
-            # Non-shifted bigWig requires flagstat from align_stats.
-            if align_stats_on:
-                targets.append(_path("bigwig", f"{sample_id}.bigWig"))
-
+        # featureCounts + combined FRiP report (requires called peaks + featureCounts).
+        if feature_counts_on:
             targets.extend([
-                _path("bam", f"{sample_id}.shifted.bam"),
-                _path("bam", f"{sample_id}.shifted.bam.bai"),
-                _path("bigwig", f"{sample_id}.shifted.bigWig"),
+                _path("featurecounts", f"{sample_id}.readCountInPeaks.txt"),
+                _path("featurecounts", f"{sample_id}.readCountInPeaks.txt.summary"),
+                _path("peaks", f"{sample_id}.FRiP.txt"),
+                _path("peaks", f"{sample_id}_peaks.count_mqc.tsv"),
+                _path("peaks", f"{sample_id}_peaks.FRiP_mqc.tsv"),
+            ])
+
+        # bigWig
+        targets.append(_path("bigwig", f"{sample_id}.bigWig"))
+        
+        # deepTools outputs.
+        if deeptools_on:
+            targets.extend([
                 _path("deeptools", f"{sample_id}.scale_regions.computeMatrix.mat.gz"),
                 _path("deeptools", f"{sample_id}.scale_regions.computeMatrix.vals.mat.tab"),
                 _path("deeptools", f"{sample_id}.reference_point.computeMatrix.mat.gz"),
@@ -306,7 +301,6 @@ def get_target_files(sample_ids):
 
         # Include cleanup log only when MultiQC target is enabled
         # (delete_tmp currently depends on MultiQC output)
-        if multiqc_on:
-            targets.append(_path("logs", f"{sample_id}.deletion.log"))
+        targets.append(_path("logs", f"{sample_id}.deletion.log"))
 
     return list(dict.fromkeys(targets))

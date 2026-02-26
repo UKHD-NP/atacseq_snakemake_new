@@ -1,7 +1,6 @@
 ATAQV_DESCRIPTION = "NA"
 ATAQV_IGNORE_READ_GROUPS = True
 ATAQV_MITO_NAME = str(config.get("ref", {}).get("mito_name", "chrM")).strip() or "chrM"
-ATAQV_MKARV_CONCURRENCY = 6
 
 if is_enabled("ataqv") and not is_enabled("call_peaks"):
     fatal("ataqv requires `call_peaks.enabled: true` (peak file input).")
@@ -71,7 +70,7 @@ rule ataqv_mkarv:
         os.path.join(workflow.basedir, "envs", "ataqv.yml")
     message:
         "{wildcards.sample_id}: Building ataqv HTML report with mkarv"
-    threads: ATAQV_MKARV_CONCURRENCY
+    threads: 6
     log:
         os.path.join("{outdir}", "logs", "ataqv", "{sample_id}.mkarv.log")
     benchmark:
