@@ -390,12 +390,12 @@ snakemake --profile workflow/profiles/lsf -j 100 --rerun-incomplete --configfile
 
 ### Monitoring jobs
 
-```bash
-bjobs -w           # list all running/pending jobs
-bjobs -w -r        # running only
-bjobs -w -p        # pending only
-bjobs -l JOB_ID    # detailed info for one job
-```
+| `bjobs` command | Action |
+|-----------------|--------|
+| `bjobs -w` | List all running/pending jobs |
+| `bjobs -w -r` | Running only |
+| `bjobs -w -p` | Pending only |
+| `bjobs -l JOB_ID` | Detailed info for one job |
 
 ## Key Configuration
 
