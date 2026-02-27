@@ -31,9 +31,9 @@ rule fastp:
         os.path.join(workflow.basedir, "envs", "fastp.yml")
     message:
         "{wildcards.sample_id}: Trimming and performing quality control on paired-end FASTQ files"
-    threads: 8
+    threads: 12
     resources:
-        mem_mb = 4096
+        mem_mb = 16384
     log:
         os.path.join("{outdir}", "logs", "fastp", "{sample_id}.fastp.log")
     benchmark:
@@ -76,9 +76,9 @@ rule trim_galore:
         os.path.join(workflow.basedir, "envs", "trim_galore.yml")
     message:
         "{wildcards.sample_id}: Trimming reads with trim_galore"
-    threads: 8
+    threads: 12
     resources:
-        mem_mb = 4096
+        mem_mb = 16384
     log:
         os.path.join("{outdir}", "logs", "trim_galore", "{sample_id}.trim.log")
     benchmark:

@@ -68,7 +68,7 @@ rule bwa_mem2_index:
         os.path.join(workflow.basedir, "envs", "bwa-mem2.yml")
     message:
         "Building BWA-MEM2 index"
-    threads: 8
+    threads: 12
     log:
         os.path.join(ref_dir, "bwa_mem2_index.log")
     benchmark:
@@ -161,7 +161,7 @@ rule bowtie2_index:
         os.path.join(workflow.basedir, "envs", "bowtie2.yml")
     message:
         "Building Bowtie2 index"
-    threads: 8
+    threads: 12
     log:
         os.path.join(ref_dir, "bowtie2_index.log")
     benchmark:
@@ -206,7 +206,7 @@ rule bowtie2_align:
         "{wildcards.sample_id}: Aligning with bowtie2"
     threads: 12
     resources:
-        mem_mb = 24576  # ~2 GB per thread
+        mem_mb = 36864  # ~3 GB per thread
     log:
         os.path.join("{outdir}", "logs", "bowtie2", "{sample_id}.align.log")
     benchmark:
@@ -251,9 +251,9 @@ rule sort_bam:
         os.path.join(workflow.basedir, "envs", "samtools.yml")
     message:
         "{wildcards.sample_id}: Sorting BAM by coordinates"
-    threads: 10
+    threads: 12
     resources:
-        mem_mb = 40960  # 4 GB per thread (matches memory_per_thread param)
+        mem_mb = 49152  # 4 GB per thread (matches memory_per_thread param)
     log:
         os.path.join("{outdir}", "logs", "samtools", "{sample_id}.sort.log")
     benchmark:

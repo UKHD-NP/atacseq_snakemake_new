@@ -26,9 +26,9 @@ rule bam_filter:
         os.path.join(workflow.basedir, "envs", "samtools.yml")
     message:
         "{wildcards.sample_id}: Filtering BAM"
-    threads: 8
+    threads: 12
     resources:
-        mem_mb = 32768  # 4 GB per thread (matches memory_per_thread param)
+        mem_mb = 49152  # 4 GB per thread (matches memory_per_thread param)
     log:
         os.path.join("{outdir}", "logs", "samtools", "{sample_id}.bam_filter.log")
     benchmark:

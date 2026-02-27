@@ -62,7 +62,7 @@ rule macs3_callpeak_tn5:
         "{wildcards.sample_id}: Calling peaks with MACS3"
     threads: 12
     resources:
-        mem_mb = 16384  # MACS3 peak calling typically needs 8-16 GB
+        mem_mb = 36864
     log:
         os.path.join("{outdir}", "logs", "macs3", "{sample_id}.callpeak.log")
     benchmark:

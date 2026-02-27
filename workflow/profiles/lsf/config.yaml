@@ -32,48 +32,70 @@ conda-prefix: "/omics/odcf/analysis/YOUR_GROUP/conda_envs"
 # Retries on job failure
 retries: 1
 
-# Per-rule resource overrides for long/heavy steps.
-# These supplement the resources: directives already in each .smk rule.
+# Per-rule resource overrides — aligned with nf-core/atacseq labels:
+#   process_high   → 12 CPUs, 72 GB, 16h
+#   process_medium → 6 CPUs,  36 GB,  8h
+#   process_low    → 2 CPUs,  12 GB,  4h
 set-resources:
-  bwa_mem2_index:
+  trim_galore:                     # process_high
+    mem_mb: 73728                  # 72 GB
+    threads: 12
+    lsf_queue: "verylong"
+  fastp:                           # process_high (equivalent)
+    mem_mb: 73728
+    threads: 12
+    lsf_queue: "verylong"
+  bwa_mem2_index:                  # process_high (bwa-mem2 index needs more RAM)
     mem_mb: 65536
+    threads: 12
     runtime: 480
-    lsf_queue: "verylong"            # No runtime limit — safe for large genomes
-  bowtie2_index:
-    mem_mb: 16384
-    runtime: 240
-  bwa_mem2_align:
-    mem_mb: 49152
-    runtime: 360
-    lsf_queue: "long"
-  bowtie2_align:
-    mem_mb: 24576
-    runtime: 360
-    lsf_queue: "long"
-  sort_bam:
-    mem_mb: 40960
-    runtime: 120
-  mark_duplicates:
-    mem_mb: 32768
-    runtime: 180
-  bam_filter:
-    mem_mb: 32768
-    runtime: 120
-  shift_bam:
-    mem_mb: 49152
-    runtime: 180
-  macs3_callpeak_tn5:
-    mem_mb: 16384
-    runtime: 120
-  deeptools_compute_matrix_scale_regions:
-    mem_mb: 24576
-    runtime: 120
-  deeptools_compute_matrix_reference_point:
-    mem_mb: 24576
-    runtime: 120
-  deeptools_plot_fingerprint:
-    mem_mb: 16384
-    runtime: 60
-  multiqc:
-    mem_mb: 8192
-    runtime: 60
+    lsf_queue: "verylong"
+  bowtie2_index:                   # process_high
+    mem_mb: 73728
+    threads: 12
+    runtime: 480
+    lsf_queue: "verylong"
+  bwa_mem2_align:                  # process_high
+    mem_mb: 73728
+    threads: 12
+    lsf_queue: "verylong"
+  bowtie2_align:                   # process_high
+    mem_mb: 73728
+    threads: 12
+    lsf_queue: "verylong"
+  sort_bam:                        # process_medium
+    mem_mb: 36864                  # 36 GB
+    threads: 6
+    runtime: 480
+  mark_duplicates:                 # process_medium
+    mem_mb: 36864
+    threads: 6
+    runtime: 480
+  bam_filter:                      # process_medium
+    mem_mb: 36864
+    threads: 6
+    runtime: 480
+  shift_bam:                       # process_medium
+    mem_mb: 36864
+    threads: 6
+    runtime: 480
+  macs3_callpeak_tn5:              # process_medium
+    mem_mb: 36864
+    threads: 6
+    runtime: 480
+  deeptools_compute_matrix_scale_regions:    # process_high
+    mem_mb: 73728
+    threads: 12
+    runtime: 960
+  deeptools_compute_matrix_reference_point:  # process_high
+    mem_mb: 73728
+    threads: 12
+    runtime: 960
+  deeptools_plot_fingerprint:      # process_high
+    mem_mb: 73728
+    threads: 12
+    runtime: 960
+  multiqc:                         # process_medium
+    mem_mb: 36864
+    threads: 6
+    runtime: 480

@@ -20,7 +20,7 @@ rule deeptools_compute_matrix_scale_regions:
         "{wildcards.sample_id}: Running deepTools computeMatrix (scale-regions)"
     threads: 12
     resources:
-        mem_mb = 24576
+        mem_mb = 36864
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.computeMatrix.scale_regions.log")
     benchmark:
@@ -70,7 +70,7 @@ rule deeptools_compute_matrix_reference_point:
         "{wildcards.sample_id}: Running deepTools computeMatrix (reference-point)"
     threads: 12
     resources:
-        mem_mb = 24576
+        mem_mb = 36864
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.computeMatrix.reference_point.log")
     benchmark:
@@ -115,7 +115,7 @@ rule deeptools_plot_profile:
         "{wildcards.sample_id}: Running deepTools plotProfile"
     threads: 12
     resources:
-        mem_mb = 8192
+        mem_mb = 16384
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.plotProfile.log")
     benchmark:
@@ -152,7 +152,7 @@ rule deeptools_plot_heatmap:
         "{wildcards.sample_id}: Running deepTools plotHeatmap"
     threads: 12
     resources:
-        mem_mb = 8192
+        mem_mb = 16384
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.plotHeatmap.log")
     benchmark:
@@ -194,7 +194,7 @@ rule deeptools_plot_fingerprint:
         "{wildcards.sample_id}: Plotting Lorenz curves-Fingerprint"
     threads: 12
     resources:
-        mem_mb = 16384
+        mem_mb = 36864
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.plotFingerprint.log")
     benchmark:
@@ -243,7 +243,7 @@ rule deeptools_fragment_size_distribution:
         "{wildcards.sample_id}: Plotting the fragment size distribution"
     threads: 12
     resources:
-        mem_mb = 8192
+        mem_mb = 16384
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.fragment_size.log")
     benchmark:
