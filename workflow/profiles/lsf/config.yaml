@@ -30,7 +30,7 @@ conda-frontend: mamba
 conda-prefix: "/omics/odcf/analysis/YOUR_GROUP/conda_envs"
 
 # Retries on job failure
-retries: 1
+retries: 2
 
 # Per-rule resource overrides — aligned with nf-core/atacseq labels:
 #   process_high   → 12 CPUs, 72 GB, 16h
