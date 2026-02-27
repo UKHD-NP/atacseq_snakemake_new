@@ -17,7 +17,7 @@ rule fastqc_raw:
         "{wildcards.sample_id}: Running FastQC on raw reads"
     threads: 2
     resources:
-        mem_mb = 1024
+        mem_mb = 4096
     log:
         os.path.join("{outdir}", "logs", "fastqc_raw", "{sample_id}.fastqc_raw.log")
     shell:
@@ -31,7 +31,6 @@ rule fastqc_raw:
 
         # Run FastQC on symlinked files
         fastqc \
-            --quiet \
             --threads {threads} \
             --outdir {params.outdir} \
             {params.temp_dir}/{wildcards.sample_id}_raw_1.fastq.gz \
@@ -63,13 +62,12 @@ rule fastqc_trimmed:
         "{wildcards.sample_id}: Running FastQC on trimmed reads"
     threads: 2
     resources:
-        mem_mb = 1024
+        mem_mb = 4096
     log:
         os.path.join("{outdir}", "logs", "fastqc_trimmed", "{sample_id}.fastqc_trimmed.log")
     shell:
         """
         fastqc \
-            --quiet \
             --threads {threads} \
             --outdir {params.outdir} \
             {input.fq1} {input.fq2} \
