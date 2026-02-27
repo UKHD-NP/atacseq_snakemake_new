@@ -29,6 +29,7 @@ rule frip_score:
     shell:
         """
         set -euo pipefail
+        export LC_NUMERIC=C
         mkdir -p "$(dirname "{output.frip}")"
         mkdir -p "$(dirname "{log}")"
 
