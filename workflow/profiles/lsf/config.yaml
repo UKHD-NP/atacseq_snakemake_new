@@ -15,8 +15,8 @@ default-resources:
   lsf_extra: "''"                  # Extra bsub flags (e.g. "-P project_name")
   mem_mb: 8192                     # Default memory (MB)
   runtime: 120                     # Default wall time (minutes)
-  threads: 1
-
+  threads: 2                       # Default CPU threads
+  
 # Job submission settings
 jobs: 100                          # Max concurrent LSF jobs
 rerun-incomplete: true
@@ -32,7 +32,7 @@ conda-prefix: "/omics/odcf/analysis/YOUR_GROUP/conda_envs"
 # Retries on job failure
 retries: 2
 
-# Per-rule resource overrides — aligned with nf-core/atacseq labels:
+# Per-rule resource overrides:
 #   process_high   → 12 CPUs, 72 GB, 16h
 #   process_medium → 6 CPUs,  36 GB,  8h
 #   process_low    → 2 CPUs,  12 GB,  4h
@@ -40,10 +40,12 @@ set-resources:
   trim_galore:                     # process_high
     mem_mb: 73728                  # 72 GB
     threads: 12
+    runtime: 9999                  # No effective limit on verylong queue
     lsf_queue: "verylong"
   fastp:                           # process_high (equivalent)
     mem_mb: 73728
     threads: 12
+    runtime: 9999
     lsf_queue: "verylong"
   bwa_mem2_index:                  # process_high (bwa-mem2 index needs more RAM)
     mem_mb: 65536
@@ -58,10 +60,12 @@ set-resources:
   bwa_mem2_align:                  # process_high
     mem_mb: 73728
     threads: 12
+    runtime: 9999
     lsf_queue: "verylong"
   bowtie2_align:                   # process_high
     mem_mb: 73728
     threads: 12
+    runtime: 9999
     lsf_queue: "verylong"
   sort_bam:                        # process_medium
     mem_mb: 36864                  # 36 GB
