@@ -64,7 +64,7 @@ call_peaks:
   # Toggle MACS3 peak QC summary + plot generation (rule: macs3_peak_qc_plot)
   macs3_peak_qc_plot: true
   frip_overlap_fraction: 0.2     # minimum read-peak overlap for FRiP (bedtools -f and featureCounts --fracOverlap)
-  frip_threshold: 20             # FRiP % threshold: >= this → 'good', < this → 'bad'
+  frip_threshold: 20             # FRiP % threshold: >= this -> 'good', < this -> 'bad'
 
 annotate_peaks:
   # HOMER annotatePeaks + summary table

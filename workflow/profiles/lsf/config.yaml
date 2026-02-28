@@ -26,16 +26,16 @@ keep-going: false                  # Stop all jobs on first failure
 # Conda environments
 use-conda: true
 conda-frontend: mamba
-# Store conda envs outside home (20 GB quota!) — update path to your analysis share
+# Store conda envs outside home (20 GB quota!) - update path to your analysis share
 conda-prefix: "/omics/odcf/analysis/YOUR_GROUP/conda_envs"
 
 # Retries on job failure
 retries: 2
 
 # Per-rule resource overrides:
-#   process_high   → 12 CPUs, 72 GB, 16h
-#   process_medium → 6 CPUs,  36 GB,  8h
-#   process_low    → 2 CPUs,  12 GB,  4h
+#   process_high   : 12 CPUs, 72 GB, 16h
+#   process_medium : 6 CPUs,  36 GB,  8h
+#   process_low    : 2 CPUs,  12 GB,  4h
 set-resources:
   trim_galore:                     # process_high
     mem_mb: 73728                  # 72 GB

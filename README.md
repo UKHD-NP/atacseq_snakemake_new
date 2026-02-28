@@ -329,6 +329,14 @@ sed -i "s|/omics/odcf/analysis/YOUR_GROUP/conda_envs|${YOUR_WORKDIR}/conda_envs|
 grep "conda-prefix" workflow/profiles/lsf/config.yaml
 ```
 
+> **Note:** Add the following line to your `~/.bashrc` (once, then `source ~/.bashrc`).
+> The DKFZ LSF cluster enforces memory limits per-job, so this variable tells the LSF plugin to
+> submit the full `mem_mb` value as a per-job request instead of dividing it per slot:
+>
+> ```bash
+> export SNAKEMAKE_LSF_MEMFMT=perjob
+> ```
+
 ### Step 5 - Validate with a dry-run
 
 Resolves the full DAG and prints every rule that would run — **without executing or submitting any jobs**.

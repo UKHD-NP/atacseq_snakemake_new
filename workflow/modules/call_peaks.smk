@@ -35,8 +35,8 @@ def get_gsize(wildcards, input):
 
 rule macs3_callpeak_tn5:
     # Call peaks with MACS3.
-    # Narrow peaks: filtered BAM → bamtobed → awk Tn5 shift → macs3 BED mode.
-    # Broad peaks:  filtered BAM → macs3 BAMPE fragment mode.
+    # Narrow peaks: filtered BAM -> bamtobed -> awk Tn5 shift -> macs3 BED mode.
+    # Broad peaks:  filtered BAM -> macs3 BAMPE fragment mode.
     input:
         bam = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam"),
         chromsizes = config["ref"]["chromsizes"]

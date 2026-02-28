@@ -26,9 +26,9 @@ def is_enabled(module_name, default=False):
     """
     Check if a module is enabled in the config.
 
-    - Section missing or empty → returns *default*.
-    - Section present but no 'enabled' key → True.
-    - Section present with 'enabled' key → as_bool(value).
+    - Section missing or empty -> returns *default*.
+    - Section present but no 'enabled' key -> True.
+    - Section present with 'enabled' key -> as_bool(value).
 
     Examples:
         is_enabled("trimming")                   # off when section missing
