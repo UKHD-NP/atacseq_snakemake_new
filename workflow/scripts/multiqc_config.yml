@@ -68,10 +68,15 @@ module_order:
         - "*.filtered.bam.idxstats"
   - picard:
       anchor: "picard"
-      name: "Picard MarkDuplicates"
-      info: "Duplicate marking metrics."
+      name: "Picard"
+      info: "MarkDuplicates and CollectMultipleMetrics outputs."
       path_filters:
         - "*.MarkDuplicates.metrics.txt"
+        - "*.alignment_summary_metrics"
+        - "*.insert_size_metrics"
+        - "*.base_distribution_by_cycle_metrics"
+        - "*.quality_by_cycle_metrics"
+        - "*.quality_distribution_metrics"
   - deeptools:
       anchor: "deeptools"
       name: "deepTools"

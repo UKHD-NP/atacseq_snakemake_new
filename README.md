@@ -581,6 +581,15 @@ Per sample under `<outdir>`:
   - `bam/{sample}.filtered.bam.stats`
   - `bam/{sample}.filtered.bam.flagstat`
   - `bam/{sample}.filtered.bam.idxstats`
+  - `bam/{sample}.CollectMultipleMetrics.alignment_summary_metrics`
+  - `bam/{sample}.CollectMultipleMetrics.base_distribution_by_cycle.pdf`
+  - `bam/{sample}.CollectMultipleMetrics.base_distribution_by_cycle_metrics`
+  - `bam/{sample}.CollectMultipleMetrics.insert_size_histogram.pdf`
+  - `bam/{sample}.CollectMultipleMetrics.insert_size_metrics`
+  - `bam/{sample}.CollectMultipleMetrics.quality_by_cycle.pdf`
+  - `bam/{sample}.CollectMultipleMetrics.quality_by_cycle_metrics`
+  - `bam/{sample}.CollectMultipleMetrics.quality_distribution.pdf`
+  - `bam/{sample}.CollectMultipleMetrics.quality_distribution_metrics`
 - Peaks / FRiP
   - `peaks/{sample}_peaks.peak`
   - `peaks/{sample}_peaks.xls`
@@ -620,6 +629,12 @@ Per sample under `<outdir>`:
 - Raw and trimmed read QC
 - Samtools filtered-BAM stats
 - Picard MarkDuplicates
+- Picard CollectMultipleMetrics
+  - alignment summary
+  - insert size
+  - base distribution by cycle
+  - quality by cycle
+  - quality distribution
 - deepTools QC metrics
 - ataqv JSON
 - FRiP table (`*_peaks.FRiP_mqc.tsv`)

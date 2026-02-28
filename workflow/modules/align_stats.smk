@@ -30,3 +30,93 @@ rule samtools_stats:
         # Generate chromosome-level read mapping statistics
         samtools idxstats --threads {threads} {input.bam} > {output.bam_idxstats} 2>> {log} || {{ echo "[ERROR] samtools idxstats failed." >> {log}; exit 1; }}
         """
+
+rule picard_collect_multiple_metrics:
+    # Collect Picard metrics on filtered BAM.
+    input:
+        bam=os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam"),
+        fasta=config["ref"]["fasta"]
+    output:
+        alignment_summary=os.path.join(
+            "{outdir}",
+            "bam",
+            "{sample_id}.CollectMultipleMetrics.alignment_summary_metrics"
+        ),
+        base_distribution_by_cycle_pdf=os.path.join(
+            "{outdir}",
+            "bam",
+            "{sample_id}.CollectMultipleMetrics.base_distribution_by_cycle.pdf"
+        ),
+        base_distribution_by_cycle_metrics=os.path.join(
+            "{outdir}",
+            "bam",
+            "{sample_id}.CollectMultipleMetrics.base_distribution_by_cycle_metrics"
+        ),
+        insert_size_histogram_pdf=os.path.join(
+            "{outdir}",
+            "bam",
+            "{sample_id}.CollectMultipleMetrics.insert_size_histogram.pdf"
+        ),
+        insert_size=os.path.join(
+            "{outdir}",
+            "bam",
+            "{sample_id}.CollectMultipleMetrics.insert_size_metrics"
+        ),
+        quality_by_cycle_pdf=os.path.join(
+            "{outdir}",
+            "bam",
+            "{sample_id}.CollectMultipleMetrics.quality_by_cycle.pdf"
+        ),
+        quality_by_cycle_metrics=os.path.join(
+            "{outdir}",
+            "bam",
+            "{sample_id}.CollectMultipleMetrics.quality_by_cycle_metrics"
+        ),
+        quality_distribution_pdf=os.path.join(
+            "{outdir}",
+            "bam",
+            "{sample_id}.CollectMultipleMetrics.quality_distribution.pdf"
+        ),
+        quality_distribution_metrics=os.path.join(
+            "{outdir}",
+            "bam",
+            "{sample_id}.CollectMultipleMetrics.quality_distribution_metrics"
+        )
+    params:
+        prefix=lambda wildcards: os.path.join(
+            wildcards.outdir,
+            "bam",
+            f"{wildcards.sample_id}.CollectMultipleMetrics"
+        ),
+        tmp_dir = os.path.join("{outdir}", "bam", "tmp"),
+    conda:
+        os.path.join(workflow.basedir, "envs", "picard_markduplicates.yml")
+    message:
+        "{wildcards.sample_id}: Running Picard CollectMultipleMetrics"
+    threads: 2
+    resources:
+        mem_mb = 4915
+    log:
+        os.path.join("{outdir}", "logs", "picard", "{sample_id}.collect_multiple_metrics.log")
+    benchmark:
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.collect_multiple_metrics.benchmark.txt")
+    shell:
+        """
+        mkdir -p "{params.tmp_dir}"
+        mkdir -p "$(dirname "{log}")"
+
+        picard -Xmx{resources.mem_mb}m CollectMultipleMetrics \
+            VALIDATION_STRINGENCY=LENIENT \
+            TMP_DIR="{params.tmp_dir}" \
+            INPUT="{input.bam}" \
+            OUTPUT="{params.prefix}" \
+            REFERENCE_SEQUENCE="{input.fasta}" \
+            > "{log}" 2>&1 || {{ echo "[ERROR] Picard CollectMultipleMetrics failed." >> "{log}"; exit 1; }}
+
+        if [ -s "{output.alignment_summary}" ]; then
+            rm -rf "{params.tmp_dir}"
+        else
+            echo "[ERROR] Missing Picard output: {output.alignment_summary}" >> "{log}"
+            exit 1
+        fi
+        """

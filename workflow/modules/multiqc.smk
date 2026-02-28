@@ -42,15 +42,25 @@ def get_input_multiqc(wildcards):
             # Add FastP quality control JSON
             targets.append(_path("trim", f"{sample_id}.fastp.json"))
 
+    # Add Picard MarkDuplicates metrics if enabled
+    if is_enabled("markduplicates"):
+        targets.append(_path("bam", f"{sample_id}.markdup.sorted.MarkDuplicates.metrics.txt"))
+    
     # Add BAM stats outputs
     targets.extend(
         _path("bam", f"{sample_id}.filtered.bam.{ext}")
         for ext in ("stats", "flagstat", "idxstats")
     )
 
-    # Add Picard MarkDuplicates metrics if enabled
-    if is_enabled("markduplicates"):
-        targets.append(_path("bam", f"{sample_id}.markdup.sorted.MarkDuplicates.metrics.txt"))
+    # Add Picard CollectMultipleMetrics
+    targets.extend([
+        _path("bam", f"{sample_id}.CollectMultipleMetrics.alignment_summary_metrics"),
+        _path("bam", f"{sample_id}.CollectMultipleMetrics.base_distribution_by_cycle_metrics"),
+        _path("bam", f"{sample_id}.CollectMultipleMetrics.insert_size_metrics"),
+        _path("bam", f"{sample_id}.CollectMultipleMetrics.quality_by_cycle_metrics"),
+        _path("bam", f"{sample_id}.CollectMultipleMetrics.quality_distribution_metrics"),
+    ])
+
 
     # Add peak-calling summaries.
     if call_peaks_on:

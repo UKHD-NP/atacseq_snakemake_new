@@ -224,6 +224,12 @@ def get_target_files(sample_ids):
         # MultiQC report
         targets.append(_path("multiqc", f"{sample_id}.multiqc.html"))
 
+        # Duplicate marking outputs (optional).
+        if markdup_on:
+            targets.extend([
+                _path("bam", f"{sample_id}.markdup.sorted.MarkDuplicates.metrics.txt"),
+            ])
+
         # Core BAM-derived stats outputs.
         targets.extend([
             _path("bam", f"{sample_id}.filtered.bam.stats"),
@@ -231,11 +237,18 @@ def get_target_files(sample_ids):
             _path("bam", f"{sample_id}.filtered.bam.idxstats"),
         ])
 
-        # Duplicate marking outputs (optional).
-        if markdup_on:
-            targets.extend([
-                _path("bam", f"{sample_id}.markdup.sorted.MarkDuplicates.metrics.txt"),
-            ])
+        # Add Picard CollectMultipleMetrics
+        targets.extend([
+            _path("bam", f"{sample_id}.CollectMultipleMetrics.alignment_summary_metrics"),
+            _path("bam", f"{sample_id}.CollectMultipleMetrics.base_distribution_by_cycle.pdf"),
+            _path("bam", f"{sample_id}.CollectMultipleMetrics.base_distribution_by_cycle_metrics"),
+            _path("bam", f"{sample_id}.CollectMultipleMetrics.insert_size_histogram.pdf"),
+            _path("bam", f"{sample_id}.CollectMultipleMetrics.insert_size_metrics"),
+            _path("bam", f"{sample_id}.CollectMultipleMetrics.quality_by_cycle.pdf"),
+            _path("bam", f"{sample_id}.CollectMultipleMetrics.quality_by_cycle_metrics"),
+            _path("bam", f"{sample_id}.CollectMultipleMetrics.quality_distribution.pdf"),
+            _path("bam", f"{sample_id}.CollectMultipleMetrics.quality_distribution_metrics"),
+        ])
 
         # Peak calling and annotation outputs.
         if call_peaks_on:
