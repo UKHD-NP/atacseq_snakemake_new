@@ -206,7 +206,7 @@ rule bowtie2_align:
         "{wildcards.sample_id}: Aligning with bowtie2"
     threads: 12
     resources:
-        mem_mb = 36864  # ~3 GB per thread
+        mem_mb = 8192   # bowtie2 index ~3-4 GB total
     log:
         os.path.join("{outdir}", "logs", "bowtie2", "{sample_id}.align.log")
     benchmark:

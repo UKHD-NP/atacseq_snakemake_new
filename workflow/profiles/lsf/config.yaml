@@ -81,7 +81,7 @@ set-resources:
     runtime: 9999
     lsf_queue: "verylong"
   bowtie2_align:
-    mem_mb: 36864
+    mem_mb: 8192
     threads: 12
     runtime: 9999
     lsf_queue: "verylong"
