@@ -18,9 +18,9 @@ rule shift_bam:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
         "{wildcards.sample_id}: ATAC-shifting BAM with alignmentSieve"
-    threads: 12
+    threads: 8
     resources:
-        mem_mb = 49152
+        mem_mb = 24000
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.alignmentSieve.log")
     benchmark:

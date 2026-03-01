@@ -107,13 +107,13 @@ rule multiqc:
         os.path.join(workflow.basedir, "envs", "multiqc.yml")
     message:
         "{wildcards.sample_id}: Running MultiQC"
-    threads: 6
+    threads: 2
     resources:
-        mem_mb = 16384
+        mem_mb = 2048
     log:
         os.path.join("{outdir}", "logs", "multiqc", "{sample_id}.multiqc.log")
     benchmark:
-        os.path.join("{outdir}", "benchmarks", "multiqc.{sample_id}.benchmark.txt")
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.multiqc.benchmark.txt")
     shell:
         """
         # Set max file size limit for Python processes

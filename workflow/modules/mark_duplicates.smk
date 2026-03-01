@@ -15,9 +15,9 @@ rule mark_duplicates:
         os.path.join(workflow.basedir, "envs", "picard_markduplicates.yml")
     message:
         "{wildcards.sample_id}: Marking duplicate reads"
-    threads: 12
+    threads: 2
     resources:
-        mem_mb = 36864
+        mem_mb = 48000
     log:
         os.path.join("{outdir}", "logs", "markdup", "{sample_id}.markduplicates.log")
     benchmark:

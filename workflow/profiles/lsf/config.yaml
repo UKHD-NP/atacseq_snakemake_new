@@ -15,10 +15,9 @@ default-resources:
   lsf_extra: "''"
   mem_mb: 8192
   runtime: 120
-  threads: 2
 
 # Job submission settings
-jobs: 100
+jobs: 30
 rerun-incomplete: true
 latency-wait: 60
 keep-going: false
@@ -33,7 +32,7 @@ conda-prefix: "/omics/odcf/analysis/YOUR_GROUP/conda_envs"
 retries: 2
 
 # Global cores cap: controls --cores passed to each per-job subprocess
-cores: 1000
+cores: 300
 
 # Per-rule thread overrides (sets actual Snakemake threads, affects --cores in subprocess)
 set-threads:
@@ -44,80 +43,96 @@ set-threads:
   bwa_mem2_align: 12
   bowtie2_align: 12
   sort_bam: 6
-  mark_duplicates: 6
+  mark_duplicates: 2
   bam_filter: 6
-  shift_bam: 6
-  macs3_callpeak_tn5: 6
+  shift_bam: 8
+  macs3_callpeak_tn5: 2
   deeptools_compute_matrix_scale_regions: 12
   deeptools_compute_matrix_reference_point: 12
-  deeptools_plot_fingerprint: 12
-  multiqc: 6
+  deeptools_plot_fingerprint: 6
+  deeptools_plot_profile: 2
+  deeptools_plot_heatmap: 2
+  deeptools_fragment_size_distribution: 2
+  homer_annotate_peaks: 2
+  bedtools_genomecov: 2
+  ucsc_bedgraphtobigwig: 2
+  ataqv: 2
+  multiqc: 2
 
 # Per-rule resource overrides (mem_mb matches rule definitions)
 set-resources:
   trim_galore:
-    mem_mb: 16384
-    threads: 12
+    mem_mb: 36864
     runtime: 9999
     lsf_queue: "verylong"
   fastp:
-    mem_mb: 36864
-    threads: 12
+    mem_mb: 16384
     runtime: 9999
     lsf_queue: "verylong"
   bwa_mem2_index:
     mem_mb: 65536
-    threads: 12
     runtime: 480
     lsf_queue: "verylong"
   bowtie2_index:
     mem_mb: 8192
-    threads: 12
     runtime: 480
     lsf_queue: "verylong"
   bwa_mem2_align:
     mem_mb: 49152
-    threads: 12
     runtime: 9999
     lsf_queue: "verylong"
   bowtie2_align:
     mem_mb: 8192
-    threads: 12
     runtime: 9999
     lsf_queue: "verylong"
   sort_bam:
-    mem_mb: 49152
-    threads: 6
+    mem_mb: 36864
     runtime: 480
   mark_duplicates:
-    mem_mb: 36864
-    threads: 6
+    mem_mb: 48000
     runtime: 480
   bam_filter:
-    mem_mb: 49152
-    threads: 6
+    mem_mb: 36864
     runtime: 480
   shift_bam:
-    mem_mb: 49152
-    threads: 6
+    mem_mb: 24000
     runtime: 480
   macs3_callpeak_tn5:
-    mem_mb: 36864
-    threads: 6
+    mem_mb: 8192
     runtime: 480
   deeptools_compute_matrix_scale_regions:
-    mem_mb: 36864
-    threads: 12
+    mem_mb: 10240
     runtime: 960
+    lsf_queue: "verylong"
   deeptools_compute_matrix_reference_point:
-    mem_mb: 36864
-    threads: 12
+    mem_mb: 10240
     runtime: 960
+    lsf_queue: "verylong"
   deeptools_plot_fingerprint:
-    mem_mb: 36864
-    threads: 12
+    mem_mb: 6144
     runtime: 960
+    lsf_queue: "verylong"
+  deeptools_plot_profile:
+    mem_mb: 6144
+    runtime: 480
+  deeptools_plot_heatmap:
+    mem_mb: 6144
+    runtime: 480
+  deeptools_fragment_size_distribution:
+    mem_mb: 6144
+    runtime: 480
+  homer_annotate_peaks:
+    mem_mb: 9216
+    runtime: 480
+  bedtools_genomecov:
+    mem_mb: 40000
+    runtime: 480
+  ucsc_bedgraphtobigwig:
+    mem_mb: 1000
+    runtime: 480
+  ataqv:
+    mem_mb: 1000
+    runtime: 480
   multiqc:
-    mem_mb: 16384
-    threads: 6
+    mem_mb: 2048
     runtime: 480

@@ -60,9 +60,9 @@ rule macs3_callpeak_tn5:
         os.path.join(workflow.basedir, "envs", "peakcalling.yml")
     message:
         "{wildcards.sample_id}: Calling peaks with MACS3"
-    threads: 12
+    threads: 2
     resources:
-        mem_mb = 36864
+        mem_mb = 8192
     log:
         os.path.join("{outdir}", "logs", "macs3", "{sample_id}.callpeak.log")
     benchmark:
@@ -139,7 +139,7 @@ if CALL_PEAKS_MACS3_PEAK_QC_PLOT_ON:
             os.path.join(workflow.basedir, "envs", "peakcalling.yml")
         message:
             "{wildcards.sample_id}: Plotting MACS peak QC"
-        threads: 4
+        threads: 2
         log:
             os.path.join("{outdir}", "logs", "macs3", "{sample_id}.peak_qc.log"),
         benchmark:

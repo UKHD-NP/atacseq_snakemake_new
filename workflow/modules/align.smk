@@ -69,6 +69,8 @@ rule bwa_mem2_index:
     message:
         "Building BWA-MEM2 index"
     threads: 12
+    resources:
+        mem_mb = 65536
     log:
         os.path.join(ref_dir, "bwa_mem2_index.log")
     benchmark:
@@ -162,6 +164,8 @@ rule bowtie2_index:
     message:
         "Building Bowtie2 index"
     threads: 12
+    resources:
+        mem_mb = 8192
     log:
         os.path.join(ref_dir, "bowtie2_index.log")
     benchmark:
@@ -206,7 +210,7 @@ rule bowtie2_align:
         "{wildcards.sample_id}: Aligning with bowtie2"
     threads: 12
     resources:
-        mem_mb = 36864
+        mem_mb = 8192
     log:
         os.path.join("{outdir}", "logs", "bowtie2", "{sample_id}.align.log")
     benchmark:
@@ -245,15 +249,15 @@ rule sort_bam:
         bam = os.path.join("{outdir}", "bam", "{sample_id}.bam"),
         bai = os.path.join("{outdir}", "bam", "{sample_id}.bam.bai")
     params:
-        tempdir           = os.path.join("{outdir}", "bam"),
+        tempdir = os.path.join("{outdir}", "bam"),
         memory_per_thread = "4G"
     conda:
         os.path.join(workflow.basedir, "envs", "samtools.yml")
     message:
         "{wildcards.sample_id}: Sorting BAM by coordinates"
-    threads: 12
+    threads: 6
     resources:
-        mem_mb = 49152  # 4 GB per thread (matches memory_per_thread param)
+        mem_mb = 36864
     log:
         os.path.join("{outdir}", "logs", "samtools", "{sample_id}.sort.log")
     benchmark:

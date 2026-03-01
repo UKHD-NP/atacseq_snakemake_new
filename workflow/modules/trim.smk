@@ -82,7 +82,7 @@ rule trim_galore:
     log:
         os.path.join("{outdir}", "logs", "trim_galore", "{sample_id}.trim.log")
     benchmark:
-        os.path.join("{outdir}", "benchmarks", "trim_galore.{sample_id}.benchmark.txt")
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.trim_galore.benchmark.txt")
     shell:
         """
         mkdir -p {params.outdir}
