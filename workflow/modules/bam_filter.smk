@@ -28,7 +28,7 @@ rule bam_filter:
         "{wildcards.sample_id}: Filtering BAM"
     threads: 12
     resources:
-        mem_mb = 49152  # 4 GB per thread (matches memory_per_thread param)
+        mem_mb = 49152
     log:
         os.path.join("{outdir}", "logs", "samtools", "{sample_id}.bam_filter.log")
     benchmark:
