@@ -90,7 +90,8 @@ set-resources:
     runtime: 480
   mark_duplicates:
     mem_mb: 48000
-    runtime: 480
+    runtime: 720
+    lsf_queue: "verylong"
   bam_filter:
     mem_mb: 36864
     runtime: 480
