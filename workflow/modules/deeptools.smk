@@ -20,7 +20,7 @@ rule deeptools_compute_matrix_scale_regions:
         "{wildcards.sample_id}: Running deepTools computeMatrix (scale-regions)"
     threads: 12
     resources:
-        mem_mb = 10240
+        mem_mb = 6144
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.computeMatrix.scale_regions.log")
     benchmark:
@@ -70,7 +70,7 @@ rule deeptools_compute_matrix_reference_point:
         "{wildcards.sample_id}: Running deepTools computeMatrix (reference-point)"
     threads: 12
     resources:
-        mem_mb = 10240
+        mem_mb = 6144
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.computeMatrix.reference_point.log")
     benchmark:
@@ -152,7 +152,7 @@ rule deeptools_plot_heatmap:
         "{wildcards.sample_id}: Running deepTools plotHeatmap"
     threads: 2
     resources:
-        mem_mb = 6144
+        mem_mb = 20480
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.plotHeatmap.log")
     benchmark:

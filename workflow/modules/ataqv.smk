@@ -24,9 +24,9 @@ rule ataqv:
         os.path.join(workflow.basedir, "envs", "ataqv.yml")
     message:
         "{wildcards.sample_id}: Running ataqv"
-    threads: 2
+    threads: 1
     resources:
-        mem_mb = 1000
+        mem_mb = 1024
     log:
         os.path.join("{outdir}", "logs", "ataqv", "{sample_id}.ataqv.log")
     benchmark:
@@ -72,9 +72,9 @@ rule ataqv_mkarv:
         os.path.join(workflow.basedir, "envs", "ataqv.yml")
     message:
         "{wildcards.sample_id}: Building ataqv HTML report with mkarv"
-    threads: 2
+    threads: 1
     resources:
-        mem_mb = 1000
+        mem_mb = 1024
     log:
         os.path.join("{outdir}", "logs", "ataqv", "{sample_id}.mkarv.log")
     benchmark:

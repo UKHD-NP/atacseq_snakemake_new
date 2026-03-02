@@ -107,7 +107,7 @@ rule multiqc:
         os.path.join(workflow.basedir, "envs", "multiqc.yml")
     message:
         "{wildcards.sample_id}: Running MultiQC"
-    threads: 2
+    threads: 1
     resources:
         mem_mb = 2048
     log:

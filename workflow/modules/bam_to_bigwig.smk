@@ -12,7 +12,7 @@ rule bedtools_genomecov:
         "{wildcards.sample_id}: Generating scaled bedGraph - [Source: Filtered BAM, NOT SHIFTED]"
     threads: 2
     resources:
-        mem_mb = 40000
+        mem_mb = 40960
     log:
         os.path.join("{outdir}", "logs", "bedtools", "{sample_id}.genomecov.log")
     benchmark:
@@ -68,9 +68,9 @@ rule ucsc_bedgraphtobigwig:
         os.path.join(workflow.basedir, "envs", "ucsc_tools.yml")
     message:
         "{wildcards.sample_id}: Converting bedGraph to bigWig (Source: Filtered BAM, NOT SHIFTED)"
-    threads: 2
+    threads: 1
     resources:
-        mem_mb = 1000
+        mem_mb = 1024
     log:
         os.path.join("{outdir}", "logs", "ucsc", "{sample_id}.bedgraphtobigwig.log")
     benchmark:

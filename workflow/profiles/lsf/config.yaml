@@ -63,11 +63,11 @@ set-threads:
 set-resources:
   trim_galore:
     mem_mb: 36864
-    runtime: 9999
+    runtime: 960
     lsf_queue: "verylong"
   fastp:
     mem_mb: 16384
-    runtime: 9999
+    runtime: 960
     lsf_queue: "verylong"
   bwa_mem2_index:
     mem_mb: 65536
@@ -79,61 +79,57 @@ set-resources:
     lsf_queue: "verylong"
   bwa_mem2_align:
     mem_mb: 49152
-    runtime: 9999
+    runtime: 1440
     lsf_queue: "verylong"
   bowtie2_align:
     mem_mb: 8192
-    runtime: 9999
+    runtime: 720
     lsf_queue: "verylong"
   sort_bam:
     mem_mb: 36864
-    runtime: 480
+    runtime: 240
   mark_duplicates:
-    mem_mb: 48000
-    runtime: 720
-    lsf_queue: "verylong"
+    mem_mb: 49152
+    runtime: 240
   bam_filter:
     mem_mb: 36864
-    runtime: 480
+    runtime: 240
   shift_bam:
-    mem_mb: 24000
-    runtime: 480
+    mem_mb: 24576
+    runtime: 240
   macs3_callpeak_tn5:
     mem_mb: 8192
-    runtime: 480
+    runtime: 60
   deeptools_compute_matrix_scale_regions:
-    mem_mb: 10240
-    runtime: 960
-    lsf_queue: "verylong"
+    mem_mb: 6144
+    runtime: 60
   deeptools_compute_matrix_reference_point:
-    mem_mb: 10240
-    runtime: 960
-    lsf_queue: "verylong"
+    mem_mb: 6144
+    runtime: 60
   deeptools_plot_fingerprint:
     mem_mb: 6144
-    runtime: 960
-    lsf_queue: "verylong"
+    runtime: 60
   deeptools_plot_profile:
     mem_mb: 6144
-    runtime: 480
+    runtime: 60
   deeptools_plot_heatmap:
-    mem_mb: 6144
-    runtime: 480
+    mem_mb: 20480
+    runtime: 60
   deeptools_fragment_size_distribution:
     mem_mb: 6144
-    runtime: 480
+    runtime: 60
   homer_annotate_peaks:
-    mem_mb: 9216
-    runtime: 480
+    mem_mb: 10240
+    runtime: 60
   bedtools_genomecov:
-    mem_mb: 40000
-    runtime: 480
+    mem_mb: 40960
+    runtime: 60
   ucsc_bedgraphtobigwig:
-    mem_mb: 1000
-    runtime: 480
+    mem_mb: 6144
+    runtime: 60
   ataqv:
-    mem_mb: 1000
-    runtime: 480
+    mem_mb: 1024
+    runtime: 60
   multiqc:
     mem_mb: 2048
-    runtime: 480
+    runtime: 60

@@ -21,7 +21,9 @@ rule frip_score:
         os.path.join(workflow.basedir, "envs", "bedtools.yml")
     message:
         "{wildcards.sample_id}: Calculating FRiP score"
-    threads: 8
+    threads: 1
+    resources:
+        mem_mb = 2048
     log:
         os.path.join("{outdir}", "logs", "frip", "{sample_id}.frip.log")
     benchmark:

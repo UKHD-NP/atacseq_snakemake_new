@@ -14,7 +14,9 @@ rule featurecounts_in_peaks:
         os.path.join(workflow.basedir, "envs", "subread.yml")
     message:
         "{wildcards.sample_id}: Running featureCounts on peaks"
-    threads: 8
+    threads: 1
+    resources:
+        mem_mb = 2048
     log:
         os.path.join("{outdir}", "logs", "featurecounts", "{sample_id}.featureCounts.log"),
     benchmark:

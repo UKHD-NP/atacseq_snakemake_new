@@ -13,9 +13,9 @@ rule homer_annotate_peaks:
         os.path.join(workflow.basedir, "envs", "homer.yml")
     message:
         "{wildcards.sample_id}: Annotating peaks with HOMER"
-    threads: 2
+    threads: 1
     resources:
-        mem_mb = 9216
+        mem_mb = 10240
     log:
         os.path.join("{outdir}", "logs", "homer", "{sample_id}.annotatePeaks.log")
     benchmark:
