@@ -97,7 +97,7 @@ rule picard_collect_multiple_metrics:
         "{wildcards.sample_id}: Running Picard CollectMultipleMetrics"
     threads: 1
     resources:
-        mem_mb = 4915
+        mem_mb = 10240
     log:
         os.path.join("{outdir}", "logs", "picard", "{sample_id}.collect_multiple_metrics.log")
     benchmark:
