@@ -9,6 +9,8 @@ rule samtools_faidx:
     message:
         "Generating FASTA index"
     threads: 1
+    resources:
+        mem_mb = 1024
     shell:
         """
         samtools faidx {input}
@@ -28,6 +30,8 @@ rule gtf2bed:
     message:
         "Converting GTF to BED format"
     threads: 1
+    resources:
+        mem_mb = 1024
     log:
         os.path.join(ref_dir, "gtf2bed", f"{config['ref']['assembly']}.log")
     shell:
@@ -61,6 +65,9 @@ rule get_chromsizes:
         config["ref"]["chromsizes"]
     message:
         "Generating chromosome sizes file"
+    threads: 1
+    resources:
+        mem_mb = 1024
     log:
         os.path.join(ref_dir, "chromsizes", f"{config['ref']['assembly']}.log")
     shell:
@@ -87,6 +94,9 @@ rule get_autosomes:
         os.path.join(workflow.basedir, "envs", "samtools.yml")
     message:
         "Extracting autosome chromosome names"
+    threads: 1
+    resources:
+        mem_mb = 1024
     log:
         os.path.join(ref_dir, "autosomes", f"{config['ref']['assembly']}.log")
     shell:
@@ -109,6 +119,9 @@ rule tss_extract:
         config["ref"]["tss"]
     message:
         "Extracting TSS BED intervals"
+    threads: 1
+    resources:
+        mem_mb = 1024
     log:
         os.path.join(ref_dir, "tss", f"{config['ref']['assembly']}.log")
     shell:
@@ -145,6 +158,9 @@ rule genome_blacklist_regions:
         os.path.join(workflow.basedir, "envs", "bedtools.yml")
     message:
         "Generating include regions from chromsizes and blacklist"
+    threads: 1
+    resources:
+        mem_mb = 1024
     log:
         os.path.join(ref_dir, "include_regions", f"{config['ref']['assembly']}.log")
     shell:
