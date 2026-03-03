@@ -46,7 +46,13 @@ def get_input_multiqc(wildcards):
     if is_enabled("markduplicates"):
         targets.append(_path("bam", f"{sample_id}.markdup.sorted.MarkDuplicates.metrics.txt"))
     
-    # Add BAM stats outputs
+    # Add pre-filter BAM stats outputs
+    targets.extend(
+        _path("bam", f"{sample_id}.pre_filter.bam.{ext}")
+        for ext in ("stats", "flagstat", "idxstats")
+    )
+
+    # Add post-filter BAM stats outputs
     targets.extend(
         _path("bam", f"{sample_id}.filtered.bam.{ext}")
         for ext in ("stats", "flagstat", "idxstats")

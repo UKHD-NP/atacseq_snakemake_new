@@ -12,7 +12,8 @@ default_bam_filter_params = "-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400 -q 
 rule bam_filter:
     input:
         bam = get_bam_for_filter,
-        include_regions = config["ref"]["include_regions"]
+        include_regions = config["ref"]["include_regions"],
+        pre_filter_bam_stats = os.path.join("{outdir}", "bam", "{sample_id}.pre_filter.bam.stats")
     output:
         bam = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam"),
         bai = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam.bai")

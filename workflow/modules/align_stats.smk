@@ -1,3 +1,35 @@
+rule samtools_stats_pre_filter:
+    # Generate comprehensive statistics for BAM files before filtering
+    input:
+        bam   = get_bam_for_filter,
+        fasta = config['ref']['fasta']
+    output:
+        bam_stats    = os.path.join("{outdir}", "bam", "{sample_id}.pre_filter.bam.stats"),
+        bam_flagstat = os.path.join("{outdir}", "bam", "{sample_id}.pre_filter.bam.flagstat"),
+        bam_idxstats = os.path.join("{outdir}", "bam", "{sample_id}.pre_filter.bam.idxstats")
+    conda:
+        os.path.join(workflow.basedir, "envs", "samtools.yml")
+    message:
+        "{wildcards.sample_id}: Running Samtools statistics (pre-filter)"
+    threads: 1
+    resources:
+        mem_mb = 1024
+    log:
+        os.path.join("{outdir}", "logs", "samtools", "{sample_id}.samtools_stats_pre_filter.log")
+    benchmark:
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.samtools_stats_pre_filter.benchmark.txt")
+    shell:
+        """
+        mkdir -p $(dirname {output.bam_stats})
+        mkdir -p $(dirname {log})
+
+        samtools stats --threads {threads} --reference {input.fasta} {input.bam} > {output.bam_stats} 2>> {log} || {{ echo "[ERROR] samtools stats failed." >> {log}; exit 1; }}
+
+        samtools flagstat --threads {threads} {input.bam} > {output.bam_flagstat} 2>> {log} || {{ echo "[ERROR] samtools flagstat failed." >> {log}; exit 1; }}
+
+        samtools idxstats --threads {threads} {input.bam} > {output.bam_idxstats} 2>> {log} || {{ echo "[ERROR] samtools idxstats failed." >> {log}; exit 1; }}
+        """
+
 rule samtools_stats:
     # Generate comprehensive statistics for BAM files
     input:

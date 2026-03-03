@@ -61,8 +61,11 @@ module_order:
   - samtools:
       anchor: "samtools"
       name: "Samtools"
-      info: "BAM-level statistics."
+      info: "BAM-level statistics (pre-filter and post-filter)."
       path_filters:
+        - "*.pre_filter.bam.stats"
+        - "*.pre_filter.bam.flagstat"
+        - "*.pre_filter.bam.idxstats"
         - "*.filtered.bam.stats"
         - "*.filtered.bam.flagstat"
         - "*.filtered.bam.idxstats"
@@ -124,11 +127,11 @@ sp:
   cutadapt:
     fn: "*trimming_report.txt"
   samtools/stats:
-    fn: "*.filtered.bam.stats"
+    fn: "*.bam.stats"
   samtools/flagstat:
-    fn: "*.filtered.bam.flagstat"
+    fn: "*.bam.flagstat"
   samtools/idxstats:
-    fn: "*.filtered.bam.idxstats"
+    fn: "*.bam.idxstats"
   picard/markdups:
     fn: "*.MarkDuplicates.metrics.txt"
   deeptools:
