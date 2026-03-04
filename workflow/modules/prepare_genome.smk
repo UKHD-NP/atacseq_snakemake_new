@@ -30,8 +30,6 @@ rule gtf2bed:
     message:
         "Converting GTF to BED format"
     threads: 1
-    resources:
-        mem_mb = 4096
     log:
         os.path.join(ref_dir, "gtf2bed", f"{config['ref']['assembly']}.log")
     shell:
