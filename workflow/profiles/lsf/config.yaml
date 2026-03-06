@@ -56,8 +56,8 @@ set-threads:
   homer_annotate_peaks: 2
   bedtools_genomecov: 2
   ucsc_bedgraphtobigwig: 2
-  ataqv: 2
-  multiqc: 2
+  ataqv: 1
+  multiqc: 1
 
 # Per-rule resource overrides (mem_mb matches rule definitions)
 set-resources:

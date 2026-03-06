@@ -45,7 +45,7 @@ markduplicates:
   enabled: true
 
 deeptools:
-  # Enable computeMatrix / plotProfile / plotHeatmap / plotFingerprint
+  # Enable computeMatrix / plotProfile / plotHeatmap / plotFingerprint / fragment_size_distribution
   enabled: true
 
 call_peaks:
