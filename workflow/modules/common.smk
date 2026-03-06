@@ -312,8 +312,7 @@ def get_target_files(sample_ids):
             targets.append(_path("ataqv", f"{sample_id}.ataqv.json"))
             targets.append(_path("ataqv", f"{sample_id}.mkarv_html", "index.html"))
 
-        # Include cleanup log only when MultiQC target is enabled
-        # (delete_tmp currently depends on MultiQC output)
+        ## Always include deletion log
         targets.append(_path("logs", f"{sample_id}.deletion.log"))
 
     return list(dict.fromkeys(targets))

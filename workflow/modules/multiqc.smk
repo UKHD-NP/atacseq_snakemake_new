@@ -67,7 +67,6 @@ def get_input_multiqc(wildcards):
         _path("bam", f"{sample_id}.CollectMultipleMetrics.quality_distribution_metrics"),
     ])
 
-
     # Add peak-calling summaries.
     if call_peaks_on:
         targets.append(_path("peaks", f"{sample_id}_peaks.FRiP_mqc.tsv"))
