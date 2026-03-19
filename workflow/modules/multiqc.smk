@@ -12,7 +12,7 @@ def get_input_multiqc(wildcards):
         config.get("call_peaks", {}).get("macs3_peak_qc_plot", True),
         default=True,
     )
-    feature_counts_on = call_peaks_on and is_enabled("feature_counts")
+    feature_counts_on = call_peaks_on  # always run featureCounts when peaks are called (required for FRiP score)
     deeptools_on = is_enabled("deeptools")
     annotation_on = is_enabled("annotate_peaks") and call_peaks_on
     ataqv_on = is_enabled("ataqv") and call_peaks_on

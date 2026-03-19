@@ -67,7 +67,7 @@ Main workflow (per sample):
    - Scaled bedGraph + bigWig from filtered BAM
    - ATAC-shifted BAM + shifted RPGC bigWig
 9. Peak calling (MACS3 with Tn5-shifted BED)
-10. Peak QC summary plots (`plot_macs2_qc.r`)
+10. Peak QC summary plots (`plot_macs_qc.r`)
 11. FRiP (two methods: bedtools intersect + featureCounts log)
 12. Peak annotation (HOMER + summary)
 13. featureCounts in peaks (SAF)
@@ -446,17 +446,17 @@ ref:
 
 trimming:
   enabled: true
+  delete_trimming: true         # delete trimmed FASTQs after pipeline completes
   tool: "trim_galore"           # fastp / trim_galore
   trim_galore_params: "--nextseq 25 --length 36"
   fastp_params: "--cut_tail --cut_tail_window_size 4 --cut_tail_mean_quality 20 --trim_poly_g --length_required 36"
 
 align:
-  tool: "bowtie2"               # bwa / bowtie2
-  bowtie2_params: "--very-sensitive --no-discordant -p 2 -X 2000"
+  tool: "bowtie2"               # bwa-mem2 / bowtie2
+  bowtie2_params: "--very-sensitive --no-discordant -X 2000"
   bwa_params: "-I 0,2000"
 
 bam_filter:
-  enabled: true
   params: "-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400 -q 30"
 
 markduplicates:
@@ -468,7 +468,7 @@ deeptools:
 call_peaks:
   enabled: true
   peak_type: "narrow"           # narrow / broad
-  macs3_gsize: "2701262066"     # effective genome size (preferred); if empty, auto-sum from chromsizes
+  macs3_gsize: "2701495711"     # effective genome size (preferred); if empty, auto-sum from chromsizes
   macs3_narrow_params: "--trackline --shift -75 --extsize 150 --keep-dup all --nomodel --call-summits -q 0.01"
   macs3_broad_params: "--trackline --keep-dup all --nomodel --broad --broad-cutoff 0.1"
   macs3_peak_qc_plot: true      # run plot_macs_qc.r to generate peak QC summary/plots
@@ -476,9 +476,6 @@ call_peaks:
   frip_threshold: 20
 
 annotate_peaks:
-  enabled: true
-
-feature_counts:
   enabled: true
 
 ataqv:
@@ -497,10 +494,10 @@ Explanation by block:
 - `ref.keep_mito`: set `true` to retain mitochondrial reads in `include_regions`; `false` (default) excludes them.
 - `trimming`: choose one trimming engine and pass tool-specific options.
 - `align`: choose aligner and set aligner-specific CLI parameters.
-- `bam_filter.enabled`: disabling this skips all downstream modules that depend on `filtered.bam` (peaks, deeptools, align_stats). See [Module Dependencies](#module-dependencies-important).
 - `bam_filter.params`: SAMtools core filter flags; see [BAM Filtering](#re-mark-duplicates-and-bam-filtering-criteria) for full breakdown.
 - `markduplicates.enabled`: run Picard MarkDuplicates before filtering. When disabled, duplicates are not flagged and `-F 0x0400` in `bam_filter.params` has no effect.
-- `deeptools.enabled`: run computeMatrix/plotProfile/plotHeatmap/plotFingerprint modules.
+- `trimming.delete_trimming`: when `true`, trimmed FASTQ files are deleted after the pipeline completes.
+- `deeptools.enabled`: run computeMatrix/plotProfile/plotHeatmap/plotFingerprint modules. Requires `call_peaks.enabled=true` and `call_peaks.peak_type=narrow` (computeMatrix uses the Tn5-shifted bigWig).
 - `call_peaks.peak_type`: `narrow` uses filtered BAM → `bamtobed` → awk Tn5 shift (+4 forward / -5 reverse) → MACS3 BED mode; `broad` uses filtered BAM directly in MACS3 BAMPE mode.
 - `call_peaks.macs3_peak_qc_plot`: when `true`, runs `plot_macs_qc.r` to produce `*.macs_peakqc.summary.txt` and `*.macs_peakqc.plots.pdf`.
 - `call_peaks.frip_overlap_fraction`: minimum read-peak overlap fraction for FRiP (passed to both `bedtools intersect -f` and featureCounts `--fracOverlap`).
@@ -531,16 +528,18 @@ Explanation by block:
   - `hg19`: `2864785220`
   - `hg38`: `2913022398`
 
-## Module Dependencies (important)
+## Module Dependencies (IMPORTANT)
 
-- `call_peaks` requires `bam_filter.enabled=true`.
-- `deeptools` requires `bam_filter.enabled=true`.
-- `align_stats` requires `bam_filter.enabled=true`.
+Some modules only run when their upstream module is also enabled:
+
+- `align_stats` requires `bam_filter` (always runs — `bam_filter` has no toggle).
+- `call_peaks` requires `bam_filter`.
 - `annotate_peaks` requires `call_peaks.enabled=true`.
-- `feature_counts` requires `call_peaks.enabled=true`.
+- `featureCounts` + `frip_score` run automatically when `call_peaks.enabled=true` (no separate toggle).
 - `ataqv` requires `call_peaks.enabled=true`.
+- `deeptools` requires `call_peaks.enabled=true` AND `call_peaks.peak_type=narrow` (computeMatrix uses the Tn5-shifted bigWig).
 
-Disabling `bam_filter` effectively disables all downstream analysis — only raw QC (FastQC, trimming) will run.
+> **Note:** `bam_filter` itself has no `enabled` toggle — it always runs. Disabling `markduplicates` is safe but leaves duplicates unflagged (the `-F 0x0400` flag in `bam_filter.params` would then have no effect).
 
 ## Re-mark Duplicates and BAM Filtering Criteria
 
