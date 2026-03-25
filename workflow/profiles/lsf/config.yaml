@@ -95,7 +95,7 @@ set-resources:
     mem_mb: 36864
     runtime: 240
   shift_bam:
-    mem_mb: 24576
+    mem_mb: 32768
     runtime: 240
   macs3_callpeak_tn5:
     mem_mb: 8192
