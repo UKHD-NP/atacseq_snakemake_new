@@ -1,10 +1,10 @@
-# Snakemake LSF profile for DKFZ HPC execution
+# Snakemake LSF profile for HPC execution
 # Usage: snakemake --profile workflow/profiles/lsf [other options]
 #
 # Requirements: snakemake-executor-plugin-lsf
 #   pip install snakemake-executor-plugin-lsf
 #
-# Submit manually with bsub on bsub01.lsf.dkfz.de or bsub02.lsf.dkfz.de.
+# Submit manually from a submission node with bsub access.
 # Adjust lsf_queue values to match available queues (short, medium, long, etc.).
 
 executor: lsf
@@ -25,8 +25,8 @@ keep-going: false
 # Conda environments
 use-conda: true
 conda-frontend: mamba
-# Store conda envs outside home (20 GB quota!) - update path to your analysis share
-conda-prefix: "/omics/odcf/analysis/YOUR_GROUP/conda_envs"
+# Store conda envs outside home (quota may be limited) - update path to your group storage
+conda-prefix: "/path/to/group/storage/conda_envs"
 
 # Retries on job failure
 retries: 2

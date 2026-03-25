@@ -24,9 +24,9 @@ This repository currently uses:
   - [1. Samplesheet](#1-samplesheet)
   - [2. Reference](#2-reference)
 - [Local Run](#local-run)
-- [Running on DKFZ HPC (LSF)](#running-on-dkfz-hpc-lsf)
-  - [Node roles at DKFZ](#node-roles-at-dkfz)
-  - [Step 1 — Set up Snakemake environment](#step-1---set-up-snakemake-environment-on-odcf-worker01)
+- [Running on HPC with LSF](#running-on-hpc-with-lsf)
+  - [Node roles](#node-roles)
+  - [Step 1 — Set up Snakemake environment](#step-1---set-up-snakemake-environment)
   - [Step 2 — Clone the pipeline](#step-2---clone-the-pipeline)
   - [Step 3 — Edit configuration](#step-3---edit-configuration)
   - [Step 4 — Update conda-prefix](#step-4---update-conda-prefix-in-the-lsf-profile)
@@ -132,7 +132,7 @@ bam_filter  --->  filtered.bam / filtered.bam.bai
 - Snakemake ≥ 8 (in a dedicated controller environment)
 - Conda/Mamba
 
-> **DKFZ HPC users:** skip this section and follow [Running on DKFZ HPC (LSF)](#running-on-dkfz-hpc-lsf) instead, which covers environment setup outside your home directory.
+> **HPC users:** skip this section and follow [Running on HPC with LSF](#running-on-hpc-with-lsf) instead, which covers environment setup outside your home directory.
 
 For local use, create a minimal controller environment:
 
@@ -193,7 +193,7 @@ Pipeline stages references into `references/{assembly}/` and derives:
 
 ## Local Run
 
-> For cluster execution on DKFZ HPC, see [Running on DKFZ HPC (LSF)](#running-on-dkfz-hpc-lsf) below.
+> For cluster execution on HPC, see [Running on HPC with LSF](#running-on-hpc-with-lsf) below.
 > The commands here are for single-machine (local) execution only.
 
 **Step 1 — Dry-run first (always).**
@@ -224,33 +224,33 @@ snakemake -s workflow/Snakefile --use-conda --conda-frontend mamba --cores 24 --
 ```
 
 > `config/config.yml` is loaded automatically by the Snakefile as the default configfile.
-> Pass `--configfile path/to/other.yml` only when you want to override it.
+> Pass `--configfile path/to/other.yml` only when you want to override it (e.g. for a test config).
 
-## Running on DKFZ HPC (LSF)
+## Running on HPC with LSF
 
-The DKFZ cluster uses **IBM Spectrum LSF**.
+This setup uses **IBM Spectrum LSF**.
 A ready-made LSF profile is provided at `workflow/profiles/lsf/config.yaml`.
 
-### Node roles at DKFZ
+### Node roles
 
 | Node | Purpose | Allowed |
 |------|---------|---------|
-| `odcf-worker01/02` | Dev, install, testing | ✅ Software install, small runs |
-| `bsub01/02` | Job submission only | ✅ Run Snakemake (lightweight), ❌ Processing |
+| `<worker-node>` | Dev, install, testing | ✅ Software install, small runs |
+| `<submit-node>` | Job submission only | ✅ Run Snakemake (lightweight), ❌ Processing |
 | Cluster nodes | Computation | Jobs submitted automatically via `bsub` |
 
-### Step 1 - Set up Snakemake environment (on odcf-worker01)
+### Step 1 - Set up Snakemake environment
 
-> **Do this on `odcf-worker01`, not on `bsub01`.**
-> Worker nodes (`odcf-worker01/02`) allow software installation. Submission hosts (`bsub01/02`) do not.
+> **Do this on `<worker-node>`, not on `<submit-node>`.**
+> Worker nodes allow software installation. Submission hosts do not.
 
 ```bash
-ssh YOUR_USERNAME@odcf-worker01.dkfz.de
+ssh YOUR_USERNAME@<worker-node>
 ```
 
 **Configure conda channels.**
-The DKFZ cluster bans the `defaults` (Anaconda) channel due to licensing restrictions.
-You must explicitly restrict to `conda-forge` and `bioconda`:
+Some HPC clusters ban the `defaults` (Anaconda) channel due to licensing restrictions.
+You may need to explicitly restrict to `conda-forge` and `bioconda`:
 
 ```bash
 cat > ~/.condarc << 'EOF'
@@ -264,17 +264,17 @@ EOF
 This adds `mamba`/`conda` to your `PATH` permanently via `~/.bashrc`:
 
 ```bash
-module load Mamba/24.11.2-1
+module load Mamba   # adjust module name to your site
 mamba init bash
 source ~/.bashrc   # apply changes to the current shell without re-logging in
 ```
 
 **Create the Snakemake controller environment outside your home directory.**
-Home quota at DKFZ is only 20 GB. Conda environments can easily exceed this - install them on group storage:
+Home quota on HPC systems is often limited. Conda environments can easily exceed this — install them on group storage:
 
 ```bash
-# Set your working directory on group storage (adjust group/username as needed)
-YOUR_WORKDIR="/omics/groups/OE0146/internal/YOUR_USERNAME"
+# Set your working directory on group storage (adjust path as needed)
+YOUR_WORKDIR="/path/to/group/storage/YOUR_USERNAME"
 mkdir -p ${YOUR_WORKDIR}/conda_envs
 
 # Create the controller environment with Snakemake + the LSF executor plugin
@@ -294,7 +294,7 @@ python -m pip install "snakemake==8.*" "snakemake-executor-plugin-lsf" "numpy==1
 python -c "import snakemake, numpy, pandas; print(snakemake.__version__, numpy.__version__, pandas.__version__)"
 ```
 
-> `snakemake-executor-plugin-lsf` translates Snakemake rule resources (`mem_mb`, `runtime`, `threads`) into `bsub` submission flags automatically - no manual `bsub` scripting needed.
+> `snakemake-executor-plugin-lsf` translates Snakemake rule resources (`mem_mb`, `runtime`, `threads`) into `bsub` submission flags automatically — no manual `bsub` scripting needed.
 
 ### Step 2 - Clone the pipeline
 
@@ -322,7 +322,7 @@ All rule environments combined take roughly **5–15 GB** and must live outside 
 Update the placeholder path to your actual working directory:
 
 ```bash
-sed -i "s|/omics/odcf/analysis/YOUR_GROUP/conda_envs|${YOUR_WORKDIR}/conda_envs|g" \
+sed -i "s|/path/to/group/storage/conda_envs|${YOUR_WORKDIR}/conda_envs|g" \
     workflow/profiles/lsf/config.yaml
 
 # Confirm the replacement was applied correctly
@@ -330,7 +330,7 @@ grep "conda-prefix" workflow/profiles/lsf/config.yaml
 ```
 
 > **Note:** Add the following line to your `~/.bashrc` (once, then `source ~/.bashrc`).
-> The DKFZ LSF cluster enforces memory limits per-job, so this variable tells the LSF plugin to
+> LSF enforces memory limits per-job, so this variable tells the LSF plugin to
 > submit the full `mem_mb` value as a per-job request instead of dividing it per slot:
 >
 > ```bash
@@ -356,19 +356,19 @@ Confirm that the printed rule count and sample names match expectations before p
 
 ### Step 6 - Submit to HPC
 
-> **Do this on `bsub01` or `bsub02`**, not on `odcf-worker01`.
+> **Do this on `<submit-node>`**, not on `<worker-node>`.
 > Snakemake must run on a submission host to dispatch jobs via `bsub`.
 
 Use `screen` so the Snakemake controller process survives SSH disconnects:
 
 ```bash
-ssh YOUR_USERNAME@bsub01.lsf.dkfz.de
+ssh YOUR_USERNAME@<submit-node>
 
-# Create a named screen session - it keeps running after SSH disconnect
+# Create a named screen session — it keeps running after SSH disconnect
 screen -S <session_name>
 
 # Set your working directory (same value as used in Step 1)
-YOUR_WORKDIR="/omics/groups/OE0146/internal/YOUR_USERNAME"
+YOUR_WORKDIR="/path/to/group/storage/YOUR_USERNAME"
 
 # Activate the Snakemake controller environment
 mamba activate ${YOUR_WORKDIR}/conda_envs/snakemake
@@ -376,7 +376,7 @@ mamba activate ${YOUR_WORKDIR}/conda_envs/snakemake
 # Move into the pipeline directory
 cd ${YOUR_WORKDIR}/atacseq_snakemake_new
 
-# Launch the pipeline - Snakemake submits each rule as a separate bsub job automatically.
+# Launch the pipeline — Snakemake submits each rule as a separate bsub job automatically.
 # The config/config.yml is loaded automatically from the Snakefile; no --configfile needed.
 # Concurrency is controlled by `jobs:` in workflow/profiles/lsf/config.yaml.
 snakemake --profile workflow/profiles/lsf
@@ -722,6 +722,10 @@ Pipeline removes some intermediates to reduce storage, for example:
 - Large runs:
   - increase `--cores`
   - tune per-rule params in config (aligner/deeptools/featureCounts)
+- Job killed / out of memory on HPC:
+  - check the LSF job log (`bpeek JOB_ID` or `bhist -l JOB_ID`) to confirm out-of-memory (OOM) as the cause
+  - **quick fix:** add or increase `mem_mb` for the failing rule in `workflow/profiles/lsf/config.yaml` under `set-resources` — this overrides the rule default without touching the code
+  - **permanent fix:** if the rule's default in `workflow/modules/<rule>.smk` under `resources:` is too low, increase `mem_mb` there so the default itself is correct for all runs
 
 ## Acknowledgments
 
