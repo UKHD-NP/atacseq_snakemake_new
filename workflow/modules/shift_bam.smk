@@ -20,7 +20,7 @@ rule shift_bam:
         "{wildcards.sample_id}: ATAC-shifting BAM with alignmentSieve"
     threads: 8
     resources:
-        mem_mb = 32768
+        mem_mb = 40960
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.alignmentSieve.log")
     benchmark:

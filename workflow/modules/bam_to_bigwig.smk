@@ -43,10 +43,7 @@ rule bedtools_genomecov:
             exit 1
         }}
 
-        bedtools sort -i "$TMP_BG" > "{output.bedgraph}" 2>> "{log}" || {{
-            echo "[ERROR] bedtools sort failed." >> "{log}"
-            exit 1
-        }}
+        sort -k1,1 -k2,2n --parallel={threads} -S 2G "$TMP_BG" > "{output.bedgraph}"
 
         rm -f "$TMP_BG"
 

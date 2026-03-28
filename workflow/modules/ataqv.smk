@@ -26,7 +26,7 @@ rule ataqv:
         "{wildcards.sample_id}: Running ataqv"
     threads: 1
     resources:
-        mem_mb = 1024
+        mem_mb = 6144
     log:
         os.path.join("{outdir}", "logs", "ataqv", "{sample_id}.ataqv.log")
     benchmark:

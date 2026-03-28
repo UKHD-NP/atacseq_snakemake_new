@@ -95,7 +95,7 @@ set-resources:
     mem_mb: 36864
     runtime: 240
   shift_bam:
-    mem_mb: 32768
+    mem_mb: 40960
     runtime: 240
   macs3_callpeak_tn5:
     mem_mb: 8192
@@ -128,8 +128,8 @@ set-resources:
     mem_mb: 6144
     runtime: 60
   ataqv:
-    mem_mb: 1024
-    runtime: 60
+    mem_mb: 6144
+    runtime: 120
   multiqc:
     mem_mb: 2048
     runtime: 60
