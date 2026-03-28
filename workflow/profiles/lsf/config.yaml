@@ -34,7 +34,7 @@ retries: 2
 # Global cores cap: controls --cores passed to each per-job subprocess
 cores: 300
 
-# Per-rule thread overrides (sets actual Snakemake threads, affects --cores in subprocess)
+# Per-rule thread overrides
 set-threads:
   trim_galore: 12
   fastp: 12
@@ -59,7 +59,7 @@ set-threads:
   ataqv: 1
   multiqc: 1
 
-# Per-rule resource overrides (mem_mb matches rule definitions)
+# Per-rule resource overrides
 set-resources:
   trim_galore:
     mem_mb: 36864
