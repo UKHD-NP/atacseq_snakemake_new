@@ -13,7 +13,7 @@ rule shift_bam:
         bin_size = 10,
         tempdir = os.path.join("{outdir}", "bam"),
         tmp_bam = os.path.join("{outdir}", "bam", "{sample_id}.shifted.tmp.bam"),
-        memory_per_thread = "4G"
+        memory_per_thread = "1G"
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
