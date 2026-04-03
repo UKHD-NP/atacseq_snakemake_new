@@ -83,7 +83,7 @@ set-resources:
     lsf_queue: "verylong"
   bowtie2_align:
     mem_mb: 8192
-    runtime: 720
+    runtime: 1440
     lsf_queue: "verylong"
   sort_bam:
     mem_mb: 36864
@@ -129,7 +129,8 @@ set-resources:
     runtime: 60
   ataqv:
     mem_mb: 6144
-    runtime: 120
+    runtime: 480
+    lsf_queue: "verylong"
   multiqc:
     mem_mb: 2048
     runtime: 60
