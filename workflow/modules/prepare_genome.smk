@@ -81,17 +81,15 @@ rule get_chromsizes:
 
 
 rule get_autosomes:
-    # Build autosome chromosome list from FASTA index.
+    # Build canonical chromosome list (chr1-22, chrX, chrY, chrM) from FASTA index.
     input:
         fai=config["ref"]["fasta"] + ".fai"
     output:
         config["ref"]["autosomes"]
-    params:
-        script=os.path.join(workflow.basedir, "scripts", "get_autosomes.py")
     conda:
         os.path.join(workflow.basedir, "envs", "samtools.yml")
     message:
-        "Extracting autosome chromosome names"
+        "Extracting canonical chromosome names"
     threads: 1
     resources:
         mem_mb = 1024
@@ -101,9 +99,11 @@ rule get_autosomes:
         """
         mkdir -p $(dirname {output})
         mkdir -p $(dirname {log})
-        python "{params.script}" "{input.fai}" "{output}" > "{log}" 2>&1
+
+        awk 'BEGIN{{FS=OFS="\\t"}} $1 ~ /^chr([1-9]|1[0-9]|2[0-2]|X|Y|M)$/ {{print $1}}' "{input.fai}" > "{output}" 2> "{log}"
+
         if [ ! -s "{output}" ]; then
-            echo "[ERROR] autosomes output is empty: {output}" >> "{log}"
+            echo "[ERROR] canonical chromosome output is empty: {output}" >> "{log}"
             exit 1
         fi
         """
@@ -142,21 +142,23 @@ rule tss_extract:
 
 
 rule genome_blacklist_regions:
-    # Build mappable genome intervals by excluding configured blacklist and/or mito.
+    # Build mappable genome intervals with optional canonical chromosome, blacklist, and mito filtering.
     input:
-        sizes=config["ref"]["chromsizes"]
+        sizes=config["ref"]["chromsizes"],
+        canonical=config["ref"]["autosomes"]
     output:
         config["ref"]["include_regions"]
     params:
         blacklist=config["ref"].get("blacklist", ""),
         apply_blacklist="true" if as_bool(config.get("bam_filter", {}).get("apply_blacklist", True), default=True) else "false",
+        apply_canonical="true" if as_bool(config.get("bam_filter", {}).get("apply_canonical_chromosomes", False), default=False) else "false",
         mito_name=config["ref"].get("mito_name", "chrM"),
         keep_mito="true" if as_bool(config["ref"].get("keep_mito", False), default=False) else "false",
         tmp=lambda wildcards, output: f"{output}.tmp"
     conda:
         os.path.join(workflow.basedir, "envs", "bedtools.yml")
     message:
-        "Generating include regions from chromsizes with optional blacklist/mito filtering"
+        "Generating include regions with optional canonical chromosome, blacklist, and mito filtering"
     threads: 1
     resources:
         mem_mb = 1024
@@ -169,6 +171,11 @@ rule genome_blacklist_regions:
 
         # Sort sizes file to match expected chromosome order
         LC_ALL=C sort -k1,1 "{input.sizes}" > "{params.tmp}.sizes"
+
+        if [ "{params.apply_canonical}" = "true" ]; then
+            awk 'NR==FNR {{ keep[$1]=1; next }} ($1 in keep)' "{input.canonical}" "{params.tmp}.sizes" > "{params.tmp}.canonical.sizes"
+            mv "{params.tmp}.canonical.sizes" "{params.tmp}.sizes"
+        fi
 
         if [ "{params.apply_blacklist}" = "true" ] && [ -n "{params.blacklist}" ] && [ -s "{params.blacklist}" ]; then
             LC_ALL=C sort -k1,1 -k2,2n "{params.blacklist}" > "{params.tmp}.blacklist"

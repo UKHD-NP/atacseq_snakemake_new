@@ -462,6 +462,7 @@ align:
 
 bam_filter:
   params: "-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400 -q 30"
+  apply_canonical_chromosomes: false   # true = restrict include_regions to chr1-22, chrX, chrY, chrM before blacklist/mito filtering
   apply_blacklist: true         # true = exclude blacklist regions; false = keep them
   keep_input_bam: false         # true = preserve BAM before bam_filter; false = delete to save space
 
@@ -501,6 +502,7 @@ Explanation by block:
 - `trimming`: choose one trimming engine and pass tool-specific options.
 - `align`: choose aligner and set aligner-specific CLI parameters.
 - `bam_filter.params`: SAMtools core filter flags; see [BAM Filtering](#re-mark-duplicates-and-bam-filtering-criteria) for full breakdown.
+- `bam_filter.apply_canonical_chromosomes`: set `true` to restrict `include_regions` to canonical chromosomes (`chr1`-`chr22`, `chrX`, `chrY`, `chrM`) before applying blacklist and mito filtering. `ref.keep_mito` still decides whether `chrM` remains in the final include set.
 - `bam_filter.apply_blacklist`: set `true` (default) to exclude blacklist intervals from `include_regions`; set `false` to keep blacklist regions while still respecting `ref.keep_mito`.
 - `bam_filter.keep_input_bam`: set `true` to preserve the BAM entering `bam_filter` (`*.markdup.sorted.bam` when duplicate marking is enabled, otherwise `*.bam`).
 - `markduplicates.enabled`: run Picard MarkDuplicates before filtering. When disabled, duplicates are not flagged and `-F 0x0400` in `bam_filter.params` has no effect.
@@ -572,6 +574,7 @@ Meaning:
 
 `bam_filter` also uses `-L ref.include_regions` with `samtools view`:
 - this always constrains BAMs to the generated include regions
+- canonical chromosomes are enforced there when `bam_filter.apply_canonical_chromosomes: true`
 - blacklist intervals are excluded there when `bam_filter.apply_blacklist: true`
 - mitochondrial contig is excluded there when `ref.keep_mito: false`
 - if `bam_filter.apply_blacklist: false` and `ref.keep_mito: false`, `chrM`/`MT` is still filtered out as long as `ref.mito_name` matches the FASTA
