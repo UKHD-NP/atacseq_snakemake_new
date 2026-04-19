@@ -22,7 +22,8 @@ rule bam_filter:
         bamtools_script = os.path.join(workflow.basedir, "scripts", "bamtools_filter_pe.json"),
         bampe_rm_orphan_script = os.path.join(workflow.basedir, "scripts", "bampe_rm_orphan.py"),
         tempdir = os.path.join("{outdir}", "bam", "tmp"),
-        memory_per_thread = "4G"
+        memory_per_thread = "4G",
+        keep_input_bam = "true" if as_bool(bam_filter_cfg.get("keep_input_bam", False), default=False) else "false",
     conda:
         os.path.join(workflow.basedir, "envs", "samtools.yml")
     message:
@@ -118,7 +119,13 @@ rule bam_filter:
             exit 1
         fi
 
-        echo "[INFO] Removing intermediate and input BAM files to save space." >> "{log}"
-        rm -f "$TMP_FILTERED" "$TMP_NAME_SORTED" "$TMP_CLEANED" "{input.bam}" "{input.bam}.bai"
+        echo "[INFO] Removing intermediate BAM files." >> "{log}"
+        rm -f "$TMP_FILTERED" "$TMP_NAME_SORTED" "$TMP_CLEANED"
+        if [ "{params.keep_input_bam}" = "true" ]; then
+            echo "[INFO] keep_input_bam=true, preserving source BAM: {input.bam}" >> "{log}"
+        else
+            echo "[INFO] Removing source BAM to save space: {input.bam}" >> "{log}"
+            rm -f "{input.bam}" "{input.bam}.bai"
+        fi
         rm -rf "{params.tempdir}"
         """

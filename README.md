@@ -62,6 +62,10 @@ Main workflow (per sample):
 4. Alignment (`bowtie2` default, or `bwa` = BWA-MEM2)
 5. Re-mark duplicates (Picard MarkDuplicates; optional by config)
 6. BAM filtering to produce `*.filtered.bam`
+   - always applies SAM flag/MAPQ filtering
+   - optionally applies blacklist exclusion
+   - optionally excludes mitochondrial reads via `ref.keep_mito`
+   - can preserve the source BAM before filtering
 7. BAM stats on filtered BAM (`samtools stats/flagstat/idxstats`)
 8. Signal tracks
    - Scaled bedGraph + bigWig from filtered BAM
@@ -441,8 +445,8 @@ ref:
   blacklist: "test_data/references/ce11-blacklist.v2.bed"
   bwa_index: ""                 # optional prebuilt BWA prefix; auto-generated if empty
   bowtie2_index: ""             # optional prebuilt Bowtie2 prefix; auto-generated if empty
-  mito_name: "MT"               # MUST match FASTA mito contig exactly (e.g. MT/chrM/M)
-  keep_mito: false              # keep mitochondrial reads in include_regions or not
+  mito_name: "chrM"             # MUST match FASTA mito contig exactly (e.g. MT/chrM/M)
+  keep_mito: false              # false = exclude mitochondrial reads from include_regions
 
 trimming:
   enabled: true
@@ -458,6 +462,8 @@ align:
 
 bam_filter:
   params: "-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400 -q 30"
+  apply_blacklist: true         # true = exclude blacklist regions; false = keep them
+  keep_input_bam: false         # true = preserve BAM before bam_filter; false = delete to save space
 
 markduplicates:
   enabled: true
@@ -489,12 +495,14 @@ latency-wait: 60
 
 Explanation by block:
 - `samples_csv`: input table for sample discovery and lane merging.
-- `ref`: reference genome/annotation source. For `custom`, paths to `fasta`, `gtf`, and `blacklist` are required. `bwa_index` / `bowtie2_index` can be left empty to auto-build.
+- `ref`: reference genome/annotation source. For `custom`, paths to `fasta`, `gtf`, and `blacklist` are currently required. `bwa_index` / `bowtie2_index` can be left empty to auto-build.
 - `ref.mito_name`: **critical** — must exactly match the mitochondrial contig name in your FASTA (often `MT`, `chrM`, or `M`). Used by `bam_filter` to build `include_regions` and by `ataqv`.
 - `ref.keep_mito`: set `true` to retain mitochondrial reads in `include_regions`; `false` (default) excludes them.
 - `trimming`: choose one trimming engine and pass tool-specific options.
 - `align`: choose aligner and set aligner-specific CLI parameters.
 - `bam_filter.params`: SAMtools core filter flags; see [BAM Filtering](#re-mark-duplicates-and-bam-filtering-criteria) for full breakdown.
+- `bam_filter.apply_blacklist`: set `true` (default) to exclude blacklist intervals from `include_regions`; set `false` to keep blacklist regions while still respecting `ref.keep_mito`.
+- `bam_filter.keep_input_bam`: set `true` to preserve the BAM entering `bam_filter` (`*.markdup.sorted.bam` when duplicate marking is enabled, otherwise `*.bam`).
 - `markduplicates.enabled`: run Picard MarkDuplicates before filtering. When disabled, duplicates are not flagged and `-F 0x0400` in `bam_filter.params` has no effect.
 - `trimming.delete_trimming`: when `true`, trimmed FASTQ files are deleted after the pipeline completes.
 - `deeptools.enabled`: run computeMatrix/plotProfile/plotHeatmap/plotFingerprint modules. Requires `call_peaks.enabled=true` and `call_peaks.peak_type=narrow` (computeMatrix uses the Tn5-shifted bigWig).
@@ -563,8 +571,10 @@ Meaning:
 - `-q 30`: keep reads with MAPQ >= 30 (remove lower-confidence multimappers/ambiguous mappings)
 
 `bam_filter` also uses `-L ref.include_regions` with `samtools view`:
-- this keeps only mappable regions outside blacklist intervals
-- mitochondrial contig can be excluded there when `ref.keep_mito: false`
+- this always constrains BAMs to the generated include regions
+- blacklist intervals are excluded there when `bam_filter.apply_blacklist: true`
+- mitochondrial contig is excluded there when `ref.keep_mito: false`
+- if `bam_filter.apply_blacklist: false` and `ref.keep_mito: false`, `chrM`/`MT` is still filtered out as long as `ref.mito_name` matches the FASTA
 
 ### 2) BAMTools extra filter (optional but enabled when `bamtools` exists)
 
@@ -586,6 +596,12 @@ Why this default filtering strategy is used:
 - It reduces noisy alignments before MACS3, FRiP, and bigWig generation.
 - It is a practical strict default (`-q 30`); for low-depth data you can relax to `-q 20`.
 
+Practical examples:
+- Keep mitochondrial filtering, but disable blacklist filtering:
+  `ref.keep_mito: false` and `bam_filter.apply_blacklist: false`
+- Preserve the BAM before filtering for debugging or alternate peak-calling runs:
+  `bam_filter.keep_input_bam: true`
+
 ## Main Outputs
 
 Per sample under `<outdir>`:
@@ -596,6 +612,7 @@ Per sample under `<outdir>`:
   - `bam/{sample}.filtered.bam.stats`
   - `bam/{sample}.filtered.bam.flagstat`
   - `bam/{sample}.filtered.bam.idxstats`
+  - `bam/{sample}.markdup.sorted.bam` or `bam/{sample}.bam` may also be retained when `bam_filter.keep_input_bam: true`
   - `bam/{sample}.CollectMultipleMetrics.alignment_summary_metrics`
   - `bam/{sample}.CollectMultipleMetrics.base_distribution_by_cycle.pdf`
   - `bam/{sample}.CollectMultipleMetrics.base_distribution_by_cycle_metrics`

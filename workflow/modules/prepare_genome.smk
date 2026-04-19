@@ -142,20 +142,21 @@ rule tss_extract:
 
 
 rule genome_blacklist_regions:
-    # Build mappable genome intervals by excluding blacklist regions.
+    # Build mappable genome intervals by excluding configured blacklist and/or mito.
     input:
         sizes=config["ref"]["chromsizes"]
     output:
         config["ref"]["include_regions"]
     params:
         blacklist=config["ref"].get("blacklist", ""),
+        apply_blacklist="true" if as_bool(config.get("bam_filter", {}).get("apply_blacklist", True), default=True) else "false",
         mito_name=config["ref"].get("mito_name", "chrM"),
         keep_mito="true" if as_bool(config["ref"].get("keep_mito", False), default=False) else "false",
         tmp=lambda wildcards, output: f"{output}.tmp"
     conda:
         os.path.join(workflow.basedir, "envs", "bedtools.yml")
     message:
-        "Generating include regions from chromsizes and blacklist"
+        "Generating include regions from chromsizes with optional blacklist/mito filtering"
     threads: 1
     resources:
         mem_mb = 1024
@@ -169,7 +170,7 @@ rule genome_blacklist_regions:
         # Sort sizes file to match expected chromosome order
         LC_ALL=C sort -k1,1 "{input.sizes}" > "{params.tmp}.sizes"
 
-        if [ -n "{params.blacklist}" ] && [ -s "{params.blacklist}" ]; then
+        if [ "{params.apply_blacklist}" = "true" ] && [ -n "{params.blacklist}" ] && [ -s "{params.blacklist}" ]; then
             LC_ALL=C sort -k1,1 -k2,2n "{params.blacklist}" > "{params.tmp}.blacklist"
             bedtools complement -i "{params.tmp}.blacklist" -g "{params.tmp}.sizes" > "{params.tmp}"
             rm -f "{params.tmp}.blacklist"

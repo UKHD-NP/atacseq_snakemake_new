@@ -39,6 +39,8 @@ bam_filter:
   # - keep proper pairs
   # - MAPQ threshold
   params: "-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400 -q 30"
+  apply_blacklist: true   # true = restrict BAM to include_regions (blacklist-excluded); false = skip blacklist interval filtering
+  keep_input_bam: false   # true = keep the source BAM used before bam_filter; false = delete it to save space
 
 markduplicates:
   # Mark duplicates with Picard before bam_filter
