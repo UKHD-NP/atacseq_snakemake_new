@@ -62,8 +62,8 @@ rule deeptools_compute_matrix_reference_point:
         matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.mat.gz"),
         values = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.vals.mat.tab")
     params:
-        upstream = 3000,
-        downstream = 3000
+        upstream = 2000,
+        downstream = 2000
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
