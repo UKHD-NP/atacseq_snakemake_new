@@ -140,6 +140,43 @@ rule deeptools_plot_profile:
         """
 
 
+rule deeptools_plot_profile_tss:
+    input:
+        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.mat.gz")
+    output:
+        plot = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.plotProfile.pdf"),
+        table = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.plotProfile.tab")
+    conda:
+        os.path.join(workflow.basedir, "envs", "deeptools.yml")
+    message:
+        "{wildcards.sample_id}: Running deepTools plotProfile (TSS)"
+    threads: 2
+    resources:
+        mem_mb = 6144
+    log:
+        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.plotProfile.tss.log")
+    benchmark:
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.plotProfile.tss.benchmark.txt")
+    shell:
+        """
+        mkdir -p "$(dirname "{output.plot}")"
+        mkdir -p "$(dirname "{log}")"
+
+        plotProfile \
+            --matrixFile "{input.matrix}" \
+            --outFileName "{output.plot}" \
+            --outFileNameData "{output.table}" > "{log}" 2>&1 || {{
+            echo "[ERROR] plotProfile (TSS) failed." >> "{log}"
+            exit 1
+        }}
+
+        if [ ! -s "{output.plot}" ] || [ ! -s "{output.table}" ]; then
+            echo "[ERROR] plotProfile (TSS) outputs are missing or empty." >> "{log}"
+            exit 1
+        fi
+        """
+
+
 rule deeptools_plot_heatmap:
     input:
         matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.mat.gz")

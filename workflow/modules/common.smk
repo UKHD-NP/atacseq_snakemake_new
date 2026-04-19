@@ -297,6 +297,8 @@ def get_target_files(sample_ids):
                 _path("deeptools", f"{sample_id}.reference_point.computeMatrix.vals.mat.tab"),
                 _path("deeptools", f"{sample_id}.scale_regions.plotProfile.pdf"),
                 _path("deeptools", f"{sample_id}.scale_regions.plotProfile.tab"),
+                _path("deeptools", f"{sample_id}.reference_point.plotProfile.pdf"),
+                _path("deeptools", f"{sample_id}.reference_point.plotProfile.tab"),
                 _path("deeptools", f"{sample_id}.reference_point.plotHeatmap.pdf"),
                 _path("deeptools", f"{sample_id}.reference_point.plotHeatmap.mat.tab"),
                 _path("deeptools", f"{sample_id}.plotFingerprint.pdf"),
