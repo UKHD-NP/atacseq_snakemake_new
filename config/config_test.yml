@@ -72,10 +72,6 @@ annotate_peaks:
   # HOMER annotatePeaks + summary table
   enabled: true
 
-feature_counts:
-  # Enable featureCounts quantification of gene-level counts
-  enabled: true
-
 ataqv:
   # ATAC-specific QC JSON + mkarv HTML
   enabled: true
