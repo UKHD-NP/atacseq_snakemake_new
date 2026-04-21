@@ -41,7 +41,7 @@ set-threads:
   bwa_mem2_index: 12
   bowtie2_index: 12
   bwa_mem2_align: 12
-  bowtie2_align: 12
+  bowtie2_align: 26
   sort_bam: 6
   mark_duplicates: 2
   bam_filter: 6
@@ -82,7 +82,7 @@ set-resources:
     runtime: 1440
     lsf_queue: "verylong"
   bowtie2_align:
-    mem_mb: 8192
+    mem_mb: 16384
     runtime: 1440
     lsf_queue: "verylong"
   sort_bam:
@@ -96,37 +96,37 @@ set-resources:
     runtime: 240
   shift_bam:
     mem_mb: 40960
-    runtime: 240
+    runtime: 720
   macs3_callpeak_tn5:
     mem_mb: 8192
-    runtime: 60
+    runtime: 240
   deeptools_compute_matrix_scale_regions:
     mem_mb: 6144
-    runtime: 60
+    runtime: 240
   deeptools_compute_matrix_reference_point:
     mem_mb: 6144
-    runtime: 60
+    runtime: 240
   deeptools_plot_fingerprint:
     mem_mb: 6144
-    runtime: 60
+    runtime: 480
   deeptools_plot_profile:
     mem_mb: 6144
-    runtime: 60
+    runtime: 240
   deeptools_plot_heatmap:
     mem_mb: 20480
-    runtime: 60
+    runtime: 240
   deeptools_fragment_size_distribution:
     mem_mb: 6144
-    runtime: 60
+    runtime: 480
   homer_annotate_peaks:
     mem_mb: 10240
-    runtime: 60
+    runtime: 240
   bedtools_genomecov:
     mem_mb: 40960
-    runtime: 60
+    runtime: 240
   ucsc_bedgraphtobigwig:
     mem_mb: 6144
-    runtime: 60
+    runtime: 240
   ataqv:
     mem_mb: 6144
     runtime: 480

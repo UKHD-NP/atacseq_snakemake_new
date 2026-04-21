@@ -197,6 +197,7 @@ rule bowtie2_align:
     params:
         bowtie2_params = BOWTIE2_PARAMS,
         index_prefix   = BOWTIE2_INDEX_PREFIX,
+        bt2_threads    = lambda wc, threads: max(1, threads - 2),
         rg = lambda wc: (
             f"--rg-id {wc.sample_id} "
             f"--rg SM:{wc.sample_id} "
@@ -208,9 +209,9 @@ rule bowtie2_align:
         os.path.join(workflow.basedir, "envs", "bowtie2.yml")
     message:
         "{wildcards.sample_id}: Aligning with bowtie2"
-    threads: 12
+    threads: 26
     resources:
-        mem_mb = 8192
+        mem_mb = 16384
     log:
         os.path.join("{outdir}", "logs", "bowtie2", "{sample_id}.align.log")
     benchmark:
@@ -223,12 +224,13 @@ rule bowtie2_align:
         set -euo pipefail
         bowtie2 \
             {params.bowtie2_params} \
-            --threads {threads} \
+            --threads {params.bt2_threads} \
             -x {params.index_prefix} \
             -1 {input.fq[0]} \
             -2 {input.fq[1]} \
             {params.rg} \
-            | samtools view -bhS -O BAM --threads {threads} -o {output.bam} - \
+            2>> {log} \
+            | samtools view -bhS -O BAM --threads 2 -o {output.bam} - \
             2>> {log} || {{
                 echo "[ERROR] bowtie2 alignment failed." >> {log}
                 exit 1

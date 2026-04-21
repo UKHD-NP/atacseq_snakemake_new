@@ -129,7 +129,8 @@ rule picard_collect_multiple_metrics:
         "{wildcards.sample_id}: Running Picard CollectMultipleMetrics"
     threads: 1
     resources:
-        mem_mb = 10240
+        mem_mb = 16384,
+        jvm_mem_mb = 14336  # mem_mb minus ~2 GB JVM overhead (metaspace, GC, native)
     log:
         os.path.join("{outdir}", "logs", "picard", "{sample_id}.collect_multiple_metrics.log")
     benchmark:
@@ -139,7 +140,7 @@ rule picard_collect_multiple_metrics:
         mkdir -p "{params.tmp_dir}"
         mkdir -p "$(dirname "{log}")"
 
-        picard -Xmx{resources.mem_mb}m CollectMultipleMetrics \
+        picard -Xmx{resources.jvm_mem_mb}m CollectMultipleMetrics \
             VALIDATION_STRINGENCY=LENIENT \
             TMP_DIR="{params.tmp_dir}" \
             INPUT="{input.bam}" \
