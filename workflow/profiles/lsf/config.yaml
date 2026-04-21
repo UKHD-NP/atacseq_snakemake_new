@@ -36,6 +36,7 @@ cores: 300
 
 # Per-rule thread overrides
 set-threads:
+  fastqc_raw: 2
   trim_galore: 12
   fastp: 12
   bwa_mem2_index: 12
@@ -57,10 +58,14 @@ set-threads:
   bedtools_genomecov: 2
   ucsc_bedgraphtobigwig: 2
   ataqv: 1
+  picard_collect_multiple_metrics: 1
   multiqc: 1
 
 # Per-rule resource overrides
 set-resources:
+  fastqc_raw:
+    mem_mb: 4096
+    runtime: 480
   trim_galore:
     mem_mb: 36864
     runtime: 960
@@ -131,6 +136,9 @@ set-resources:
     mem_mb: 6144
     runtime: 480
     lsf_queue: "verylong"
+  picard_collect_multiple_metrics:
+    mem_mb: 16384
+    runtime: 120
   multiqc:
     mem_mb: 2048
     runtime: 60
