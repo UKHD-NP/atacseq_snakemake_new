@@ -8,7 +8,6 @@ ref:
   assembly: "custom"  # choices: hg19, hg38, custom
   fasta: "test_data/references/genome.fa"
   gtf: "test_data/references/genes.gtf"
-  blacklist: "test_data/references/ce11-blacklist.v2.bed"
   # Optional prebuilt index prefixes (leave empty to auto-build in references/{assembly}/)
   bwa_index: ""      # BWA index prefix
   bowtie2_index: ""  # Bowtie2 index prefix
@@ -18,13 +17,13 @@ ref:
   mito_name: "MT"
   # Keep mitochondrial contig in include_regions (bam_filter); false = remove mito
   keep_mito: false
+  autosome_pattern: "^(I|II|III|IV|V)$"   # C. elegans ce11 autosomes
 
 trimming:
   # Enable adapter trimming with Trim Galore or fastp
   enabled: true
   delete_trimming: true  # Delete trimmed FASTQ files after pipeline completes (only applies when enabled: true)
   tool: "trim_galore"  # Choose trimming tool: "fastp" or "trim_galore"
-  trim_galore_params: "--nextseq 25 --length 36"
   fastp_params: "--cut_tail --cut_tail_window_size 4 --cut_tail_mean_quality 20 --trim_poly_g --length_required 36"
 
 align:
@@ -39,8 +38,13 @@ bam_filter:
   # - keep proper pairs
   # - MAPQ threshold
   params: "-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400 -q 30"
-  apply_canonical_chromosomes: true   # true = restrict include_regions to chr1-22, chrX, chrY, chrM before blacklist/mito filtering
-  apply_blacklist: true   # true = restrict BAM to include_regions (blacklist-excluded); false = skip blacklist interval filtering
+  # apply_canonical_chromosomes: restrict alignable regions to standard chromosomes only.
+  # - true : keep only chr1–chr22, chrX, chrY, chrM (UCSC naming). Use for hg19/hg38.
+  #           Removes unplaced contigs (chrUn_*, random, EBV, etc.) that inflate background noise.
+  # - false: keep all contigs from the FASTA. Use for non-human genomes (mouse mm10/mm39,
+  #           C. elegans ce11, custom assemblies) or any genome with non-chr* chromosome names.
+  apply_canonical_chromosomes: false
+  apply_blacklist: false   # true = restrict BAM to include_regions (blacklist-excluded); false = skip blacklist interval filtering
   keep_input_bam: false  # true = keep the source BAM used before bam_filter; false = delete it to save space
 
 markduplicates:
@@ -57,8 +61,7 @@ call_peaks:
   # MACS3 genome size (--gsize):
   # - Recommended: use effective genome size values
   #   https://deeptools.readthedocs.io/en/latest/content/feature/effectiveGenomeSize.html
-  # - If left empty, this pipeline auto-sums chromsizes as fallback
-  macs3_gsize: "2701495711"
+  # - If left empty, this pipeline auto-sums chromsizes as fallback"
   macs3_narrow_params: >-
     --trackline --shift -75 --extsize 150 --keep-dup all --nomodel --call-summits -q 0.01
   # Broad peaks always use -f BAMPE (paired-end fragments, no --shift/--extsize needed).
@@ -74,7 +77,7 @@ annotate_peaks:
   enabled: true
 
 ataqv:
-  # ATAC-specific QC JSON + mkarv HTML
+  # ATAC-specific QC JSON + mkarv HTML + TSS enrichment / NFR metrics for MultiQC
   enabled: true
 
 multiqc:

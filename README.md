@@ -76,9 +76,10 @@ Main workflow (per sample):
 12. Peak annotation (HOMER + summary)
 13. featureCounts in peaks (SAF)
 14. deepTools matrix/profile/heatmap/fingerprint/bamPEFragmentSize
-15. ataqv JSON + mkarv HTML report
-16. MultiQC
-17. Cleanup temporary/intermediate FASTQ files
+15. NFR analysis — nucleosome-free vs mononucleosomal bigWigs + TSS profile/heatmap
+16. ataqv JSON + mkarv HTML report + TSS enrichment / NFR metrics table for MultiQC
+17. MultiQC
+18. Cleanup temporary/intermediate FASTQ files
 
 ## Workflow DAG
 
@@ -119,9 +120,13 @@ bam_filter  --->  filtered.bam / filtered.bam.bai
         |                               +--> annotate_peaks (optional)
         |                               +--> featurecounts_in_peaks (optional; always filtered.bam)
         |                               +--> ataqv (optional; filtered.bam)
+        |                               |    +--> atac_qc_metrics → atac_qc_mqc.tsv (TSS enrichment, NFR ratio)
         |                               +--> deeptools (optional)
-        |                                    +--> computeMatrix / plotProfile / plotHeatmap (shifted.bigWig)
-        |                                    +--> plotFingerprint / bamPEFragmentSize (filtered.bam)
+        |                               |    +--> computeMatrix / plotProfile / plotHeatmap (shifted.bigWig)
+        |                               |    +--> plotFingerprint / bamPEFragmentSize (filtered.bam)
+        |                               +--> nfr (optional; when deeptools + narrow peaks)
+        |                                    +--> alignmentSieve → nfr.bigWig + mono.bigWig
+        |                                    +--> computeMatrix / plotProfile / plotHeatmap (nfr vs mono)
         |
         v
      multiqc
@@ -436,18 +441,18 @@ Below is the default-style config block with practical explanation:
 
 ```yaml
 # Path to samplesheet CSV (columns: sample_id, fq1, fq2, outdir)
-samples_csv: "test_data/samplesheet_test.csv"
+samples_csv: "samplesheet.csv"
 
 ref:
   assembly: "custom"            # hg19 / hg38 / custom
-  fasta: "test_data/references/genome.fa"
-  gtf: "test_data/references/genes.gtf"
-  blacklist: "test_data/references/ce11-blacklist.v2.bed"
+  fasta: "genome.fa"
+  gtf: "genes.gtf"
+  blacklist: "blacklist.v3.bed"
   bwa_index: ""                 # optional prebuilt BWA prefix; auto-generated if empty
   bowtie2_index: ""             # optional prebuilt Bowtie2 prefix; auto-generated if empty
-  mito_name: "chrM"             # MUST match FASTA mito contig exactly (e.g. MT/chrM/M)
+  mito_name: "chrM"               # MUST match FASTA mito contig exactly (e.g. MT/chrM/M)
   keep_mito: false              # false = exclude mitochondrial reads from include_regions
-
+  
 trimming:
   enabled: true
   delete_trimming: true         # delete trimmed FASTQs after pipeline completes
@@ -462,8 +467,8 @@ align:
 
 bam_filter:
   params: "-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400 -q 30"
-  apply_canonical_chromosomes: false   # true = restrict include_regions to chr1-22, chrX, chrY, chrM before blacklist/mito filtering
-  apply_blacklist: true         # true = exclude blacklist regions; false = keep them
+  apply_canonical_chromosomes: false   # hg19/hg38: set true. Non-human or custom genomes: set false (see below)
+  apply_blacklist: true        # true = exclude blacklist regions; false = keep them
   keep_input_bam: false         # true = preserve BAM before bam_filter; false = delete to save space
 
 markduplicates:
@@ -488,6 +493,13 @@ annotate_peaks:
 ataqv:
   enabled: true
 
+# Optional: tune NFR/mononucleosomal fragment size boundaries.
+# NFR analysis runs automatically when deeptools + narrow peaks are enabled.
+# nfr:
+#   nfr_max_fragment: 150      # fragments ≤ this bp → NFR bigWig
+#   mono_min_fragment: 151     # fragments ≥ this bp → mono bigWig
+#   mono_max_fragment: 300     # fragments ≤ this bp → mono bigWig
+
 multiqc:
   config: "workflow/scripts/multiqc_config.yml"
 
@@ -496,13 +508,25 @@ latency-wait: 60
 
 Explanation by block:
 - `samples_csv`: input table for sample discovery and lane merging.
-- `ref`: reference genome/annotation source. For `custom`, paths to `fasta`, `gtf`, and `blacklist` are currently required. `bwa_index` / `bowtie2_index` can be left empty to auto-build.
+- `ref`: reference genome/annotation source. For `custom`, `fasta` and `gtf` are required. `blacklist` is only required when `bam_filter.apply_blacklist: true`. `bwa_index` / `bowtie2_index` can be left empty to auto-build.
 - `ref.mito_name`: **critical** — must exactly match the mitochondrial contig name in your FASTA (often `MT`, `chrM`, or `M`). Used by `bam_filter` to build `include_regions` and by `ataqv`.
 - `ref.keep_mito`: set `true` to retain mitochondrial reads in `include_regions`; `false` (default) excludes them.
+- `ref.autosome_pattern` *(optional)*: awk regex for the autosome list passed to `ataqv --autosomal-reference-file`. Default covers **hg19/hg38**: `^chr([1-9]|1[0-9]|2[0-2])$`. Override for other genomes, e.g. `^([0-9]+)$` for ENSEMBL naming or `^(I|II|III|IV|V)$` for `ce11`.
 - `trimming`: choose one trimming engine and pass tool-specific options.
 - `align`: choose aligner and set aligner-specific CLI parameters.
 - `bam_filter.params`: SAMtools core filter flags; see [BAM Filtering](#re-mark-duplicates-and-bam-filtering-criteria) for full breakdown.
-- `bam_filter.apply_canonical_chromosomes`: set `true` to restrict `include_regions` to canonical chromosomes (`chr1`-`chr22`, `chrX`, `chrY`, `chrM`) before applying blacklist and mito filtering. `ref.keep_mito` still decides whether `chrM` remains in the final include set.
+- `bam_filter.apply_canonical_chromosomes`: controls whether reads are restricted to standard chromosomes before blacklist and mito filtering.
+  - `true` — filter chromosomes using `canonical_chroms_pattern` (see below). Removes noise from unplaced contigs (`chrUn_*`, `*_random`, EBV, decoy sequences) that inflate peak-calling background.
+  - `false` — keep all contigs present in the FASTA. Safe for any genome without configuration.
+  - `ref.keep_mito` still controls whether the mitochondrial contig is included in the final region set regardless of this flag.
+- `bam_filter.canonical_chroms_pattern` *(optional)*: awk regex applied when `apply_canonical_chromosomes=true`. Default covers **hg19/hg38**: `^chr([1-9]|1[0-9]|2[0-2]|X|Y|M)$`. Override for other genomes:
+
+  | Genome | Pattern |
+  |--------|---------|
+  | hg19 / hg38 (default) | `^chr([1-9]|1[0-9]|2[0-2]|X|Y|M)$` |
+  | Mouse mm10/mm39, rat rn7, zebrafish danRer11 | `^chr([0-9]+|X|Y|M)$` |
+  | ENSEMBL naming (no `chr` prefix, e.g. `1`, `X`, `MT`) | `^([0-9]+|X|Y|MT)$` |
+  | C. elegans ce11 (I–V, X, MtDNA) | `^(I{1,3}|IV|V{1,3}|X|MtDNA)$` |
 - `bam_filter.apply_blacklist`: set `true` (default) to exclude blacklist intervals from `include_regions`; set `false` to keep blacklist regions while still respecting `ref.keep_mito`.
 - `bam_filter.keep_input_bam`: set `true` to preserve the BAM entering `bam_filter` (`*.markdup.sorted.bam` when duplicate marking is enabled, otherwise `*.bam`).
 - `markduplicates.enabled`: run Picard MarkDuplicates before filtering. When disabled, duplicates are not flagged and `-F 0x0400` in `bam_filter.params` has no effect.
@@ -513,7 +537,8 @@ Explanation by block:
 - `call_peaks.frip_overlap_fraction`: minimum read-peak overlap fraction for FRiP (passed to both `bedtools intersect -f` and featureCounts `--fracOverlap`).
 - `call_peaks.frip_threshold`: FRiP percentage threshold for quality label in `*.FRiP.txt`; samples at or above this value are labelled `good`, below is `bad` (default: 20%).
 - `annotate_peaks.enabled`: run HOMER `annotatePeaks` and summary plotting.
-- `ataqv.enabled`: run ATAC-specific QC (`ataqv`) and render interactive HTML (`mkarv`). Requires `call_peaks.enabled=true`.
+- `ataqv.enabled`: run ATAC-specific QC (`ataqv`) and render interactive HTML (`mkarv`), plus extract TSS enrichment score and NFR ratio to `*.atac_qc_mqc.tsv` for MultiQC. Requires `call_peaks.enabled=true`.
+- `nfr` (optional block): tune fragment size cutoffs for NFR vs mononucleosomal analysis. Omit to use defaults (NFR ≤150 bp, mono 151–300 bp).
 - `multiqc.config`: path to MultiQC config used by this pipeline.
 - `latency-wait`: useful on slow/network filesystems to avoid false missing-output errors.
 
@@ -548,6 +573,8 @@ Some modules only run when their upstream module is also enabled:
 - `featureCounts` + `frip_score` run automatically when `call_peaks.enabled=true` (no separate toggle).
 - `ataqv` requires `call_peaks.enabled=true`.
 - `deeptools` requires `call_peaks.enabled=true` AND `call_peaks.peak_type=narrow` (computeMatrix uses the Tn5-shifted bigWig).
+- `nfr` analysis runs automatically when `deeptools.enabled=true` AND `call_peaks.enabled=true` AND `call_peaks.peak_type=narrow`. Fragment size cutoffs can be tuned via the optional `nfr:` config block (defaults: NFR ≤150 bp, mono 151–300 bp).
+- `atac_qc_metrics` (TSS enrichment + NFR ratio table for MultiQC) requires `ataqv.enabled=true`.
 
 > **Note:** `bam_filter` itself has no `enabled` toggle — it always runs. Disabling `markduplicates` is safe but leaves duplicates unflagged (the `-F 0x0400` flag in `bam_filter.params` would then have no effect).
 
@@ -655,6 +682,13 @@ Per sample under `<outdir>`:
 - ataqv
   - `ataqv/{sample}.ataqv.json`
   - `ataqv/{sample}.mkarv_html/index.html`
+  - `ataqv/{sample}.atac_qc_mqc.tsv` (TSS enrichment score + NFR ratio for MultiQC)
+- NFR analysis
+  - `nfr/{sample}.nfr.bigWig` (fragments ≤150 bp)
+  - `nfr/{sample}.mono.bigWig` (fragments 151–300 bp)
+  - `nfr/{sample}.nfr_vs_mono.computeMatrix.mat.gz`
+  - `nfr/{sample}.nfr_vs_mono.plotProfile.pdf` + `.tab`
+  - `nfr/{sample}.nfr_vs_mono.plotHeatmap.pdf`
 - MultiQC
   - `multiqc/{sample}.multiqc.html`
 
@@ -670,8 +704,10 @@ Per sample under `<outdir>`:
   - base distribution by cycle
   - quality by cycle
   - quality distribution
-- deepTools QC metrics
+- deepTools QC metrics (fingerprint, profiles, fragment size)
+- deepTools NFR vs mononucleosomal TSS profile (from `nfr/` analysis)
 - ataqv JSON
+- TSS Enrichment Score + NFR ratio per sample (`*.atac_qc_mqc.tsv`)
 - FRiP table (`*_peaks.FRiP_mqc.tsv`)
 - Peak count table (`*_peaks.count_mqc.tsv`)
 - HOMER annotation summary

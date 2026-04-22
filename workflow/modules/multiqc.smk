@@ -94,6 +94,12 @@ def get_input_multiqc(wildcards):
     # Add ataqv JSON metrics for ATAC QC.
     if ataqv_on:
         targets.append(_path("ataqv", f"{sample_id}.ataqv.json"))
+        targets.append(_path("ataqv", f"{sample_id}.atac_qc_mqc.tsv"))
+
+    # Add NFR vs mono profile table for MultiQC.
+    nfr_on = deeptools_on and is_enabled("call_peaks") and CALL_PEAKS_PEAK_TYPE == "narrow"
+    if nfr_on:
+        targets.append(_path("nfr", f"{sample_id}.nfr_vs_mono.plotProfile.tab"))
 
     return list(dict.fromkeys(targets))
 

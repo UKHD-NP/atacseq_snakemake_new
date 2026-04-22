@@ -80,16 +80,84 @@ rule get_chromsizes:
         """
 
 
-rule get_autosomes:
-    # Build canonical chromosome list (chr1-22, chrX, chrY, chrM) from FASTA index.
+_BAM_FILTER_CFG = config.get("bam_filter", {}) if isinstance(config.get("bam_filter", {}), dict) else {}
+_REF_CFG = config.get("ref", {}) if isinstance(config.get("ref", {}), dict) else {}
+
+# Pattern for ALL canonical chromosomes (used by bam_filter include_regions).
+# Default: human hg19/hg38 (chr1-22 + X + Y + M).
+# Override via bam_filter.canonical_chroms_pattern for other genomes:
+#   mouse/rat/zebrafish : "^chr([0-9]+|X|Y|M)$"
+#   ENSEMBL (no chr)    : "^([0-9]+|X|Y|MT)$"
+_DEFAULT_CANONICAL_PATTERN = r"^chr([1-9]|1[0-9]|2[0-2]|X|Y|M)$"
+_CANONICAL_PATTERN = (
+    str(_BAM_FILTER_CFG.get("canonical_chroms_pattern", "")).strip()
+    or _DEFAULT_CANONICAL_PATTERN
+)
+
+# Pattern for TRUE autosomes only (used by ataqv --autosomal-reference-file).
+# Default: human hg19/hg38 autosomes (chr1-22).
+# Override via ref.autosome_pattern for other genomes:
+#   mouse/rat/zebrafish : "^chr([0-9]+)$"
+#   ENSEMBL (no chr)    : "^([0-9]+)$"
+#   C. elegans ce11     : "^(I|II|III|IV|V)$"
+_DEFAULT_AUTOSOME_PATTERN = r"^chr([1-9]|1[0-9]|2[0-2])$"
+_AUTOSOME_PATTERN = (
+    str(_REF_CFG.get("autosome_pattern", "")).strip()
+    or _DEFAULT_AUTOSOME_PATTERN
+)
+
+
+rule get_canonical_chroms:
+    # All canonical chromosomes (autosomes + sex + MT) for bam_filter include_regions.
+    # If apply_canonical_chromosomes=true, applies canonical_chroms_pattern (default: human chr1-22/X/Y/M).
+    # If apply_canonical_chromosomes=false, outputs all chromosomes from the FASTA (any reference).
     input:
-        fai=config["ref"]["fasta"] + ".fai"
+        fai = config["ref"]["fasta"] + ".fai"
     output:
-        config["ref"]["autosomes"]
+        config["ref"]["canonical_chroms"]
+    params:
+        apply_canonical = "true" if as_bool(_BAM_FILTER_CFG.get("apply_canonical_chromosomes", False), default=False) else "false",
+        pattern = _CANONICAL_PATTERN
     conda:
         os.path.join(workflow.basedir, "envs", "samtools.yml")
     message:
-        "Extracting canonical chromosome names"
+        "Extracting canonical chromosome list"
+    threads: 1
+    resources:
+        mem_mb = 1024
+    log:
+        os.path.join(ref_dir, "canonical_chroms", f"{config['ref']['assembly']}.log")
+    shell:
+        """
+        mkdir -p $(dirname {output})
+        mkdir -p $(dirname {log})
+
+        if [ "{params.apply_canonical}" = "true" ]; then
+            awk 'BEGIN{{FS=OFS="\\t"}} $1 ~ /{params.pattern}/ {{print $1}}' "{input.fai}" > "{output}" 2> "{log}"
+        else
+            awk 'BEGIN{{FS=OFS="\\t"}} {{print $1}}' "{input.fai}" > "{output}" 2> "{log}"
+        fi
+
+        if [ ! -s "{output}" ]; then
+            echo "[ERROR] canonical chromosome output is empty: {output}" >> "{log}"
+            exit 1
+        fi
+        """
+
+
+rule get_autosomes:
+    # True autosomes only (no sex chromosomes, no MT) for ataqv --autosomal-reference-file.
+    # Derived directly from FASTA index via ref.autosome_pattern, independent of bam_filter canonical settings.
+    input:
+        fai = config["ref"]["fasta"] + ".fai"
+    output:
+        config["ref"]["autosomes"]
+    params:
+        pattern = _AUTOSOME_PATTERN
+    conda:
+        os.path.join(workflow.basedir, "envs", "samtools.yml")
+    message:
+        "Extracting autosome chromosome list"
     threads: 1
     resources:
         mem_mb = 1024
@@ -100,10 +168,12 @@ rule get_autosomes:
         mkdir -p $(dirname {output})
         mkdir -p $(dirname {log})
 
-        awk 'BEGIN{{FS=OFS="\\t"}} $1 ~ /^chr([1-9]|1[0-9]|2[0-2]|X|Y|M)$/ {{print $1}}' "{input.fai}" > "{output}" 2> "{log}"
+        awk -v pattern='{params.pattern}' 'BEGIN{{FS=OFS="\\t"}} $1 ~ pattern {{print $1}}' \
+            "{input.fai}" > "{output}" 2> "{log}"
 
         if [ ! -s "{output}" ]; then
-            echo "[ERROR] canonical chromosome output is empty: {output}" >> "{log}"
+            echo "[ERROR] autosome list is empty: {output}" >> "{log}"
+            echo "[HINT] Check ref.autosome_pattern in config." >> "{log}"
             exit 1
         fi
         """
@@ -145,7 +215,7 @@ rule genome_blacklist_regions:
     # Build mappable genome intervals with optional canonical chromosome, blacklist, and mito filtering.
     input:
         sizes=config["ref"]["chromsizes"],
-        canonical=config["ref"]["autosomes"]
+        canonical=config["ref"]["canonical_chroms"]
     output:
         config["ref"]["include_regions"]
     params:

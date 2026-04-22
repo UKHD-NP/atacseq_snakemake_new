@@ -41,11 +41,24 @@ url_gtf = None
 url_blacklist = None
 
 
+_bam_filter_init = config.get("bam_filter", {})
+_apply_blacklist_raw = _bam_filter_init.get("apply_blacklist", True) if isinstance(_bam_filter_init, dict) else True
+_apply_blacklist = (
+    _apply_blacklist_raw
+    if isinstance(_apply_blacklist_raw, bool)
+    else str(_apply_blacklist_raw).strip().lower() in {"true", "yes", "1", "t", "y"}
+)
+
 if assembly == "custom":
-    if not user_fasta or not user_gtf or not user_blacklist:
+    if not user_fasta or not user_gtf:
         fatal(
-            "For custom assembly configurations, please specify ref.fasta, ref.gtf, "
-            "and ref.blacklist in config/config.yml."
+            "For custom assembly configurations, please specify ref.fasta and ref.gtf "
+            "in config/config.yml."
+        )
+    if _apply_blacklist and not user_blacklist:
+        fatal(
+            "bam_filter.apply_blacklist=true requires ref.blacklist to be set "
+            "in config/config.yml. Set apply_blacklist: false to skip blacklist filtering."
         )
 elif assembly in REFERENCE_URLS:
     url_fasta = REFERENCE_URLS[assembly]["fasta"]
@@ -66,6 +79,7 @@ config["ref"]["gtf"] = os.path.join(ref_dir, config["ref"]["assembly"] + ".gtf")
 config["ref"]["blacklist"] = os.path.join(ref_dir, config["ref"]["assembly"] + ".blacklist.bed")
 config["ref"]["bed"] = os.path.join(ref_dir, config["ref"]["assembly"] + ".bed")
 config["ref"]["chromsizes"] = os.path.join(ref_dir, config["ref"]["assembly"] + ".sizes")
+config["ref"]["canonical_chroms"] = os.path.join(ref_dir, config["ref"]["assembly"] + ".canonical_chroms.txt")
 config["ref"]["autosomes"] = os.path.join(ref_dir, config["ref"]["assembly"] + ".autosomes.txt")
 config["ref"]["tss"] = os.path.join(ref_dir, config["ref"]["assembly"] + ".tss.bed")
 config["ref"]["include_regions"] = os.path.join(ref_dir, config["ref"]["assembly"] + ".include_regions.bed")
@@ -149,8 +163,8 @@ if not os.path.isfile(config["ref"]["gtf"]):
         download_reference_file(url_gtf, gtf_compressed, config["ref"]["gtf"], "GTF")
 
 
-# Check if blacklist already exists. Download it if not.
-if not os.path.isfile(config["ref"]["blacklist"]):
+# Check if blacklist already exists. Download/stage only when apply_blacklist=true.
+if _apply_blacklist and not os.path.isfile(config["ref"]["blacklist"]):
     if config["ref"]["assembly"] == "custom":
         info("Using custom blacklist annotation.")
         stage_local_reference(user_blacklist, config["ref"]["blacklist"], "BLACKLIST")

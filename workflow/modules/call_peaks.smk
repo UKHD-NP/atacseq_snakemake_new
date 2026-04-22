@@ -156,7 +156,7 @@ if CALL_PEAKS_MACS3_PEAK_QC_PLOT_ON:
                 -s "{wildcards.sample_id}" \
                 -o "{wildcards.outdir}/peaks" \
                 -p "{params.outprefix}" > "{log}" 2>&1 || {{
-                echo "[ERROR] plot_macs2_qc.r failed." >> "{log}"
+                echo "[ERROR] plot_macs_qc.r failed." >> "{log}"
                 exit 1
             }}
 

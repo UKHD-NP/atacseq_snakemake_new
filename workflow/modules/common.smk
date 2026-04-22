@@ -313,6 +313,21 @@ def get_target_files(sample_ids):
         if ataqv_on:
             targets.append(_path("ataqv", f"{sample_id}.ataqv.json"))
             targets.append(_path("ataqv", f"{sample_id}.mkarv_html", "index.html"))
+            targets.append(_path("ataqv", f"{sample_id}.atac_qc_mqc.tsv"))
+
+        # NFR vs mononucleosomal analysis (requires deeptools + narrow peaks + shift_bam).
+        nfr_on = deeptools_on and shift_bam_on and call_peaks_on
+        if nfr_on:
+            targets.extend([
+                _path("nfr", f"{sample_id}.nfr.bigWig"),
+                _path("nfr", f"{sample_id}.mono.bigWig"),
+                _path("nfr", f"{sample_id}.nfr_vs_mono.computeMatrix.mat.gz"),
+                _path("nfr", f"{sample_id}.nfr_vs_mono.computeMatrix.vals.mat.tab"),
+                _path("nfr", f"{sample_id}.nfr_vs_mono.plotProfile.pdf"),
+                _path("nfr", f"{sample_id}.nfr_vs_mono.plotProfile.tab"),
+                _path("nfr", f"{sample_id}.nfr_vs_mono.plotHeatmap.pdf"),
+                _path("nfr", f"{sample_id}.nfr_vs_mono.plotHeatmap.mat.tab"),
+            ])
 
         ## Always include deletion log
         targets.append(_path("logs", f"{sample_id}.deletion.log"))

@@ -24,6 +24,8 @@ report_section_order:
     order: 2800
   ataqv:
     order: 2700
+  atac_qc_metrics:
+    order: 2650
   homer_annotation:
     order: 2600
   macs_peakqc_summary:
@@ -96,6 +98,12 @@ module_order:
       info: "ATAC-specific QC metrics including TSS enrichment and fragment profiles."
       path_filters:
         - "*.ataqv.json"
+  - custom_content:
+      anchor: "atac_qc_metrics"
+      name: "ATAC-seq Key Metrics"
+      info: "TSS Enrichment Score and NFR ratio extracted from ataqv."
+      path_filters:
+        - "*.atac_qc_mqc.tsv"
   - homer_annotate_peaks:
       anchor: "homer_annotate_peaks"
       name: "HOMER Peak Annotation"
@@ -120,6 +128,8 @@ extra_fn_clean_exts:
 fn_clean_sample_names: true
 
 sp:
+  atac_qc_metrics:
+    fn: "*.atac_qc_mqc.tsv"
   fastqc/zip:
     fn: "*_fastqc.zip"
   fastp:
@@ -203,6 +213,37 @@ custom_data:
       FRiP_featureCounts:
         title: "FRiP (featureCounts %)"
         format: "{:,.2f}"
+  atac_qc_metrics:
+    id: "atac_qc_metrics"
+    section_name: "TSS Enrichment and NFR Metrics"
+    description: "TSS enrichment score and nucleosome-free region (NFR) ratio per sample (from ataqv)."
+    file_format: "tsv"
+    plot_type: "table"
+    pconfig:
+      namespace: "ATAC"
+      id: "atac_qc_metrics_table"
+      title: "TSS Enrichment & NFR Metrics"
+    headers:
+      tss_enrichment:
+        title: "TSS Enrichment"
+        description: "Signal at TSS / background flanking signal (ataqv)"
+        format: "{:,.4f}"
+        min: 0
+        scale: "RdYlGn"
+      nfr_ratio:
+        title: "NFR Ratio"
+        description: "NFR reads (<150 bp) / mononucleosomal reads (150-300 bp)"
+        format: "{:,.4f}"
+        min: 0
+        scale: "RdYlGn"
+      hqaa_tf_count:
+        title: "HQAA TF Reads"
+        description: "High-quality autosomal aligned NFR fragment count"
+        format: "{:,.0f}"
+      hqaa_mono_count:
+        title: "HQAA Mono Reads"
+        description: "High-quality autosomal aligned mononucleosomal fragment count"
+        format: "{:,.0f}"
   homer_annotation_summary:
     id: "homer_annotation_summary"
     section_name: "HOMER Annotation Summary"

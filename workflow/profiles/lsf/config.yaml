@@ -58,6 +58,12 @@ set-threads:
   bedtools_genomecov: 2
   ucsc_bedgraphtobigwig: 2
   ataqv: 1
+  atac_qc_metrics: 1
+  nfr_bigwig_nfr: 8
+  nfr_bigwig_mono: 8
+  nfr_compute_matrix: 12
+  nfr_plot_profile: 2
+  nfr_plot_heatmap: 2
   picard_collect_multiple_metrics: 1
   multiqc: 1
 
@@ -136,6 +142,24 @@ set-resources:
     mem_mb: 6144
     runtime: 480
     lsf_queue: "verylong"
+  atac_qc_metrics:
+    mem_mb: 256
+    runtime: 60
+  nfr_bigwig_nfr:
+    mem_mb: 16384
+    runtime: 480
+  nfr_bigwig_mono:
+    mem_mb: 16384
+    runtime: 480
+  nfr_compute_matrix:
+    mem_mb: 6144
+    runtime: 240
+  nfr_plot_profile:
+    mem_mb: 4096
+    runtime: 120
+  nfr_plot_heatmap:
+    mem_mb: 20480
+    runtime: 240
   picard_collect_multiple_metrics:
     mem_mb: 16384
     runtime: 120
