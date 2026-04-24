@@ -29,7 +29,7 @@ conda-frontend: mamba
 conda-prefix: "/path/to/group/storage/conda_envs"
 
 # Retries on job failure
-retries: 2
+retries: 3
 
 # Global cores cap: controls --cores passed to each per-job subprocess
 cores: 300
@@ -69,100 +69,156 @@ set-threads:
 
 # Per-rule resource overrides
 set-resources:
+
+  # ---- FASTQC ----
   fastqc_raw:
     mem_mb: 4096
-    runtime: 480
+    runtime: 120
+
+  # ---- TRIMMING / PREP ----
   trim_galore:
     mem_mb: 36864
     runtime: 960
     lsf_queue: "verylong"
+
   fastp:
     mem_mb: 16384
-    runtime: 960
+    runtime: 480
     lsf_queue: "verylong"
+
+  # ---- INDEX ----
   bwa_mem2_index:
     mem_mb: 65536
     runtime: 480
     lsf_queue: "verylong"
+
   bowtie2_index:
     mem_mb: 8192
     runtime: 480
     lsf_queue: "verylong"
+
+  # ---- ALIGNMENT ----
   bwa_mem2_align:
     mem_mb: 49152
     runtime: 1440
     lsf_queue: "verylong"
+
   bowtie2_align:
     mem_mb: 16384
     runtime: 1440
     lsf_queue: "verylong"
+
+  # ---- BAM PROCESSING ----
   sort_bam:
     mem_mb: 36864
     runtime: 240
+    lsf_queue: "long"
+
   mark_duplicates:
     mem_mb: 49152
     runtime: 240
+    lsf_queue: "long"
+
   bam_filter:
     mem_mb: 36864
     runtime: 240
+    lsf_queue: "long"
+
   shift_bam:
     mem_mb: 40960
-    runtime: 720
+    runtime: 480
+    lsf_queue: "verylong"
+
+  # ---- PEAK CALLING ----
   macs3_callpeak_tn5:
     mem_mb: 8192
     runtime: 240
+    lsf_queue: "long"
+
+  # ---- DEEPTOOLS ----
   deeptools_compute_matrix_scale_regions:
     mem_mb: 6144
     runtime: 240
+    lsf_queue: "long"
+
   deeptools_compute_matrix_reference_point:
     mem_mb: 6144
     runtime: 240
+    lsf_queue: "long"
+
   deeptools_plot_fingerprint:
     mem_mb: 6144
-    runtime: 480
+    runtime: 240
+    lsf_queue: "long"
+
   deeptools_plot_profile:
     mem_mb: 6144
-    runtime: 240
+    runtime: 120
+
   deeptools_plot_heatmap:
     mem_mb: 20480
     runtime: 240
+    lsf_queue: "long"
+
   deeptools_fragment_size_distribution:
     mem_mb: 6144
-    runtime: 480
+    runtime: 240
+    lsf_queue: "long"
+
+  # ---- QC / ANNOTATION ----
   homer_annotate_peaks:
     mem_mb: 10240
     runtime: 240
+    lsf_queue: "long"
+
   bedtools_genomecov:
     mem_mb: 40960
     runtime: 240
+    lsf_queue: "long"
+
   ucsc_bedgraphtobigwig:
     mem_mb: 6144
-    runtime: 240
+    runtime: 120
+
   ataqv:
     mem_mb: 6144
     runtime: 480
     lsf_queue: "verylong"
+
   atac_qc_metrics:
     mem_mb: 256
     runtime: 60
+
+  # ---- NFR ----
   nfr_bigwig_nfr:
     mem_mb: 16384
-    runtime: 480
+    runtime: 240
+    lsf_queue: "long"
+
   nfr_bigwig_mono:
     mem_mb: 16384
-    runtime: 480
+    runtime: 240
+    lsf_queue: "long"
+
   nfr_compute_matrix:
     mem_mb: 6144
     runtime: 240
+    lsf_queue: "long"
+
   nfr_plot_profile:
     mem_mb: 4096
     runtime: 120
+
   nfr_plot_heatmap:
     mem_mb: 20480
     runtime: 240
+    lsf_queue: "long"
+
+  # ---- FINAL ----
   picard_collect_multiple_metrics:
     mem_mb: 16384
     runtime: 120
+
   multiqc:
     mem_mb: 2048
     runtime: 60
