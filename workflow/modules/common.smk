@@ -304,10 +304,12 @@ def get_target_files(sample_ids):
                 _path("deeptools", f"{sample_id}.plotFingerprint.pdf"),
                 _path("deeptools", f"{sample_id}.plotFingerprint.raw_counts.txt"),
                 _path("deeptools", f"{sample_id}.plotFingerprint.qcmetrics.txt"),
-                _path("deeptools", f"{sample_id}.fragment_size_distribution.pdf"),
+                _path("deeptools", f"{sample_id}.fragment_size_distribution.{FRAGMENT_SIZE_PLOT_FORMAT}"),
                 _path("deeptools", f"{sample_id}.fragment_size.raw_lengths.txt"),
                 _path("deeptools", f"{sample_id}.fragment_size.qcmetrics.txt"),
             ])
+            if shift_bam_on:
+                targets.append(_path("deeptools", f"{sample_id}.pt_score_mqc.tsv"))
 
         # ataqv outputs.
         if ataqv_on:

@@ -90,6 +90,8 @@ def get_input_multiqc(wildcards):
         targets.append(_path("deeptools", f"{sample_id}.reference_point.plotProfile.tab"))
         targets.append(_path("deeptools", f"{sample_id}.fragment_size.qcmetrics.txt"))
         targets.append(_path("deeptools", f"{sample_id}.fragment_size.raw_lengths.txt"))
+        if CALL_PEAKS_PEAK_TYPE == "narrow":
+            targets.append(_path("deeptools", f"{sample_id}.pt_score_mqc.tsv"))
 
     # Add ataqv JSON metrics for ATAC QC.
     if ataqv_on:

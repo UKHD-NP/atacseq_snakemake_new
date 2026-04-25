@@ -222,7 +222,8 @@ rule deeptools_plot_heatmap:
 
 rule deeptools_plot_fingerprint:
     input:
-        bam = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam")
+        bam = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam"),
+        bai = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam.bai")
     output:
         plot = os.path.join("{outdir}", "deeptools", "{sample_id}.plotFingerprint.pdf"),
         raw_counts = os.path.join("{outdir}", "deeptools", "{sample_id}.plotFingerprint.raw_counts.txt"),
@@ -273,7 +274,7 @@ rule deeptools_fragment_size_distribution:
         bam = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam"),
         bai = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam.bai")
     output:
-        plot = os.path.join("{outdir}", "deeptools", "{sample_id}.fragment_size_distribution.pdf"),
+        plot = os.path.join("{outdir}", "deeptools", f"{{sample_id}}.fragment_size_distribution.{FRAGMENT_SIZE_PLOT_FORMAT}"),
         raw_lengths = os.path.join("{outdir}", "deeptools", "{sample_id}.fragment_size.raw_lengths.txt"),
         qc_metrics = os.path.join("{outdir}", "deeptools", "{sample_id}.fragment_size.qcmetrics.txt")
     params:
@@ -315,3 +316,25 @@ rule deeptools_fragment_size_distribution:
             exit 1
         fi
         """
+
+
+rule deeptools_pt_score:
+    input:
+        bam = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam"),
+        bai = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam.bai"),
+        bed = config["ref"]["bed"],
+    output:
+        pt_score = os.path.join("{outdir}", "deeptools", "{sample_id}.pt_score_mqc.tsv"),
+    conda:
+        os.path.join(workflow.basedir, "envs", "atacseqqc.yml")
+    message:
+        "{wildcards.sample_id}: Calculating PT score via ATACseqQC R package"
+    threads: 1
+    resources:
+        mem_mb = 8192
+    log:
+        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.pt_score.log")
+    benchmark:
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.pt_score.benchmark.txt")
+    script:
+        os.path.join(workflow.basedir, "scripts", "calc_pt_score.R")

@@ -122,8 +122,9 @@ bam_filter  --->  filtered.bam / filtered.bam.bai
         |                               +--> ataqv (optional; filtered.bam)
         |                               |    +--> atac_qc_metrics → atac_qc_mqc.tsv (TSS enrichment, NFR ratio)
         |                               +--> deeptools (optional)
-        |                               |    +--> computeMatrix / plotProfile / plotHeatmap (shifted.bigWig)
+        |                               |    +--> computeMatrix / plotProfile / plotHeatmap (shifted.bigWig for narrow peaks; bigWig for broad peaks)
         |                               |    +--> plotFingerprint / bamPEFragmentSize (filtered.bam)
+        |                               |    +--> pt_score (promoter/transcript body ratio → pt_score_mqc.tsv)
         |                               +--> nfr (optional; when deeptools + narrow peaks)
         |                                    +--> alignmentSieve → nfr.bigWig + mono.bigWig
         |                                    +--> computeMatrix / plotProfile / plotHeatmap (nfr vs mono)
@@ -289,18 +290,14 @@ mkdir -p ${YOUR_WORKDIR}/conda_envs
 # Create the controller environment with Snakemake + the LSF executor plugin
 mamba create -p ${YOUR_WORKDIR}/conda_envs/snakemake \
     -c conda-forge -c bioconda \
-    snakemake \
+    python=3.11 \
+    "numpy<1.25" \
+    snakemake=8.30.0 \
     snakemake-executor-plugin-lsf \
     -y
 
 # Activate the new environment
 mamba activate ${YOUR_WORKDIR}/conda_envs/snakemake
-
-# Pin numpy/pandas to versions tested with this pipeline's helper scripts
-python -m pip install "snakemake==8.*" "snakemake-executor-plugin-lsf" "numpy==1.26.4" "pandas==2.2.3"
-
-# Verify that all three packages are importable and print their versions
-python -c "import snakemake, numpy, pandas; print(snakemake.__version__, numpy.__version__, pandas.__version__)"
 ```
 
 > `snakemake-executor-plugin-lsf` translates Snakemake rule resources (`mem_mb`, `runtime`, `threads`) into `bsub` submission flags automatically — no manual `bsub` scripting needed.
@@ -531,7 +528,7 @@ Explanation by block:
 - `bam_filter.keep_input_bam`: set `true` to preserve the BAM entering `bam_filter` (`*.markdup.sorted.bam` when duplicate marking is enabled, otherwise `*.bam`).
 - `markduplicates.enabled`: run Picard MarkDuplicates before filtering. When disabled, duplicates are not flagged and `-F 0x0400` in `bam_filter.params` has no effect.
 - `trimming.delete_trimming`: when `true`, trimmed FASTQ files are deleted after the pipeline completes.
-- `deeptools.enabled`: run computeMatrix/plotProfile/plotHeatmap/plotFingerprint modules. Requires `call_peaks.enabled=true` and `call_peaks.peak_type=narrow` (computeMatrix uses the Tn5-shifted bigWig).
+- `deeptools.enabled`: run computeMatrix/plotProfile/plotHeatmap/plotFingerprint/PT score modules. Requires `call_peaks.enabled=true`. For narrow peaks, computeMatrix uses the Tn5-shifted bigWig (`shifted.bigWig`); for broad peaks, it uses the unshifted bigWig (`bigWig`).
 - `call_peaks.peak_type`: `narrow` uses filtered BAM → `bamtobed` → awk Tn5 shift (+4 forward / -5 reverse) → MACS3 BED mode; `broad` uses filtered BAM directly in MACS3 BAMPE mode.
 - `call_peaks.macs3_peak_qc_plot`: when `true`, runs `plot_macs_qc.r` to produce `*.macs_peakqc.summary.txt` and `*.macs_peakqc.plots.pdf`.
 - `call_peaks.frip_overlap_fraction`: minimum read-peak overlap fraction for FRiP (passed to both `bedtools intersect -f` and featureCounts `--fracOverlap`).
@@ -572,7 +569,7 @@ Some modules only run when their upstream module is also enabled:
 - `annotate_peaks` requires `call_peaks.enabled=true`.
 - `featureCounts` + `frip_score` run automatically when `call_peaks.enabled=true` (no separate toggle).
 - `ataqv` requires `call_peaks.enabled=true`.
-- `deeptools` requires `call_peaks.enabled=true` AND `call_peaks.peak_type=narrow` (computeMatrix uses the Tn5-shifted bigWig).
+- `deeptools` requires `call_peaks.enabled=true`. Works with both `narrow` and `broad` peak types — computeMatrix automatically uses the Tn5-shifted bigWig for narrow peaks and the unshifted bigWig for broad peaks.
 - `nfr` analysis runs automatically when `deeptools.enabled=true` AND `call_peaks.enabled=true` AND `call_peaks.peak_type=narrow`. Fragment size cutoffs can be tuned via the optional `nfr:` config block (defaults: NFR ≤150 bp, mono 151–300 bp).
 - `atac_qc_metrics` (TSS enrichment + NFR ratio table for MultiQC) requires `ataqv.enabled=true`.
 
@@ -679,6 +676,7 @@ Per sample under `<outdir>`:
   - `deeptools/{sample}.fragment_size_distribution.pdf`
   - `deeptools/{sample}.fragment_size.raw_lengths.txt`
   - `deeptools/{sample}.fragment_size.qcmetrics.txt`
+  - `deeptools/{sample}.pt_score_mqc.tsv` (PT score: promoter/transcript body signal ratio)
 - ataqv
   - `ataqv/{sample}.ataqv.json`
   - `ataqv/{sample}.mkarv_html/index.html`
@@ -705,6 +703,7 @@ Per sample under `<outdir>`:
   - quality by cycle
   - quality distribution
 - deepTools QC metrics (fingerprint, profiles, fragment size)
+- deepTools PT score (promoter/transcript body signal ratio, `*.pt_score_mqc.tsv`)
 - deepTools NFR vs mononucleosomal TSS profile (from `nfr/` analysis)
 - ataqv JSON
 - TSS Enrichment Score + NFR ratio per sample (`*.atac_qc_mqc.tsv`)
@@ -751,14 +750,120 @@ How to read:
 
 ## ENCODE QC Benchmarks
 
-Key metrics from ENCODE (practical targets and acceptable ranges):
-- Alignment rate: target `>95%` (acceptable `>80%`)
-- FRiP score: target `>0.3` (acceptable `>0.2`)
-- TSS enrichment: target `>10` (acceptable `>5`)
-- Library complexity (NRF): target `>0.9`
-- PBC1: target `>0.9`
-- PBC2: target `>3`
-- Nucleosome-free regions: should be detectable in called peaks
+### Quick reference
+
+| Metric | Tool / Output | Target | Acceptable |
+|--------|--------------|--------|------------|
+| Alignment rate | Bowtie2 / BWA-MEM2 log | >95% | >80% |
+| Duplication rate | `*.MarkDuplicates.metrics.txt` | <20% | <30% |
+| FRiP score | `*_peaks.FRiP_mqc.tsv` | >0.3 | >0.2 |
+| TSS enrichment | `*.atac_qc_mqc.tsv` (ataqv) | >10 | >5 |
+| PT score (2^mean) | `*.pt_score_mqc.tsv` | ≥10 | ≥5 |
+| NFR ratio | `*.atac_qc_mqc.tsv` (ataqv) | >48% | >40% |
+
+---
+
+### FRiP Score — Fraction of Reads in Peaks
+
+**What it measures:** The proportion of all uniquely mapped reads that fall within called peak regions.
+
+```
+FRiP = reads_overlapping_peaks / total_mapped_reads
+```
+
+**Why it matters:** A high FRiP means most of your sequencing reads captured genuine open chromatin sites, rather than noisy background. Low FRiP suggests poor enrichment, over-amplification, or degraded nuclei.
+
+**Thresholds:**
+- `>0.3` — ENCODE target; well-enriched library
+- `0.2–0.3` — acceptable; borderline, check other metrics
+- `<0.2` — poor enrichment; inspect fragment size distribution and TSS enrichment
+
+**In this pipeline:** two FRiP estimates are reported per sample — one from `bedtools intersect` and one from `featureCounts`. Both appear in MultiQC.
+
+---
+
+### TSS Enrichment Score
+
+**What it measures:** Signal enrichment at Transcription Start Sites (TSS) relative to the flanking background. Calculated by ataqv.
+
+```
+TSS enrichment = mean signal in TSS ±150 bp window
+                 ─────────────────────────────────
+                 mean signal in flanking regions (±1900 bp from TSS)
+```
+
+**Why it matters:** Tn5 transposase preferentially inserts at open chromatin, which in ATAC-seq is concentrated at active promoters. A high TSS enrichment score confirms the experiment successfully captured nucleosome-free promoter regions. A flat or low score means the library has high background, poor Tn5 enrichment, or degraded/fixed chromatin.
+
+**Thresholds:**
+- `>10` — ENCODE target; excellent signal-to-noise
+- `5–10` — acceptable; usable but noisier peak calls
+- `<5` — poor; re-check nuclei isolation and Tn5 titration
+
+**In this pipeline:** reported in `ataqv/{sample}.atac_qc_mqc.tsv`, shown in MultiQC.
+
+---
+
+### PT Score — Promoter/Transcript Body ratio
+
+**What it measures:** Whether Tn5 insertions (5′ read ends) are enriched at promoters relative to gene bodies. Calculated by the ATACseqQC R package.
+
+```
+For each gene:
+  promoter_window  = [TSS−2000, TSS+500]   (strand-aware)
+  body_window      = next 2500 bp downstream of promoter
+
+  PT score (log2) = log2(mean_5prime_density_in_promoter + ε)
+                  − log2(mean_5prime_density_in_body + ε)
+
+Final: mean and median PT score across all genes
+```
+
+The mean PT score is reported in log2 scale; the equivalent linear ratio is **2^PT_score_mean**.
+
+**Why it matters:** In ATAC-seq, open chromatin is concentrated at promoters. A high PT score confirms that most signal comes from promoter-proximal nucleosome-free regions rather than evenly distributed gene body background. Low PT scores can indicate high background, poor Tn5 enrichment, or a ChIP-like signal profile.
+
+**Thresholds (linear scale, i.e. 2^mean_PT):**
+- `≥10` — excellent; strong promoter-over-body enrichment
+- `5–10` — acceptable; ATACseqQC default PASS threshold is `≥5`
+- `<5` — borderline/FAIL; interpret with other metrics
+
+**In this pipeline:** reported in `deeptools/{sample}.pt_score_mqc.tsv`, shown in MultiQC. A `[INFO] QC: PASS` or `[WARNING] QC: FAIL` line is written to the rule log.
+
+---
+
+### Duplication Rate — Library Complexity
+
+**What it measures:** The fraction of reads that are PCR/optical duplicates, identified by Picard MarkDuplicates.
+
+```
+Duplication rate = duplicate reads / total mapped reads
+```
+
+**Why it matters:** High duplication indicates the library was over-amplified or sequenced to saturation — most reads are copies of the same original fragment rather than independent Tn5 insertions. This reduces the effective complexity of the library and inflates peak signal artificially.
+
+**Thresholds:**
+- `<20%` — good; library has sufficient complexity
+- `20–30%` — acceptable; borderline, check FRiP and fragment size distribution
+- `>30%` — high; PCR cycles may need to be reduced in the next experiment
+
+**In this pipeline:** reported in `bam/{sample}.markdup.sorted.MarkDuplicates.metrics.txt` (`PERCENT_DUPLICATION` column), parsed automatically by MultiQC.
+
+> **Note:** NRF, PBC1, and PBC2 (ENCODE complexity metrics) are not calculated by this pipeline. They require a separate read-position counting step not included here. Duplication rate from Picard provides an equivalent practical assessment of library complexity.
+
+---
+
+### NFR Ratio — Nucleosome-Free Region Fraction
+
+**What it measures:** The fraction of fragments that are short (≤150 bp), corresponding to sub-nucleosomal / nucleosome-free insertions.
+
+**Why it matters:** A healthy ATAC-seq library should show a prominent short-fragment peak (<200 bp) in the fragment size distribution, corresponding to Tn5 insertions in nucleosome-free open chromatin. The NFR ratio quantifies how much of the library is in this fraction. Libraries with high mononucleosomal or dinucleosomal contamination will show lower NFR ratios and broader, noisier peaks.
+
+**Thresholds:**
+- `>48%` — ENCODE target
+- `40–48%` — acceptable
+- `<40%` — poor NFR enrichment; check Tn5 titration and nuclei quality
+
+**In this pipeline:** calculated by ataqv, reported in `ataqv/{sample}.atac_qc_mqc.tsv`, shown in MultiQC.
 
 ## Space-saving behavior
 

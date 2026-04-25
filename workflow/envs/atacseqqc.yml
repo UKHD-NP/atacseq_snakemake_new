@@ -1,0 +1,8 @@
+name: atacseqqc_env
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - r-base
+  - bioconductor-atacseqqc
+  - bioconductor-rtracklayer

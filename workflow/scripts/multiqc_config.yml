@@ -34,6 +34,8 @@ report_section_order:
     order: 2000
   frip_score:
     order: 1950
+  pt_score:
+    order: 1925
   featurecounts:
     order: 1900
 
@@ -162,6 +164,8 @@ sp:
     fn: "*_peaks.count_mqc.tsv"
   frip_score:
     fn: "*_peaks.FRiP_mqc.tsv"
+  pt_score:
+    fn: "*.pt_score_mqc.tsv"
   macs_peakqc_summary:
     fn: "*.macs_peakqc.summary.txt"
   featurecounts:
@@ -213,6 +217,39 @@ custom_data:
       FRiP_featureCounts:
         title: "FRiP (featureCounts %)"
         format: "{:,.2f}"
+  pt_score:
+    id: "pt_score"
+    section_name: "Promoter/Transcript Body Score (PT Score)"
+    description: "Promoter versus transcript body accessibility summary computed by ATACseqQC."
+    file_format: "tsv"
+    plot_type: "table"
+    pconfig:
+      namespace: "ATAC"
+      id: "pt_score_table"
+      title: "Promoter/Transcript Body Score (PT Score)"
+    headers:
+      Sample:
+        title: "Sample"
+      PT_score_mean:
+        title: "PT Score Mean"
+        description: "Mean promoter/transcript body accessibility ratio in log2 scale"
+        format: "{:,.4f}"
+        scale: "RdYlGn"
+      PT_score_median:
+        title: "PT Score Median"
+        description: "Median promoter/transcript body accessibility ratio in log2 scale"
+        format: "{:,.4f}"
+        scale: "RdYlGn"
+      Mean_promoter:
+        title: "Mean Promoter Signal"
+        description: "Mean accessibility signal across promoter regions"
+        format: "{:,.6f}"
+        min: 0
+      Mean_gene_body:
+        title: "Mean Transcript Body Signal"
+        description: "Mean accessibility signal across transcript body regions"
+        format: "{:,.6f}"
+        min: 0
   atac_qc_metrics:
     id: "atac_qc_metrics"
     section_name: "TSS Enrichment and NFR Metrics"
