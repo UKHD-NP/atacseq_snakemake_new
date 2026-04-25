@@ -4,10 +4,16 @@ if FRAGMENT_SIZE_PLOT_FORMAT not in {"pdf", "png", "svg", "eps"}:
     FRAGMENT_SIZE_PLOT_FORMAT = "pdf"
 
 
+def _deeptools_bigwig(wildcards):
+    if is_enabled("call_peaks") and CALL_PEAKS_PEAK_TYPE == "narrow":
+        return os.path.join(wildcards.outdir, "bigwig", f"{wildcards.sample_id}.shifted.bigWig")
+    return os.path.join(wildcards.outdir, "bigwig", f"{wildcards.sample_id}.bigWig")
+
+
 rule deeptools_compute_matrix_scale_regions:
     input:
         regions = config["ref"]["bed"],
-        bigwig = os.path.join("{outdir}", "bigwig", "{sample_id}.shifted.bigWig")
+        bigwig = lambda wildcards: _deeptools_bigwig(wildcards)
     output:
         matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.computeMatrix.mat.gz"),
         values = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.computeMatrix.vals.mat.tab")
@@ -57,7 +63,7 @@ rule deeptools_compute_matrix_scale_regions:
 rule deeptools_compute_matrix_reference_point:
     input:
         regions = config["ref"]["tss"],
-        bigwig = os.path.join("{outdir}", "bigwig", "{sample_id}.shifted.bigWig")
+        bigwig = lambda wildcards: _deeptools_bigwig(wildcards)
     output:
         matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.mat.gz"),
         values = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.vals.mat.tab")
