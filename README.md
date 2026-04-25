@@ -750,22 +750,28 @@ How to read:
 
 ## ENCODE QC Benchmarks
 
+Sources: [ENCODE ATAC-seq Standards](https://www.encodeproject.org/atac-seq/) · [ataqv](https://github.com/ParkerLab/ataqv) · [ATACseqQC](https://bioconductor.org/packages/ATACseqQC/)
+
 ### Quick reference
 
-| Metric | Tool / Output | Target | Acceptable |
-|--------|--------------|--------|------------|
-| Alignment rate | Bowtie2 / BWA-MEM2 log | >95% | >80% |
-| Duplication rate | `*.MarkDuplicates.metrics.txt` | <20% | <30% |
-| FRiP score | `*_peaks.FRiP_mqc.tsv` | >0.3 | >0.2 |
-| TSS enrichment | `*.atac_qc_mqc.tsv` (ataqv) | >10 | >5 |
-| PT score (2^mean) | `*.pt_score_mqc.tsv` | ≥10 | ≥5 |
-| NFR ratio | `*.atac_qc_mqc.tsv` (ataqv) | >48% | >40% |
+| Metric | Source | Tool / Output | Target | Acceptable |
+|--------|--------|--------------|--------|------------|
+| Alignment rate | ENCODE | Bowtie2 / BWA-MEM2 log | >95% | ≥80% |
+| Duplication rate | general practice | `*.MarkDuplicates.metrics.txt` | <20% | <30% |
+| FRiP score | ENCODE | `*_peaks.FRiP_mqc.tsv` | ≥0.3 | ≥0.2 |
+| TSS enrichment | ataqv / ENCODE (hg38) | `*.atac_qc_mqc.tsv` | ≥7 | ≥5 |
+| NFR ratio (short:mono) | ataqv | `*.atac_qc_mqc.tsv` | >2 | — |
+| PT score (2^mean) | ATACseqQC / pipeline | `*.pt_score_mqc.tsv` | ≥10 | ≥5 |
+| NFR score (mean) | ATACseqQC | `*.pt_score_mqc.tsv` | >0 | — |
+| TSSE score | ATACseqQC / ENCODE | `*.pt_score_mqc.tsv` | ≥7 | ≥5 |
 
 ---
 
 ### FRiP Score — Fraction of Reads in Peaks
 
-**What it measures:** The proportion of all uniquely mapped reads that fall within called peak regions.
+**Source:** ENCODE ATAC-seq Standards
+
+**What it measures:** The proportion of all mapped reads that fall within called peak regions.
 
 ```
 FRiP = reads_overlapping_peaks / total_mapped_reads
@@ -773,97 +779,167 @@ FRiP = reads_overlapping_peaks / total_mapped_reads
 
 **Why it matters:** A high FRiP means most of your sequencing reads captured genuine open chromatin sites, rather than noisy background. Low FRiP suggests poor enrichment, over-amplification, or degraded nuclei.
 
-**Thresholds:**
-- `>0.3` — ENCODE target; well-enriched library
-- `0.2–0.3` — acceptable; borderline, check other metrics
+**Thresholds (from ENCODE):**
+- `≥0.3` — strong enrichment; ENCODE recommended target
+- `≥0.2` — ENCODE minimum passing standard
 - `<0.2` — poor enrichment; inspect fragment size distribution and TSS enrichment
 
-**In this pipeline:** two FRiP estimates are reported per sample — one from `bedtools intersect` and one from `featureCounts`. Both appear in MultiQC.
+**In this pipeline:** two FRiP estimates are reported per sample — one from `bedtools intersect` and one from `featureCounts`. Both appear in MultiQC. The quality label (`good` / `bad`) in `*.FRiP.txt` uses `call_peaks.frip_threshold` (default 20%).
 
 ---
 
 ### TSS Enrichment Score
+
+**Source:** ataqv (Parker Lab); thresholds from ENCODE ATAC-seq Standards for GRCh38 + RefSeq TSS annotation
 
 **What it measures:** Signal enrichment at Transcription Start Sites (TSS) relative to the flanking background. Calculated by ataqv.
 
 ```
 TSS enrichment = mean signal in TSS ±150 bp window
                  ─────────────────────────────────
-                 mean signal in flanking regions (±1900 bp from TSS)
+                 mean signal in flanking regions (1400–2000 bp from TSS)
 ```
 
-**Why it matters:** Tn5 transposase preferentially inserts at open chromatin, which in ATAC-seq is concentrated at active promoters. A high TSS enrichment score confirms the experiment successfully captured nucleosome-free promoter regions. A flat or low score means the library has high background, poor Tn5 enrichment, or degraded/fixed chromatin.
+**Why it matters:** Tn5 transposase preferentially inserts at open chromatin concentrated at active promoters. A high TSS enrichment confirms the experiment captured nucleosome-free promoter regions. A flat score indicates high background, poor Tn5 enrichment, or degraded chromatin.
 
-**Thresholds:**
-- `>10` — ENCODE target; excellent signal-to-noise
-- `5–10` — acceptable; usable but noisier peak calls
+**Thresholds** (GRCh38 RefSeq TSS — scale down for non-human genomes):
+- `≥7` — ENCODE target; excellent signal-to-noise
+- `5–7` — acceptable; usable but noisier peak calls
 - `<5` — poor; re-check nuclei isolation and Tn5 titration
+
+> These thresholds are annotation-dependent. For mouse (mm10) or custom genomes, expect lower absolute values. Compare across your own samples rather than using human thresholds as hard cutoffs.
 
 **In this pipeline:** reported in `ataqv/{sample}.atac_qc_mqc.tsv`, shown in MultiQC.
 
 ---
 
-### PT Score — Promoter/Transcript Body ratio
+### NFR Ratio — Short-to-Mononucleosomal Fragment Ratio
 
-**What it measures:** Whether Tn5 insertions (5′ read ends) are enriched at promoters relative to gene bodies. Calculated by the ATACseqQC R package.
+**Source:** ataqv (`short_mononucleosomal_ratio` field); no official ENCODE threshold — use comparatively across samples
+
+**What it measures:** The ratio of sub-nucleosomal (TF-bound) fragments to mononucleosomal fragments, as computed by ataqv.
 
 ```
-For each gene:
-  promoter_window  = [TSS−2000, TSS+500]   (strand-aware)
-  body_window      = next 2500 bp downstream of promoter
+NFR ratio = count(fragments ≤ 100 bp)   [hqaa_tf_count]
+            ────────────────────────────────────────────
+            count(fragments 180–300 bp)  [hqaa_mononucleosomal_count]
+```
+
+This is a **ratio**, not a percentage of all reads. A ratio of 5 means there are 5 short TF-bound fragments for every 1 mononucleosomal fragment.
+
+**Why it matters:** A healthy ATAC-seq library should be dominated by sub-nucleosomal insertions (nucleosome-free regions). A low ratio means the library is enriched for mononucleosomal fragments, indicating the nuclei had poor chromatin accessibility or Tn5 over-digestion.
+
+**Thresholds:** No official ENCODE cutoff exists for this metric. As a rough community benchmark:
+- `>2` — generally considered adequate (more short NFR fragments than mononucleosomal)
+- `<1` — likely poor library; mononucleosomal fragments dominate
+
+> Compare values across your own samples. A consistent drop within a batch is more informative than any single absolute threshold.
+
+**In this pipeline:** extracted from ataqv JSON as `short_mononucleosomal_ratio`, reported in `ataqv/{sample}.atac_qc_mqc.tsv`, shown in MultiQC.
+
+---
+
+### PT Score — Promoter/Transcript Body Ratio
+
+**Source:** ATACseqQC R package (Ou et al., 2018, *Genome Biology*); thresholds are pipeline-defined heuristics (ATACseqQC does not publish fixed cutoffs)
+
+**What it measures:** Whether Tn5 insertions (5′ read ends from shifted BAM) are enriched at promoters relative to gene bodies. Calculated by the ATACseqQC R package.
+
+```
+For each transcript:
+  promoter_window = [TSS−2000, TSS+500]   (strand-aware)
+  body_window     = next 2500 bp downstream of promoter
 
   PT score (log2) = log2(mean_5prime_density_in_promoter + ε)
                   − log2(mean_5prime_density_in_body + ε)
 
-Final: mean and median PT score across all genes
+Final: mean and median PT score across all transcripts
 ```
 
-The mean PT score is reported in log2 scale; the equivalent linear ratio is **2^PT_score_mean**.
+The mean PT score is in log2 scale; the equivalent linear ratio is **2^PT_score_mean**.
 
-**Why it matters:** In ATAC-seq, open chromatin is concentrated at promoters. A high PT score confirms that most signal comes from promoter-proximal nucleosome-free regions rather than evenly distributed gene body background. Low PT scores can indicate high background, poor Tn5 enrichment, or a ChIP-like signal profile.
+**Why it matters:** ATAC-seq signal is concentrated at promoters. A high PT score confirms most signal comes from promoter-proximal nucleosome-free regions. Low PT scores indicate high background, poor Tn5 enrichment, or a ChIP-like signal profile.
 
-**Thresholds (linear scale, i.e. 2^mean_PT):**
-- `≥10` — excellent; strong promoter-over-body enrichment
-- `5–10` — acceptable; ATACseqQC default PASS threshold is `≥5`
-- `<5` — borderline/FAIL; interpret with other metrics
+**Thresholds (linear scale, 2^mean_PT) — pipeline-defined heuristic:**
+- `≥10` — strong enrichment; typical for high-quality libraries
+- `≥5` — PASS (pipeline threshold in `calc_pt_score.R`)
+- `<5` — FAIL flag written to log; ATACseqQC itself does not publish a fixed cutoff
 
-**In this pipeline:** reported in `deeptools/{sample}.pt_score_mqc.tsv`, shown in MultiQC. A `[INFO] QC: PASS` or `[WARNING] QC: FAIL` line is written to the rule log.
+> The ≥5 cutoff is set in this pipeline's `calc_pt_score.R`, not by the ATACseqQC package or its vignette. Compare across your own samples.
+
+**In this pipeline:** calculated on shifted BAM (`shifted.bam`), reported alongside NFR score in `deeptools/{sample}.pt_score_mqc.tsv`. A `[INFO] QC: PASS` or `[WARNING] QC: FAIL` line is written to the rule log. Only available for narrow peak mode.
+
+---
+
+### NFR Score (ATACseqQC) — Per-TSS Nucleosome-Free Region Score
+
+**Source:** ATACseqQC R package (`NFRscore()`, Ou et al., 2018, *Genome Biology*)
+
+**What it measures:** Whether the 100 bp window centred on each TSS is more accessible than its flanking nucleosome positions. Computed per TSS and summarised as mean/median across all TSS.
+
+```
+For each TSS (400 bp window, strand-aware):
+  n1  = upstream 150 bp    (nucleosome flank)
+  nf  = middle  100 bp     (nucleosome-free region)
+  n2  = downstream 150 bp  (nucleosome flank)
+
+NFR score = log2(nf + ε) + 1 − log2(n1 + n2 + ε)
+```
+
+A positive score means the NFR window has more Tn5 insertion signal than the average nucleosome flank. Higher values indicate stronger nucleosome depletion at TSS.
+
+**Why it matters:** Complements the PT score. PT score uses a broad 5 kb promoter vs gene-body window; NFR score zooms into the 400 bp TSS window and directly quantifies nucleosome eviction at the TSS itself.
+
+**Thresholds:** ATACseqQC does not publish fixed cutoffs. A positive mean NFR score (> 0) indicates the expected TSS accessibility pattern; compare across samples within the same experiment.
+
+**In this pipeline:** computed alongside PT score on shifted BAM; mean and median NFR score are reported as additional columns in `deeptools/{sample}.pt_score_mqc.tsv`. Only available for narrow peak mode.
+
+---
+
+### TSSE Score — TSS Enrichment Score (ATACseqQC)
+
+**Source:** ATACseqQC R package (`TSSEscore()`, Ou et al., 2018); definition from [ENCODE data standards](https://www.encodeproject.org/data-standards/terms/#enrichment)
+
+**What it measures:** Aggregate read enrichment at TSS relative to flanking background — the same concept as ataqv's TSS enrichment score but computed independently by ATACseqQC.
+
+```
+For each TSS (±1000 bp window, 100 bp sliding steps):
+  per-window score = mean_coverage_in_window × endSize
+                     ─────────────────────────────────
+                     mean_coverage_in_flanks (100 bp each side) × window_width
+
+TSSE = max(LOESS-smoothed mean across all TSS windows)
+```
+
+**Why it matters:** An independent TSS enrichment estimate that can be compared to ataqv's `tss_enrichment_score`. Discordance between the two may indicate annotation or BAM handling differences.
+
+**Thresholds** (GRCh38 RefSeq, from ENCODE):
+- `≥7` — ENCODE target
+- `5–7` — acceptable
+- `<5` — poor; same interpretation as ataqv TSS enrichment
+
+**In this pipeline:** computed alongside PT score and NFR score on shifted BAM; reported as `TSSE_score` column in `deeptools/{sample}.pt_score_mqc.tsv`. Only available for narrow peak mode.
 
 ---
 
 ### Duplication Rate — Library Complexity
 
-**What it measures:** The fraction of reads that are PCR/optical duplicates, identified by Picard MarkDuplicates.
+**Source:** General bioinformatics practice (not a direct ENCODE threshold — ENCODE uses NRF/PBC1/PBC2 which require a separate counting step not implemented in this pipeline)
+
+**What it measures:** The fraction of reads flagged as PCR/optical duplicates by Picard MarkDuplicates.
 
 ```
 Duplication rate = duplicate reads / total mapped reads
 ```
 
-**Why it matters:** High duplication indicates the library was over-amplified or sequenced to saturation — most reads are copies of the same original fragment rather than independent Tn5 insertions. This reduces the effective complexity of the library and inflates peak signal artificially.
+**Why it matters:** High duplication indicates over-amplification or low-complexity library — most reads are copies of the same fragment rather than independent Tn5 insertions. This artificially inflates peak signal.
 
-**Thresholds:**
-- `<20%` — good; library has sufficient complexity
-- `20–30%` — acceptable; borderline, check FRiP and fragment size distribution
-- `>30%` — high; PCR cycles may need to be reduced in the next experiment
+**Thresholds (community practice):**
+- `<20%` — good library complexity
+- `20–30%` — acceptable; consider using more input material next time
+- `>30%` — poor complexity; reduce PCR cycles or increase input
 
 **In this pipeline:** reported in `bam/{sample}.markdup.sorted.MarkDuplicates.metrics.txt` (`PERCENT_DUPLICATION` column), parsed automatically by MultiQC.
-
-> **Note:** NRF, PBC1, and PBC2 (ENCODE complexity metrics) are not calculated by this pipeline. They require a separate read-position counting step not included here. Duplication rate from Picard provides an equivalent practical assessment of library complexity.
-
----
-
-### NFR Ratio — Nucleosome-Free Region Fraction
-
-**What it measures:** The fraction of fragments that are short (≤150 bp), corresponding to sub-nucleosomal / nucleosome-free insertions.
-
-**Why it matters:** A healthy ATAC-seq library should show a prominent short-fragment peak (<200 bp) in the fragment size distribution, corresponding to Tn5 insertions in nucleosome-free open chromatin. The NFR ratio quantifies how much of the library is in this fraction. Libraries with high mononucleosomal or dinucleosomal contamination will show lower NFR ratios and broader, noisier peaks.
-
-**Thresholds:**
-- `>48%` — ENCODE target
-- `40–48%` — acceptable
-- `<40%` — poor NFR enrichment; check Tn5 titration and nuclei quality
-
-**In this pipeline:** calculated by ataqv, reported in `ataqv/{sample}.atac_qc_mqc.tsv`, shown in MultiQC.
 
 ## Space-saving behavior
 

@@ -328,10 +328,10 @@ rule deeptools_pt_score:
     conda:
         os.path.join(workflow.basedir, "envs", "atacseqqc.yml")
     message:
-        "{wildcards.sample_id}: Calculating PT score via ATACseqQC R package"
+        "{wildcards.sample_id}: Calculating PT score, NFR score and TSSE score via ATACseqQC"
     threads: 1
     resources:
-        mem_mb = 8192
+        mem_mb = 16384
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.pt_score.log")
     benchmark:

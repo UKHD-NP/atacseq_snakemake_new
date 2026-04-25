@@ -6,3 +6,4 @@ dependencies:
   - r-base
   - bioconductor-atacseqqc
   - bioconductor-rtracklayer
+  - bioconductor-genomicalignments
