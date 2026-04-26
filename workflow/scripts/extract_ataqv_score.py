@@ -25,5 +25,5 @@ hqaa_mono      = _fmt(metrics.get("hqaa_mononucleosomal_count"))
 tss_enrichment = _fmt(metrics.get("tss_enrichment"))
 
 with open(snakemake.output.mqc_tsv, "w") as out:
-    out.write("sample\tnfr_ratio\thqaa_tf_count\thqaa_mono_count\ttss_enrichment\n")
+    out.write("Sample\tnfr_ratio\thqaa_tf_count\thqaa_mono_count\ttss_enrichment\n")
     out.write(f"{sample_id}\t{nfr_ratio}\t{hqaa_tf}\t{hqaa_mono}\t{tss_enrichment}\n")

@@ -101,7 +101,7 @@ plot.dist.dat$variable <- factor(plot.dist.dat$variable, levels=sort(unique(as.c
 plot.feature.dat$variable <- factor(plot.feature.dat$variable, levels=sort(unique(as.character(plot.feature.dat$variable))))
 
 summary.dat <- dcast(plot.feature.dat, variable ~ feature, value.var="value")
-colnames(summary.dat)[1] <- "sample"
+colnames(summary.dat)[1] <- "Sample"
 write.table(summary.dat,file=file.path(opt$outdir,paste(opt$outprefix,".summary.txt",sep="")),sep="\t",row.names=F,col.names=T,quote=F)
 
 ################################################

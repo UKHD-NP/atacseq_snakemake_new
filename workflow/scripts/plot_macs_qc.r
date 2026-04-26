@@ -74,7 +74,7 @@ for (idx in 1:length(PeakFiles)) {
         sdat <- summary(peaks.dat[,cname])
         sdat["num_peaks"] <- nrow(peaks.dat)
         sdat["measure"] <- cname
-        sdat["sample"] <- sampleid
+        sdat["Sample"] <- sampleid
         sdat <- t(data.frame(x=matrix(sdat),row.names=names(sdat)))
         summary.dat <- rbind(summary.dat,sdat)
     }

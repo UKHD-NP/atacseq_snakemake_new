@@ -68,7 +68,7 @@ rule frip_score:
         LABEL=$(if [ "$FRIP_INT" -ge {params.frip_threshold} ]; then echo 'good'; else echo 'bad'; fi)
 
         # 4. Combined FRiP report
-        printf 'sample\\tFRiP_bedtools\\tFRiP_featureCounts\\tquality\\n' > "{output.frip}"
+        printf 'Sample\\tFRiP_bedtools\\tFRiP_featureCounts\\tquality\\n' > "{output.frip}"
         printf '%s\\t%s%%\\t%s%%\\t%s\\n' \
             "{wildcards.sample_id}" "$FRIP_BED" "$FRIP_FC" "$LABEL" >> "{output.frip}"
 
@@ -76,11 +76,11 @@ rule frip_score:
 
         # 5. Peak count MultiQC TSV
         PEAK_COUNT=$(wc -l < "{input.peaks}" | awk '{{print $1}}')
-        printf 'sample\\tpeak_count\\n' > "{output.peak_count_mqc}"
+        printf 'Sample\\tpeak_count\\n' > "{output.peak_count_mqc}"
         printf '%s_peaks\\t%s\\n' "{wildcards.sample_id}" "$PEAK_COUNT" >> "{output.peak_count_mqc}"
 
         # 6. FRiP MultiQC TSV (both methods)
-        printf 'sample\\tFRiP_bedtools\\tFRiP_featureCounts\\n' > "{output.frip_mqc}"
+        printf 'Sample\\tFRiP_bedtools\\tFRiP_featureCounts\\n' > "{output.frip_mqc}"
         printf '%s\\t%s\\t%s\\n' "{wildcards.sample_id}" "$FRIP_BED" "$FRIP_FC" >> "{output.frip_mqc}"
 
         if [ ! -s "{output.frip}" ] || [ ! -s "{output.peak_count_mqc}" ] || [ ! -s "{output.frip_mqc}" ]; then

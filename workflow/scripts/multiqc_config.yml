@@ -177,8 +177,6 @@ custom_data:
       id: "peak_count_table"
       title: "Peak Count by Sample"
     headers:
-      sample:
-        title: "Sample"
       peak_count:
         title: "Peak Count"
         format: "{:,.0f}"
@@ -203,8 +201,6 @@ custom_data:
       id: "frip_score_table"
       title: "FRiP by Sample"
     headers:
-      sample:
-        title: "Sample"
       FRiP_bedtools:
         title: "FRiP (bedtools %)"
         format: "{:,.2f}"
@@ -253,8 +249,6 @@ custom_data:
       id: "atacseqqc_score_table"
       title: "ATACseqQC Metrics (PT / NFR / TSSE)"
     headers:
-      Sample:
-        title: "Sample"
       PT_score_mean:
         title: "PT Score (mean)"
         description: "Mean log2(promoter coverage / transcript body coverage) per transcript; positive values indicate promoter-enriched signal (ATACseqQC PTscore)"
