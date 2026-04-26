@@ -115,7 +115,7 @@ bam_filter  --->  filtered.bam / filtered.bam.bai
         |                    +--> macs3_callpeak_tn5 (narrow: filtered.bam -> bamtobed -> awk Tn5 shift -> MACS3 BED mode)
         |                               |            (broad:  filtered.bam -> MACS3 BAMPE mode)
         |                               |    
-        |                               +--> frip_score (filtered.bam + peaks → MultiQC TSVs)
+        |                               +--> frip_score (filtered.bam + peaks -> bedtools intersect + featureCounts log -> MultiQC TSVs)
         |                               +--> annotate_peaks (optional)
         |                               +--> deeptools (optional)
         |                               |    +--> computeMatrix / plotProfile / plotHeatmap (shifted.bigWig for narrow peaks; bigWig for broad peaks)
