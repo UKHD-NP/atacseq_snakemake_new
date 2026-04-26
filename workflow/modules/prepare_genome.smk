@@ -13,7 +13,7 @@ rule samtools_faidx:
         mem_mb = 1024
     shell:
         """
-        samtools faidx {input}
+        samtools faidx "{input}"
         """
 
 
@@ -34,24 +34,24 @@ rule gtf2bed:
         os.path.join(ref_dir, "gtf2bed", f"{config['ref']['assembly']}.log")
     shell:
         """
-        mkdir -p $(dirname {output})
-        mkdir -p $(dirname {log})
+        mkdir -p "$(dirname "{output}")"
+        mkdir -p "$(dirname "{log}")"
 
         if [ ! -f "{params.gtf2bed_script}" ]; then
-            echo "[ERROR] gtf2bed script not found: {params.gtf2bed_script}" > {log}
+            echo "[ERROR] gtf2bed script not found: {params.gtf2bed_script}" > "{log}"
             exit 1
         fi
 
-        echo "[INFO] Using gtf2bed script: {params.gtf2bed_script}" > {log}
+        echo "[INFO] Using gtf2bed script: {params.gtf2bed_script}" > "{log}"
         perl "{params.gtf2bed_script}" "{input}" > "{output}" 2>> "{log}"
 
         # Check if output was created successfully
         if [ ! -s "{output}" ]; then
-            echo "[ERROR] Failed to create BED file: {output}" >> {log}
+            echo "[ERROR] Failed to create BED file: {output}" >> "{log}"
             exit 1
         fi
 
-        echo "[INFO] BED file created successfully: {output}" >> {log}
+        echo "[INFO] BED file created successfully: {output}" >> "{log}"
         """
 
 
@@ -70,8 +70,8 @@ rule get_chromsizes:
         os.path.join(ref_dir, "chromsizes", f"{config['ref']['assembly']}.log")
     shell:
         """
-        mkdir -p $(dirname {output})
-        mkdir -p $(dirname {log})
+        mkdir -p "$(dirname "{output}")"
+        mkdir -p "$(dirname "{log}")"
         cut -f 1,2 "{input.fai}" > "{output}" 2> "{log}"
         if [ ! -s "{output}" ]; then
             echo "[ERROR] chromsizes output is empty: {output}" >> "{log}"
@@ -131,8 +131,8 @@ rule get_canonical_chroms:
         os.path.join(ref_dir, "canonical_chroms", f"{config['ref']['assembly']}.log")
     shell:
         """
-        mkdir -p $(dirname {output})
-        mkdir -p $(dirname {log})
+        mkdir -p "$(dirname "{output}")"
+        mkdir -p "$(dirname "{log}")"
 
         if [ "{params.apply_canonical}" = "true" ]; then
             awk 'BEGIN{{FS=OFS="\\t"}} $1 ~ /{params.pattern}/ {{print $1}}' "{input.fai}" > "{output}" 2> "{log}"
@@ -167,8 +167,8 @@ rule get_autosomes:
         os.path.join(ref_dir, "autosomes", f"{config['ref']['assembly']}.log")
     shell:
         """
-        mkdir -p $(dirname {output})
-        mkdir -p $(dirname {log})
+        mkdir -p "$(dirname "{output}")"
+        mkdir -p "$(dirname "{log}")"
 
         awk -v pattern='{params.pattern}' 'BEGIN{{FS=OFS="\\t"}} $1 ~ pattern {{print $1}}' \
             "{input.fai}" > "{output}" 2> "{log}"
@@ -196,8 +196,8 @@ rule tss_extract:
         os.path.join(ref_dir, "tss", f"{config['ref']['assembly']}.log")
     shell:
         """
-        mkdir -p $(dirname {output})
-        mkdir -p $(dirname {log})
+        mkdir -p "$(dirname "{output}")"
+        mkdir -p "$(dirname "{log}")"
         awk 'BEGIN{{FS=OFS="\\t"}} NF>=6 {{
             start=$2; end=$3;
             if ($6 == "+") {{ end = start + 1; }}
@@ -238,8 +238,8 @@ rule genome_blacklist_regions:
         os.path.join(ref_dir, "include_regions", f"{config['ref']['assembly']}.log")
     shell:
         """
-        mkdir -p $(dirname {output})
-        mkdir -p $(dirname {log})
+        mkdir -p "$(dirname "{output}")"
+        mkdir -p "$(dirname "{log}")"
 
         # Sort sizes file to match expected chromosome order
         LC_ALL=C sort -k1,1 "{input.sizes}" > "{params.tmp}.sizes"

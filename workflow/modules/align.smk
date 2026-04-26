@@ -83,11 +83,11 @@ rule bwa_mem2_index:
         os.path.join(ref_dir, "bwa_mem2_index.benchmark.txt")
     shell:
         """
-        mkdir -p $(dirname {output.idx_bwt})
-        mkdir -p $(dirname {log})
+        mkdir -p "$(dirname "{output.idx_bwt}")"
+        mkdir -p "$(dirname "{log}")"
 
-        bwa-mem2 index -p {params.prefix} {input.fasta} > {log} 2>&1 || {{
-            echo "[ERROR] bwa-mem2 index failed." >> {log}
+        bwa-mem2 index -p "{params.prefix}" "{input.fasta}" > "{log}" 2>&1 || {{
+            echo "[ERROR] bwa-mem2 index failed." >> "{log}"
             exit 1
         }}
         """
@@ -124,8 +124,8 @@ rule bwa_mem2_align:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.bwa_mem2_align.benchmark.txt")
     shell:
         """
-        mkdir -p $(dirname {output.bam})
-        mkdir -p $(dirname {log})
+        mkdir -p "$(dirname "{output.bam}")"
+        mkdir -p "$(dirname "{log}")"
 
         set -euo pipefail
         bwa-mem2 mem \
@@ -133,16 +133,16 @@ rule bwa_mem2_align:
             -M \
             -R '{params.rg}' \
             -t {threads} \
-            {params.index_prefix} \
-            {input.fq[0]} {input.fq[1]} \
-            | samtools view -bhS -O BAM --threads {threads} -o {output.bam} - \
-            2>> {log} || {{
-                echo "[ERROR] bwa-mem2 alignment failed." >> {log}
+            "{params.index_prefix}" \
+            "{input.fq[0]}" "{input.fq[1]}" \
+            | samtools view -bhS -O BAM --threads {threads} -o "{output.bam}" - \
+            2>> "{log}" || {{
+                echo "[ERROR] bwa-mem2 alignment failed." >> "{log}"
                 exit 1
             }}
 
-        if [ ! -s {output.bam} ]; then
-            echo "[ERROR] Missing BWA output BAM: {output.bam}" >> {log}
+        if [ ! -s "{output.bam}" ]; then
+            echo "[ERROR] Missing BWA output BAM: {output.bam}" >> "{log}"
             exit 1
         fi
         """
@@ -179,11 +179,11 @@ rule bowtie2_index:
         os.path.join(ref_dir, "bowtie2_index.benchmark.txt")
     shell:
         """
-        mkdir -p $(dirname {output.idx_1})
-        mkdir -p $(dirname {log})
+        mkdir -p "$(dirname "{output.idx_1}")"
+        mkdir -p "$(dirname "{log}")"
 
-        bowtie2-build --threads {threads} {input.fasta} {params.prefix} > {log} 2>&1 || {{
-            echo "[ERROR] bowtie2-build failed." >> {log}
+        bowtie2-build --threads {threads} "{input.fasta}" "{params.prefix}" > "{log}" 2>&1 || {{
+            echo "[ERROR] bowtie2-build failed." >> "{log}"
             exit 1
         }}
         """
@@ -225,26 +225,26 @@ rule bowtie2_align:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.bowtie2_align.benchmark.txt")
     shell:
         """
-        mkdir -p $(dirname {output.bam})
-        mkdir -p $(dirname {log})
+        mkdir -p "$(dirname "{output.bam}")"
+        mkdir -p "$(dirname "{log}")"
 
         set -euo pipefail
         bowtie2 \
             {params.bowtie2_params} \
             --threads {params.bt2_threads} \
-            -x {params.index_prefix} \
-            -1 {input.fq[0]} \
-            -2 {input.fq[1]} \
+            -x "{params.index_prefix}" \
+            -1 "{input.fq[0]}" \
+            -2 "{input.fq[1]}" \
             {params.rg} \
-            2>> {log} \
-            | samtools view -bhS -O BAM --threads 2 -o {output.bam} - \
-            2>> {log} || {{
-                echo "[ERROR] bowtie2 alignment failed." >> {log}
+            2>> "{log}" \
+            | samtools view -bhS -O BAM --threads 2 -o "{output.bam}" - \
+            2>> "{log}" || {{
+                echo "[ERROR] bowtie2 alignment failed." >> "{log}"
                 exit 1
             }}
 
-        if [ ! -s {output.bam} ]; then
-            echo "[ERROR] Missing Bowtie2 output BAM: {output.bam}" >> {log}
+        if [ ! -s "{output.bam}" ]; then
+            echo "[ERROR] Missing Bowtie2 output BAM: {output.bam}" >> "{log}"
             exit 1
         fi
         """
@@ -273,25 +273,25 @@ rule sort_bam:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.bam_sort.benchmark.txt")
     shell:
         """
-        mkdir -p {params.tempdir}
-        mkdir -p $(dirname {log})
+        mkdir -p "{params.tempdir}"
+        mkdir -p "$(dirname "{log}")"
 
         samtools sort \
             --write-index \
             -m {params.memory_per_thread} \
-            -T {params.tempdir}/{wildcards.sample_id}.sorted \
+            -T "{params.tempdir}/{wildcards.sample_id}.sorted" \
             -@ {threads} \
-            -o {output.bam}##idx##{output.bai} \
-            {input.bam} > {log} 2>&1 || {{
-                echo "[ERROR] BAM sorting failed." >> {log}
+            -o "{output.bam}##idx##{output.bai}" \
+            "{input.bam}" > "{log}" 2>&1 || {{
+                echo "[ERROR] BAM sorting failed." >> "{log}"
                 exit 1
             }}
 
-        if [ -s {output.bam} ] && [ -s {output.bai} ]; then
-            echo "[INFO] Removing unsorted BAM to save space." >> {log}
-            rm -f {input.bam}
+        if [ -s "{output.bam}" ] && [ -s "{output.bai}" ]; then
+            echo "[INFO] Removing unsorted BAM to save space." >> "{log}"
+            rm -f "{input.bam}"
         else
-            echo "[ERROR] Sorted BAM or BAI missing." >> {log}
+            echo "[ERROR] Sorted BAM or BAI missing." >> "{log}"
             exit 1
         fi
         """

@@ -152,32 +152,32 @@ rule merge_raw_fastqs:
         "{wildcards.sample_id}: Merging raw FASTQ lanes"
     shell:
         """
-        mkdir -p $(dirname {output.fq1})
-        mkdir -p $(dirname {log})
-        rm -f {output.fq1} {output.fq2}
+        mkdir -p "$(dirname "{output.fq1}")"
+        mkdir -p "$(dirname "{log}")"
+        rm -f "{output.fq1}" "{output.fq2}"
 
         N_R1=$(echo {input.fq1} | wc -w)
         N_R2=$(echo {input.fq2} | wc -w)
 
         if [ "$N_R1" -eq 1 ] && [ "$N_R2" -eq 1 ]; then
             # Single-lane sample: use symlink to avoid duplicate storage
-            ln -sf "$(readlink -f {input.fq1})" {output.fq1}
-            ln -sf "$(readlink -f {input.fq2})" {output.fq2}
-            echo "[INFO] Mode: symlink (single lane)" > {log}
+            ln -sf "$(readlink -f {input.fq1})" "{output.fq1}"
+            ln -sf "$(readlink -f {input.fq2})" "{output.fq2}"
+            echo "[INFO] Mode: symlink (single lane)" > "{log}"
         else
             # Multi-lane sample: concatenate lanes in listed order
-            cat {input.fq1} > {output.fq1}
-            cat {input.fq2} > {output.fq2}
-            echo "[INFO] Mode: merge (multi-lane)" > {log}
+            cat {input.fq1} > "{output.fq1}"
+            cat {input.fq2} > "{output.fq2}"
+            echo "[INFO] Mode: merge (multi-lane)" > "{log}"
         fi
 
         if [ ! -s "{output.fq1}" ] || [ ! -s "{output.fq2}" ]; then
-            echo "[ERROR] Merged FASTQ output is empty." >> {log}
+            echo "[ERROR] Merged FASTQ output is empty." >> "{log}"
             exit 1
         fi
 
-        echo "[INFO] Merged R1 inputs: {input.fq1}" >> {log}
-        echo "[INFO] Merged R2 inputs: {input.fq2}" >> {log}
+        echo "[INFO] Merged R1 inputs: {input.fq1}" >> "{log}"
+        echo "[INFO] Merged R2 inputs: {input.fq2}" >> "{log}"
         """
 
 

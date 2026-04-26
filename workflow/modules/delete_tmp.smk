@@ -34,36 +34,36 @@ rule delete_tmp:
         os.path.join("{outdir}", "logs", "cleanup", "{sample_id}.cleanup.log")
     shell:
         """
-        mkdir -p $(dirname {log})
-        echo "[INFO] Starting cleanup for {wildcards.sample_id}" > {log}
+        mkdir -p "$(dirname "{log}")"
+        echo "[INFO] Starting cleanup for {wildcards.sample_id}" > "{log}"
 
         # Remove trimmed FASTQ files (conditional)
         if [ "{params.delete_trimming}" = "true" ]; then
             for f in "{params.fq1}" "{params.fq2}" "{params.fq1_fail}" "{params.fq2_fail}"; do
                 if [ -f "$f" ]; then
-                    rm -f "$f" && echo "[INFO] Removed $f" >> {log}
+                    rm -f "$f" && echo "[INFO] Removed $f" >> "{log}"
                 fi
             done
         else
-            echo "[INFO] delete_trimming=false, skipping trimmed FASTQ deletion." >> {log}
+            echo "[INFO] delete_trimming=false, skipping trimmed FASTQ deletion." >> "{log}"
         fi
 
         # Remove merged raw FASTQs
         for f in "{params.raw_fq1}" "{params.raw_fq2}"; do
             if [ -e "$f" ] || [ -L "$f" ]; then
-                rm -f "$f" && echo "[INFO] Removed $f" >> {log}
+                rm -f "$f" && echo "[INFO] Removed $f" >> "{log}"
             fi
         done
 
         # Remove raw_merged directory if empty
         if [ -d "{params.raw_dir}" ]; then
             if rmdir "{params.raw_dir}" 2>/dev/null; then
-                echo "[INFO] Removed empty directory: {params.raw_dir}" >> {log}
+                echo "[INFO] Removed empty directory: {params.raw_dir}" >> "{log}"
             else
-                echo "[INFO] Directory not empty, keeping: {params.raw_dir}" >> {log}
+                echo "[INFO] Directory not empty, keeping: {params.raw_dir}" >> "{log}"
             fi
         fi
 
-        echo "[INFO] Cleanup completed for {wildcards.sample_id}" >> {log}
-        echo "[INFO] Deletion completed for {wildcards.sample_id}. See {log}" > {output.log}
+        echo "[INFO] Cleanup completed for {wildcards.sample_id}" >> "{log}"
+        echo "[INFO] Deletion completed for {wildcards.sample_id}. See {log}" > "{output.log}"
         """

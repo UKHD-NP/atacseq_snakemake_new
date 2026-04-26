@@ -22,25 +22,25 @@ rule fastqc_raw:
         os.path.join("{outdir}", "logs", "fastqc_raw", "{sample_id}.fastqc_raw.log")
     shell:
         """
-        mkdir -p {params.outdir}
-        mkdir -p {params.temp_dir}
+        mkdir -p "{params.outdir}"
+        mkdir -p "{params.temp_dir}"
 
         # Create symlinks with 'raw' in the name so FastQC includes it in sample name
-        ln -sf $(readlink -f {input[0]}) {params.temp_dir}/{wildcards.sample_id}_raw_1.fastq.gz
-        ln -sf $(readlink -f {input[1]}) {params.temp_dir}/{wildcards.sample_id}_raw_2.fastq.gz
+        ln -sf "$(readlink -f "{input[0]}")" "{params.temp_dir}/{wildcards.sample_id}_raw_1.fastq.gz"
+        ln -sf "$(readlink -f "{input[1]}")" "{params.temp_dir}/{wildcards.sample_id}_raw_2.fastq.gz"
 
         # Run FastQC on symlinked files
         fastqc \
             --threads {threads} \
-            --outdir {params.outdir} \
-            {params.temp_dir}/{wildcards.sample_id}_raw_1.fastq.gz \
-            {params.temp_dir}/{wildcards.sample_id}_raw_2.fastq.gz \
-            &> {log} || {{ echo "[ERROR] FastQC (raw) failed." >> {log}; exit 1; }}
+            --outdir "{params.outdir}" \
+            "{params.temp_dir}/{wildcards.sample_id}_raw_1.fastq.gz" \
+            "{params.temp_dir}/{wildcards.sample_id}_raw_2.fastq.gz" \
+            > "{log}" 2>&1 || {{ echo "[ERROR] FastQC (raw) failed." >> "{log}"; exit 1; }}
 
         # Clean up temp files and directory
-        rm -f {params.temp_dir}/{wildcards.sample_id}_raw_1.fastq.gz
-        rm -f {params.temp_dir}/{wildcards.sample_id}_raw_2.fastq.gz
-        rmdir {params.temp_dir} || true
+        rm -f "{params.temp_dir}/{wildcards.sample_id}_raw_1.fastq.gz"
+        rm -f "{params.temp_dir}/{wildcards.sample_id}_raw_2.fastq.gz"
+        rmdir "{params.temp_dir}" || true
         """
 
 
@@ -70,9 +70,9 @@ rule fastqc_trimmed:
         """
         fastqc \
             --threads {threads} \
-            --outdir {params.outdir} \
-            {input.fq1} {input.fq2} \
-            &> {log} || {{ echo "[ERROR] FastQC (trimmed) failed." >> {log}; exit 1; }}
+            --outdir "{params.outdir}" \
+            "{input.fq1}" "{input.fq2}" \
+            > "{log}" 2>&1 || {{ echo "[ERROR] FastQC (trimmed) failed." >> "{log}"; exit 1; }}
         """
 
 

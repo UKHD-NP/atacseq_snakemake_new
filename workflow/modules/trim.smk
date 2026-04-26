@@ -43,24 +43,24 @@ rule fastp:
         os.path.join("{outdir}", "benchmarks", "fastp.{sample_id}.benchmark.txt")
     shell:
         """
-        mkdir -p $(dirname {output.out1})
-        mkdir -p $(dirname {log})
+        mkdir -p "$(dirname "{output.out1}")"
+        mkdir -p "$(dirname "{log}")"
 
         fastp \
-            --in1 {input[0]} \
-            --in2 {input[1]} \
-            --out1 {output.out1} \
-            --out2 {output.out2} \
-            --json {output.json} \
-            --html {output.html} \
-            --unpaired1 {output.unpaired1} \
-            --unpaired2 {output.unpaired2} \
+            --in1 "{input[0]}" \
+            --in2 "{input[1]}" \
+            --out1 "{output.out1}" \
+            --out2 "{output.out2}" \
+            --json "{output.json}" \
+            --html "{output.html}" \
+            --unpaired1 "{output.unpaired1}" \
+            --unpaired2 "{output.unpaired2}" \
             --thread {threads} \
             --compression {params.compression_level} \
             --detect_adapter_for_pe \
             --report_title "{wildcards.sample_id} fastp report" \
             {params.fastp_params} \
-            > {log} 2>&1 || {{ echo "[ERROR] fastp failed." >> {log}; exit 1; }}
+            > "{log}" 2>&1 || {{ echo "[ERROR] fastp failed." >> "{log}"; exit 1; }}
         """
 
 
@@ -89,18 +89,18 @@ rule trim_galore:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.trim_galore.benchmark.txt")
     shell:
         """
-        mkdir -p {params.outdir}
-        mkdir -p $(dirname {log})
+        mkdir -p "{params.outdir}"
+        mkdir -p "$(dirname "{log}")"
 
         trim_galore \
             --paired \
             --gzip \
             --cores {threads} \
-            --output_dir {params.outdir} \
+            --output_dir "{params.outdir}" \
             --basename {wildcards.sample_id} \
             {params.trim_galore_params} \
             "{input[0]}" "{input[1]}" \
-            &> {log} || {{ echo "[ERROR] trim_galore failed." >> {log}; exit 1; }}
+            > "{log}" 2>&1 || {{ echo "[ERROR] trim_galore failed." >> "{log}"; exit 1; }}
 
         # Rename outputs to match declared output names
         mv "{params.outdir}/{wildcards.sample_id}_val_1.fq.gz" "{output.out1}" || {{ echo "[ERROR] Missing trim_galore R1 output." >> {log}; exit 1; }}
