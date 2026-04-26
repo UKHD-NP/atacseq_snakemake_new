@@ -3,11 +3,13 @@ CALL_PEAKS_PEAK_TYPE = str(CALL_PEAKS_CFG.get("peak_type", "narrow")).strip().lo
 if CALL_PEAKS_PEAK_TYPE not in {"narrow", "broad"}:
     CALL_PEAKS_PEAK_TYPE = "narrow"
 
+
 CALL_PEAKS_MACS3_NARROW_PARAMS = cfg_str(
     CALL_PEAKS_CFG,
     "macs3_narrow_params",
     "--shift -75 --extsize 150 --keep-dup all --nomodel --call-summits -q 0.01",
 )
+
 
 # Broad peaks always use BAMPE (-f BAMPE, no --shift/--extsize needed).
 CALL_PEAKS_MACS3_BROAD_PARAMS = cfg_str(
@@ -15,6 +17,7 @@ CALL_PEAKS_MACS3_BROAD_PARAMS = cfg_str(
     "macs3_broad_params",
     "--keep-dup all --nomodel --broad --broad-cutoff 0.1",
 )
+
 
 CALL_PEAKS_MACS3_PEAK_QC_PLOT_ON = as_bool(
     CALL_PEAKS_CFG.get("macs3_peak_qc_plot", True),
@@ -25,12 +28,6 @@ CALL_PEAKS_MACS3_PEAK_QC_PLOT_ON = as_bool(
 def get_macs3_params():
     """Resolve MACS3 parameter string for selected peak type."""
     return CALL_PEAKS_MACS3_BROAD_PARAMS if CALL_PEAKS_PEAK_TYPE == "broad" else CALL_PEAKS_MACS3_NARROW_PARAMS
-
-
-def get_gsize(wildcards, input):
-    """Resolve effective genome size from call_peaks.macs3_gsize or chromsizes."""
-    call_peaks_gsize = cfg_str(CALL_PEAKS_CFG, "macs3_gsize", "")
-    return get_effective_genome_size(input.chromsizes, call_peaks_gsize)
 
 
 rule macs3_callpeak_tn5:
@@ -96,6 +93,7 @@ rule macs3_callpeak_tn5:
                 echo "[ERROR] Tn5 shifting with awk failed." >> "{log}"
                 exit 1
             }}
+            rm -f "{params.bed}"
 
             macs3 callpeak \
                 -t "{output.tn5_bed}" \

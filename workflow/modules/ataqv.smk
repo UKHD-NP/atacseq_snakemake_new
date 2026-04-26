@@ -2,8 +2,10 @@ ATAQV_DESCRIPTION = "NA"
 ATAQV_IGNORE_READ_GROUPS = True
 ATAQV_MITO_NAME = str(config.get("ref", {}).get("mito_name", "chrM")).strip() or "chrM"
 
+
 if is_enabled("ataqv") and not is_enabled("call_peaks"):
     fatal("ataqv requires `call_peaks.enabled: true` (peak file input).")
+
 
 rule ataqv:
     # Build ataqv JSON metrics for ATAC-seq QC.
@@ -58,27 +60,6 @@ rule ataqv:
         """
 
 
-rule atac_qc_metrics:
-    # Extract TSS enrichment score and NFR ratio from ataqv JSON for MultiQC.
-    input:
-        ataqv_json = os.path.join("{outdir}", "ataqv", "{sample_id}.ataqv.json")
-    output:
-        mqc_tsv = os.path.join("{outdir}", "ataqv", "{sample_id}.atac_qc_mqc.tsv")
-    conda:
-        os.path.join(workflow.basedir, "envs", "ataqv.yml")
-    message:
-        "{wildcards.sample_id}: Extracting ATAC-seq QC metrics for MultiQC"
-    threads: 1
-    resources:
-        mem_mb = 256
-    log:
-        os.path.join("{outdir}", "logs", "ataqv", "{sample_id}.atac_qc_metrics.log")
-    benchmark:
-        os.path.join("{outdir}", "benchmarks", "{sample_id}.atac_qc_metrics.benchmark.txt")
-    script:
-        os.path.join(workflow.basedir, "scripts", "extract_atac_qc_metrics.py")
-
-
 rule ataqv_mkarv:
     # Render ataqv interactive HTML report with mkarv.
     input:
@@ -122,3 +103,24 @@ rule ataqv_mkarv:
             exit 1
         fi
         """
+
+
+rule ataqv_score:
+    # Extract TSS enrichment score and NFR ratio from ataqv JSON for MultiQC.
+    input:
+        ataqv_json = os.path.join("{outdir}", "ataqv", "{sample_id}.ataqv.json")
+    output:
+        mqc_tsv = os.path.join("{outdir}", "ataqv", "{sample_id}.ataqv_score.tsv")
+    conda:
+        os.path.join(workflow.basedir, "envs", "ataqv.yml")
+    message:
+        "{wildcards.sample_id}: Extracting NFR score and TSSE score via ataqv JSON for MultiQC"
+    threads: 1
+    resources:
+        mem_mb = 256
+    log:
+        os.path.join("{outdir}", "logs", "ataqv", "{sample_id}.ataqv_score.log")
+    benchmark:
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.ataqv_score.benchmark.txt")
+    script:
+        os.path.join(workflow.basedir, "scripts", "extract_ataqv_score.py")

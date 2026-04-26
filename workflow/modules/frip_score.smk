@@ -50,6 +50,7 @@ rule frip_score:
         TOTAL_READS=$(grep 'mapped (' "{input.flagstat}" \
             | grep -v "primary" \
             | awk '{{print $1}}')
+        TOTAL_READS=${{TOTAL_READS:-0}}
 
         if [ "$TOTAL_READS" -gt 0 ]; then
             FRIP_BED=$(awk -v r="$READS_IN_PEAKS" -v t="$TOTAL_READS" \

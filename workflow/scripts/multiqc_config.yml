@@ -24,20 +24,20 @@ report_section_order:
     order: 2800
   ataqv:
     order: 2700
-  atac_qc_metrics:
-    order: 2650
-  homer_annotation:
+  peak_count:
     order: 2600
   macs_peakqc_summary:
     order: 2500
-  peak_count:
-    order: 2000
   frip_score:
-    order: 1950
-  pt_score:
-    order: 1925
+    order: 2400
+  ataqv_score:
+    order: 2300
+  atacseqqc_score:
+    order: 2200
+  homer_annotation:
+    order: 2100
   featurecounts:
-    order: 1900
+    order: 2000
 
 module_order:
   - fastqc:
@@ -100,12 +100,6 @@ module_order:
       info: "ATAC-specific QC metrics including TSS enrichment and fragment profiles."
       path_filters:
         - "*.ataqv.json"
-  - custom_content:
-      anchor: "atac_qc_metrics"
-      name: "ATAC-seq Key Metrics"
-      info: "TSS Enrichment Score and NFR ratio extracted from ataqv."
-      path_filters:
-        - "*.atac_qc_mqc.tsv"
   - homer_annotate_peaks:
       anchor: "homer_annotate_peaks"
       name: "HOMER Peak Annotation"
@@ -130,8 +124,10 @@ extra_fn_clean_exts:
 fn_clean_sample_names: true
 
 sp:
-  atac_qc_metrics:
-    fn: "*.atac_qc_mqc.tsv"
+  ataqv_score:
+    fn: "*.ataqv_score.tsv"
+  atacseqqc_score:
+    fn: "*.atacseqqc_score.tsv"
   fastqc/zip:
     fn: "*_fastqc.zip"
   fastp:
@@ -158,16 +154,14 @@ sp:
     fn: "*.fragment_size.raw_lengths.txt"
   ataqv:
     fn: "*.ataqv.json"
+  macs_peakqc_summary:
+    fn: "*.macs_peakqc.summary.txt"
   homer_annotation_summary:
     fn: "*.macs_annotatePeaks.summary.txt"
   peak_count:
     fn: "*_peaks.count_mqc.tsv"
   frip_score:
     fn: "*_peaks.FRiP_mqc.tsv"
-  pt_score:
-    fn: "*.pt_score_mqc.tsv"
-  macs_peakqc_summary:
-    fn: "*.macs_peakqc.summary.txt"
   featurecounts:
     fn: "*.readCountInPeaks.txt.summary"
 
@@ -217,72 +211,17 @@ custom_data:
       FRiP_featureCounts:
         title: "FRiP (featureCounts %)"
         format: "{:,.2f}"
-  pt_score:
-    id: "pt_score"
-    section_name: "ATACseqQC Metrics (PT / NFR / TSSE)"
-    description: "Promoter/transcript body score (PT), per-TSS nucleosome-free region score (NFR), and TSS enrichment score (TSSE) computed by ATACseqQC on Tn5-shifted BAM."
+  ataqv_score:
+    id: "ataqv_score"
+    section_name: "ataqv Metrics (NFR / TSSE)"
+    description: "Short mononucleosomal ratio and TSS enrichment score (TSSE) computed by ataqv."
     file_format: "tsv"
     plot_type: "table"
     pconfig:
       namespace: "ATAC"
-      id: "pt_score_table"
-      title: "ATACseqQC Metrics (PT / NFR / TSSE)"
+      id: "ataqv_score_table"
+      title: "ataqv Metrics (NFR / TSSE)"
     headers:
-      Sample:
-        title: "Sample"
-      PT_score_mean:
-        title: "PT Score (mean)"
-        description: "Mean log2(promoter / transcript body) accessibility ratio across all transcripts"
-        format: "{:,.4f}"
-        scale: "RdYlGn"
-      PT_score_median:
-        title: "PT Score (median)"
-        description: "Median log2(promoter / transcript body) accessibility ratio across all transcripts"
-        format: "{:,.4f}"
-        scale: "RdYlGn"
-      Mean_promoter:
-        title: "Mean Promoter Signal"
-        description: "Mean Tn5 5' insertion density across promoter windows [TSS-2000, TSS+500]"
-        format: "{:,.6f}"
-        min: 0
-      Mean_gene_body:
-        title: "Mean Gene Body Signal"
-        description: "Mean Tn5 5' insertion density across transcript body windows (2500 bp downstream of promoter)"
-        format: "{:,.6f}"
-        min: 0
-      NFR_score_mean:
-        title: "NFR Score (mean)"
-        description: "Mean log2(nf / ((n1+n2)/2)) across all TSS; nf=middle 100 bp, n1/n2=flanking 150 bp nucleosome positions"
-        format: "{:,.4f}"
-        scale: "RdYlGn"
-      NFR_score_median:
-        title: "NFR Score (median)"
-        description: "Median NFR score across all TSS"
-        format: "{:,.4f}"
-        scale: "RdYlGn"
-      TSSE_score:
-        title: "TSSE Score"
-        description: "Max LOESS-smoothed TSS enrichment (±1000 bp, normalised to end flanks); ENCODE definition"
-        format: "{:,.4f}"
-        min: 0
-        scale: "RdYlGn"
-  atac_qc_metrics:
-    id: "atac_qc_metrics"
-    section_name: "TSS Enrichment and NFR Metrics"
-    description: "TSS enrichment score and nucleosome-free region (NFR) ratio per sample (from ataqv)."
-    file_format: "tsv"
-    plot_type: "table"
-    pconfig:
-      namespace: "ATAC"
-      id: "atac_qc_metrics_table"
-      title: "TSS Enrichment & NFR Metrics"
-    headers:
-      tss_enrichment:
-        title: "TSS Enrichment"
-        description: "Signal at TSS / background flanking signal (ataqv)"
-        format: "{:,.4f}"
-        min: 0
-        scale: "RdYlGn"
       nfr_ratio:
         title: "NFR Ratio"
         description: "short_mononucleosomal_ratio: fragments ≤100 bp (hqaa_tf_count) / fragments 180-300 bp (hqaa_mononucleosomal_count)"
@@ -297,6 +236,61 @@ custom_data:
         title: "HQAA Mono Reads"
         description: "High-quality autosomal aligned mononucleosomal fragment count"
         format: "{:,.0f}"
+      tss_enrichment:
+        title: "TSSE Score"
+        description: "Signal at TSS / background flanking signal (ataqv)"
+        format: "{:,.4f}"
+        min: 0
+        scale: "RdYlGn"
+  atacseqqc_score:
+    id: "atacseqqc_score"
+    section_name: "ATACseqQC Metrics (PT / NFR / TSSE)"
+    description: "Promoter/transcript body score (PT), per-TSS nucleosome-free region score (NFR), and TSS enrichment score (TSSE) computed by ATACseqQC on Tn5-shifted BAM."
+    file_format: "tsv"
+    plot_type: "table"
+    pconfig:
+      namespace: "ATAC"
+      id: "atacseqqc_score_table"
+      title: "ATACseqQC Metrics (PT / NFR / TSSE)"
+    headers:
+      Sample:
+        title: "Sample"
+      PT_score_mean:
+        title: "PT Score (mean)"
+        description: "Mean log2(promoter coverage / transcript body coverage) per transcript; positive values indicate promoter-enriched signal (ATACseqQC PTscore)"
+        format: "{:,.4f}"
+        scale: "RdYlGn"
+      PT_score_median:
+        title: "PT Score (median)"
+        description: "Median log2(promoter coverage / transcript body coverage) per transcript (ATACseqQC PTscore)"
+        format: "{:,.4f}"
+        scale: "RdYlGn"
+      Mean_promoter:
+        title: "Mean Promoter Signal"
+        description: "Mean Tn5 5' insertion density across promoter windows [TSS-2000, TSS+500]"
+        format: "{:,.6f}"
+        min: 0
+      Mean_gene_body:
+        title: "Mean Gene Body Signal"
+        description: "Mean Tn5 5' insertion density across transcript body windows (2500 bp downstream of promoter)"
+        format: "{:,.6f}"
+        min: 0
+      NFR_score_mean:
+        title: "NFR Score (mean)"
+        description: "Mean log2(nf) − log2((n1+n2)/2) across all TSS; 400 bp window: nf = 5' ends in middle 100 bp, n1/n2 = 5' ends in upstream/downstream 150 bp (ATACseqQC NFRscore)"
+        format: "{:,.4f}"
+        scale: "RdYlGn"
+      NFR_score_median:
+        title: "NFR Score (median)"
+        description: "Median log2(nf) − log2((n1+n2)/2) across all TSS (ATACseqQC NFRscore)"
+        format: "{:,.4f}"
+        scale: "RdYlGn"
+      TSSE_score:
+        title: "TSSE Score"
+        description: "Depth at each 100 bp step within ±1000 bp of TSS / mean depth at 100 bp end flanks; TSSE = max(mean(per-window TSS score)) (ATACseqQC)"
+        format: "{:,.4f}"
+        min: 0
+        scale: "RdYlGn"
   homer_annotation_summary:
     id: "homer_annotation_summary"
     section_name: "HOMER Annotation Summary"

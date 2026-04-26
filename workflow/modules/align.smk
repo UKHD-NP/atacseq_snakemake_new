@@ -4,13 +4,16 @@
 
 config.setdefault("ref", {})
 
+
 ALIGN_CFG = config.get("align", {}) if isinstance(config.get("align", {}), dict) else {}
 ALIGN_TOOL = str(ALIGN_CFG.get("tool", "bwa")).strip().lower()
+
 
 if ALIGN_TOOL not in ["bwa", "bowtie2"]:
     raise ValueError(
         f"Invalid align.tool: '{ALIGN_TOOL}'. Allowed values: 'bwa' or 'bowtie2'."
     )
+
 
 # Resolve ambiguity: both aligners produce the same BAM path
 # (Snakemake needs this if both rules can create the same output)
@@ -24,6 +27,7 @@ else:
 # ALIGN PARAMS
 # =============================================================================
 
+
 BWA_PARAMS = str(ALIGN_CFG.get("bwa_params", "")).strip()
 BOWTIE2_PARAMS = str(ALIGN_CFG.get("bowtie2_params", "")).strip()
 
@@ -31,6 +35,7 @@ BOWTIE2_PARAMS = str(ALIGN_CFG.get("bowtie2_params", "")).strip()
 # =============================================================================
 # INDEX PREFIXES
 # =============================================================================
+
 
 # ---- BWA index prefix ----
 BWA_INDEX_PREFIX = str(config["ref"].get("bwa_index", "")).strip()
@@ -51,6 +56,7 @@ config["ref"]["bowtie2_index"] = BOWTIE2_INDEX_PREFIX
 # =============================================================================
 # BWA
 # =============================================================================
+
 
 rule bwa_mem2_index:
     # Build BWA-MEM2 index for the configured reference FASTA.
@@ -145,6 +151,7 @@ rule bwa_mem2_align:
 # =============================================================================
 # BOWTIE2
 # =============================================================================
+
 
 rule bowtie2_index:
     # Build Bowtie2 index for the configured reference FASTA.

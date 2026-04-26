@@ -1,9 +1,12 @@
 TRIMMING_CFG = config.get("trimming", {}) if isinstance(config.get("trimming", {}), dict) else {}
 
+
 TRIM_TOOL = str(TRIMMING_CFG.get("tool", "fastp")).strip().lower()
+
 
 if TRIM_TOOL not in ["fastp", "trim_galore"]:
     raise ValueError(f"Invalid trimming tool: {TRIM_TOOL}. Use 'fastp' or 'trim_galore'.")
+
 
 if TRIM_TOOL == "trim_galore":
     ruleorder: trim_galore > fastp
@@ -59,6 +62,7 @@ rule fastp:
             {params.fastp_params} \
             > {log} 2>&1 || {{ echo "[ERROR] fastp failed." >> {log}; exit 1; }}
         """
+
 
 rule trim_galore:
     # Trim reads using trim_galore (alternative to fastp)

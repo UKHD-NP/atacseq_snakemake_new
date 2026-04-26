@@ -13,7 +13,7 @@ rule delete_tmp:
         fastqc = lambda wildcards: [
             os.path.join(wildcards.outdir, "trim", f"{wildcards.sample_id}_trimmed_1_fastqc.zip"),
             os.path.join(wildcards.outdir, "trim", f"{wildcards.sample_id}_trimmed_2_fastqc.zip"),
-        ] if is_enabled("trimming") else []
+        ] if is_enabled("trimming") and TRIM_TOOL == "trim_galore" else []
     output:
         log = os.path.join("{outdir}", "logs", "{sample_id}.deletion.log")
     params:

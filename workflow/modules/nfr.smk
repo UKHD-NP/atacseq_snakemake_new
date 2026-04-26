@@ -150,8 +150,8 @@ rule nfr_compute_matrix:
         mono_bigwig = os.path.join("{outdir}", "nfr", "{sample_id}.mono.bigWig"),
         tss = config["ref"]["tss"]
     output:
-        matrix = os.path.join("{outdir}", "nfr", "{sample_id}.nfr_vs_mono.computeMatrix.mat.gz"),
-        values = os.path.join("{outdir}", "nfr", "{sample_id}.nfr_vs_mono.computeMatrix.vals.mat.tab")
+        matrix = os.path.join("{outdir}", "nfr", "{sample_id}.nfr_vs_mono.computeMatrix.gz"),
+        values = os.path.join("{outdir}", "nfr", "{sample_id}.nfr_vs_mono.computeMatrix.tab")
     params:
         upstream = 2000,
         downstream = 2000,
@@ -198,7 +198,7 @@ rule nfr_compute_matrix:
 
 rule nfr_plot_profile:
     input:
-        matrix = os.path.join("{outdir}", "nfr", "{sample_id}.nfr_vs_mono.computeMatrix.mat.gz")
+        matrix = os.path.join("{outdir}", "nfr", "{sample_id}.nfr_vs_mono.computeMatrix.gz")
     output:
         plot  = os.path.join("{outdir}", "nfr", "{sample_id}.nfr_vs_mono.plotProfile.pdf"),
         table = os.path.join("{outdir}", "nfr", "{sample_id}.nfr_vs_mono.plotProfile.tab")
@@ -239,10 +239,10 @@ rule nfr_plot_profile:
 
 rule nfr_plot_heatmap:
     input:
-        matrix = os.path.join("{outdir}", "nfr", "{sample_id}.nfr_vs_mono.computeMatrix.mat.gz")
+        matrix = os.path.join("{outdir}", "nfr", "{sample_id}.nfr_vs_mono.computeMatrix.gz")
     output:
         plot  = os.path.join("{outdir}", "nfr", "{sample_id}.nfr_vs_mono.plotHeatmap.pdf"),
-        table = os.path.join("{outdir}", "nfr", "{sample_id}.nfr_vs_mono.plotHeatmap.mat.tab")
+        table = os.path.join("{outdir}", "nfr", "{sample_id}.nfr_vs_mono.plotHeatmap.tab")
     params:
         colors = "autumn_r autumn_r"
     conda:

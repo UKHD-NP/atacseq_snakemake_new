@@ -4,15 +4,24 @@ suppressPackageStartupMessages({
     library(GenomicAlignments)
 })
 
-bam_file    <- snakemake@input[["bam"]]
-bed_file    <- snakemake@input[["bed"]]
-output_file <- snakemake@output[["pt_score"]]
-log_file    <- snakemake@log[[1]]
-sample_id   <- snakemake@wildcards[["sample_id"]]
+bam_file      <- snakemake@input[["bam"]]
+bed_file      <- snakemake@input[["bed"]]
+output_file   <- snakemake@output[["score_tsv"]]
+plot_fragsize <- snakemake@output[["plot_fragsize"]]
+plot_pt       <- snakemake@output[["plot_pt"]]
+plot_nfr      <- snakemake@output[["plot_nfr"]]
+plot_tsse     <- snakemake@output[["plot_tsse"]]
+log_file      <- snakemake@log[[1]]
+sample_id     <- snakemake@wildcards[["sample_id"]]
 
 log_con <- file(log_file, "w")
 
 tryCatch({
+    # Fragment size distribution
+    png(plot_fragsize, width = 900, height = 600, res = 120)
+    fragSizeDist(bam_file, sample_id)
+    dev.off()
+
     # Read transcript annotations
     txs <- import(bed_file, format = "BED")
 
@@ -23,6 +32,13 @@ tryCatch({
     # promoter_window = [TSS-2000, TSS+500]; body_window = next 2500 bp downstream
     pt <- PTscore(gal, txs)
 
+    png(plot_pt, width = 800, height = 700, res = 120)
+    plot(pt$log2meanCoverage, pt$PT_score,
+         xlab = "log2 mean coverage",
+         ylab = "Promoter vs Transcript",
+         main = paste(sample_id, "- PT Score"))
+    dev.off()
+
     mean_pt   <- mean(pt$PT_score,       na.rm = TRUE)
     median_pt <- median(pt$PT_score,     na.rm = TRUE)
     mean_pro  <- mean(pt$promoter,       na.rm = TRUE)
@@ -32,6 +48,14 @@ tryCatch({
     # nf = middle 100 bp; n1/n2 = flanking 150 bp nucleosome positions
     nfr <- NFRscore(gal, txs)
 
+    png(plot_nfr, width = 800, height = 700, res = 120)
+    plot(nfr$log2meanCoverage, nfr$NFR_score,
+         xlab = "log2 mean coverage",
+         ylab = "Nucleosome Free Regions score",
+         main = paste(sample_id, "- NFR Score"),
+         xlim = c(-10, 0), ylim = c(-5, 5))
+    dev.off()
+
     mean_nfr   <- mean(nfr$NFR_score,   na.rm = TRUE)
     median_nfr <- median(nfr$NFR_score, na.rm = TRUE)
 
@@ -40,6 +64,20 @@ tryCatch({
     # equivalent to the ENCODE TSS enrichment score definition
     tsse <- TSSEscore(gal, txs)
     tsse_score <- tsse$TSSEscore
+
+    png(plot_tsse, width = 800, height = 600, res = 120)
+    plot(100 * (-9:10 - 0.5), tsse$values, type = "b",
+         xlab = "Distance to TSS (bp)",
+         ylab = "Aggregate TSS score",
+         main = paste(sample_id, "- TSS Enrichment Score:", round(tsse_score, 2)))
+    abline(v = 0,  lty = 2, col = "gray40")
+    abline(h = 1,  lty = 2, col = "gray40")
+    abline(h = 5,  lty = 2, col = "orange",    lwd = 1.5)
+    abline(h = 7,  lty = 2, col = "darkgreen", lwd = 1.5)
+    legend("topright", bty = "n", lty = 2, lwd = c(1, 1.5, 1.5),
+           col = c("gray40", "orange", "darkgreen"),
+           legend = c("TSS / baseline", "Minimum (5)", "ENCODE target (7)"))
+    dev.off()
 
     df <- data.frame(
         Sample           = sample_id,

@@ -15,8 +15,8 @@ rule deeptools_compute_matrix_scale_regions:
         regions = config["ref"]["bed"],
         bigwig = lambda wildcards: _deeptools_bigwig(wildcards)
     output:
-        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.computeMatrix.mat.gz"),
-        values = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.computeMatrix.vals.mat.tab")
+        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.computeMatrix.gz"),
+        values = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.computeMatrix.tab")
     params:
         region_body_length = 1000,
         flank_length = 3000
@@ -65,8 +65,8 @@ rule deeptools_compute_matrix_reference_point:
         regions = config["ref"]["tss"],
         bigwig = lambda wildcards: _deeptools_bigwig(wildcards)
     output:
-        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.mat.gz"),
-        values = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.vals.mat.tab")
+        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.gz"),
+        values = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.tab")
     params:
         upstream = 2000,
         downstream = 2000
@@ -111,7 +111,7 @@ rule deeptools_compute_matrix_reference_point:
 
 rule deeptools_plot_profile:
     input:
-        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.computeMatrix.mat.gz")
+        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.computeMatrix.gz")
     output:
         plot = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.plotProfile.pdf"),
         table = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.plotProfile.tab")
@@ -148,7 +148,7 @@ rule deeptools_plot_profile:
 
 rule deeptools_plot_profile_tss:
     input:
-        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.mat.gz")
+        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.gz")
     output:
         plot = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.plotProfile.pdf"),
         table = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.plotProfile.tab")
@@ -185,10 +185,10 @@ rule deeptools_plot_profile_tss:
 
 rule deeptools_plot_heatmap:
     input:
-        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.mat.gz")
+        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.gz")
     output:
         plot = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.plotHeatmap.pdf"),
-        table = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.plotHeatmap.mat.tab")
+        table = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.plotHeatmap.tab")
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
@@ -316,25 +316,3 @@ rule deeptools_fragment_size_distribution:
             exit 1
         fi
         """
-
-
-rule deeptools_pt_score:
-    input:
-        bam = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam"),
-        bai = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam.bai"),
-        bed = config["ref"]["bed"],
-    output:
-        pt_score = os.path.join("{outdir}", "deeptools", "{sample_id}.pt_score_mqc.tsv"),
-    conda:
-        os.path.join(workflow.basedir, "envs", "atacseqqc.yml")
-    message:
-        "{wildcards.sample_id}: Calculating PT score, NFR score and TSSE score via ATACseqQC"
-    threads: 1
-    resources:
-        mem_mb = 16384
-    log:
-        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.pt_score.log")
-    benchmark:
-        os.path.join("{outdir}", "benchmarks", "{sample_id}.pt_score.benchmark.txt")
-    script:
-        os.path.join(workflow.basedir, "scripts", "calc_pt_score.R")

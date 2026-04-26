@@ -12,14 +12,15 @@ def get_input_multiqc(wildcards):
         config.get("call_peaks", {}).get("macs3_peak_qc_plot", True),
         default=True,
     )
+    annotation_on = is_enabled("annotate_peaks") and call_peaks_on
     feature_counts_on = call_peaks_on  # always run featureCounts when peaks are called (required for FRiP score)
     deeptools_on = is_enabled("deeptools")
-    annotation_on = is_enabled("annotate_peaks") and call_peaks_on
     ataqv_on = is_enabled("ataqv") and call_peaks_on
+    atacseqqc_on = is_enabled("atacseqqc") and call_peaks_on and CALL_PEAKS_PEAK_TYPE == "narrow"
 
     # Conditionally add trimming quality control reports
     if is_enabled("trimming"):
-        trimming_tool = config.get('trimming', {}).get('tool', 'fastp')
+        trimming_tool = TRIM_TOOL
 
         # Add raw FastQC reports (before trimming) - for both tools
         targets.extend([
@@ -45,7 +46,7 @@ def get_input_multiqc(wildcards):
     # Add Picard MarkDuplicates metrics if enabled
     if is_enabled("markduplicates"):
         targets.append(_path("bam", f"{sample_id}.markdup.sorted.MarkDuplicates.metrics.txt"))
-    
+
     # Add pre-filter BAM stats outputs
     targets.extend(
         _path("bam", f"{sample_id}.pre_filter.bam.{ext}")
@@ -90,18 +91,20 @@ def get_input_multiqc(wildcards):
         targets.append(_path("deeptools", f"{sample_id}.reference_point.plotProfile.tab"))
         targets.append(_path("deeptools", f"{sample_id}.fragment_size.qcmetrics.txt"))
         targets.append(_path("deeptools", f"{sample_id}.fragment_size.raw_lengths.txt"))
-        if CALL_PEAKS_PEAK_TYPE == "narrow":
-            targets.append(_path("deeptools", f"{sample_id}.pt_score_mqc.tsv"))
-
-    # Add ataqv JSON metrics for ATAC QC.
-    if ataqv_on:
-        targets.append(_path("ataqv", f"{sample_id}.ataqv.json"))
-        targets.append(_path("ataqv", f"{sample_id}.atac_qc_mqc.tsv"))
 
     # Add NFR vs mono profile table for MultiQC.
     nfr_on = deeptools_on and is_enabled("call_peaks") and CALL_PEAKS_PEAK_TYPE == "narrow"
     if nfr_on:
         targets.append(_path("nfr", f"{sample_id}.nfr_vs_mono.plotProfile.tab"))
+
+    # Add ataqv JSON metrics for ATAC QC.
+    if ataqv_on:
+        targets.append(_path("ataqv", f"{sample_id}.ataqv.json"))
+        targets.append(_path("ataqv", f"{sample_id}.ataqv_score.tsv"))
+
+    # Add ATACseqQC score table.
+    if atacseqqc_on:
+        targets.append(_path("atacseqqc", f"{sample_id}.atacseqqc_score.tsv"))
 
     return list(dict.fromkeys(targets))
 
@@ -138,15 +141,15 @@ rule multiqc:
         export PYTHONIOENCODING=utf8
 
         # Create MultiQC output directory
-        mkdir -p {params.outdir}
-        mkdir -p $(dirname {log})
+        mkdir -p "{params.outdir}"
+        mkdir -p "$(dirname "{log}")"
 
         # Run MultiQC
         multiqc {input.reports} \
-            --outdir {params.outdir} \
+            --outdir "{params.outdir}" \
             --filename {wildcards.sample_id}.multiqc.html \
-            --config {params.config_file} \
+            --config "{params.config_file}" \
             --force \
             {params.extra_params} \
-            > {log} 2>&1 || {{ echo "[ERROR] MultiQC failed." >> {log}; exit 1; }}
+            > "{log}" 2>&1 || {{ echo "[ERROR] MultiQC failed." >> "{log}"; exit 1; }}
         """

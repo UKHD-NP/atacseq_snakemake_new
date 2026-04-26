@@ -49,6 +49,7 @@ _apply_blacklist = (
     else str(_apply_blacklist_raw).strip().lower() in {"true", "yes", "1", "t", "y"}
 )
 
+
 if assembly == "custom":
     if not user_fasta or not user_gtf:
         fatal(

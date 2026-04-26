@@ -30,6 +30,7 @@ rule samtools_stats_pre_filter:
         samtools idxstats --threads {threads} {input.bam} > {output.bam_idxstats} 2>> {log} || {{ echo "[ERROR] samtools idxstats failed." >> {log}; exit 1; }}
         """
 
+
 rule samtools_stats:
     # Generate comprehensive statistics for BAM files
     input:
@@ -64,6 +65,7 @@ rule samtools_stats:
         # Generate chromosome-level read mapping statistics
         samtools idxstats --threads {threads} {input.bam} > {output.bam_idxstats} 2>> {log} || {{ echo "[ERROR] samtools idxstats failed." >> {log}; exit 1; }}
         """
+
 
 rule picard_collect_multiple_metrics:
     # Collect Picard metrics on filtered BAM.

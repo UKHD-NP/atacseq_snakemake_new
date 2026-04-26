@@ -53,6 +53,7 @@ set-threads:
   deeptools_compute_matrix_reference_point: 12
   deeptools_plot_fingerprint: 6
   deeptools_plot_profile: 2
+  deeptools_plot_profile_tss: 2
   deeptools_plot_heatmap: 2
   deeptools_fragment_size_distribution: 2
   samtools_stats_pre_filter: 1
@@ -64,9 +65,9 @@ set-threads:
   bedtools_genomecov: 2
   ucsc_bedgraphtobigwig: 2
   ataqv: 1
-  atac_qc_metrics: 1
+  ataqv_score: 1
   ataqv_mkarv: 1
-  deeptools_pt_score: 1
+  atacseqqc_score: 1
   nfr_bigwig_nfr: 8
   nfr_bigwig_mono: 8
   nfr_compute_matrix: 12
@@ -81,13 +82,15 @@ set-resources:
   # ---- FASTQC ----
   fastqc_raw:
     mem_mb: 4096
-    runtime: 120
+    runtime: 240
+    lsf_queue: "long"
 
   fastqc_trimmed:
     mem_mb: 4096
     runtime: 120
+    lsf_queue: "long"
 
-  # ---- TRIMMING / PREP ----
+  # ---- TRIMMING ----
   trim_galore:
     mem_mb: 36864
     runtime: 960
@@ -141,12 +144,55 @@ set-resources:
     runtime: 480
     lsf_queue: "verylong"
 
+  # ---- POST ALIGNMENT QC ----
+  samtools_stats_pre_filter:
+    mem_mb: 2048
+    runtime: 60
+
+  samtools_stats:
+    mem_mb: 2048
+    runtime: 60
+
+  picard_collect_multiple_metrics:
+    mem_mb: 16384
+    runtime: 120
+
   # ---- PEAK CALLING ----
   macs3_callpeak_tn5:
     mem_mb: 8192
     runtime: 240
     lsf_queue: "long"
 
+  # ---- PEAK QC / FRiP ----
+  macs3_peak_qc_plot:
+    mem_mb: 4096
+    runtime: 60
+
+  featurecounts_in_peaks:
+    mem_mb: 2048
+    runtime: 60
+
+  frip_score:
+    mem_mb: 2048
+    runtime: 60
+
+  # ---- ANNOTATION ----
+  homer_annotate_peaks:
+    mem_mb: 10240
+    runtime: 240
+    lsf_queue: "long"
+
+  # ---- BIGWIG ----
+  bedtools_genomecov:
+    mem_mb: 40960
+    runtime: 240
+    lsf_queue: "long"
+
+  ucsc_bedgraphtobigwig:
+    mem_mb: 6144
+    runtime: 120
+
+  # ---- POST PEAK CALLING QC ----
   # ---- DEEPTOOLS ----
   deeptools_compute_matrix_scale_regions:
     mem_mb: 6144
@@ -167,6 +213,10 @@ set-resources:
     mem_mb: 6144
     runtime: 120
 
+  deeptools_plot_profile_tss:
+    mem_mb: 6144
+    runtime: 120
+
   deeptools_plot_heatmap:
     mem_mb: 20480
     runtime: 240
@@ -174,64 +224,8 @@ set-resources:
 
   deeptools_fragment_size_distribution:
     mem_mb: 6144
-    runtime: 240
-    lsf_queue: "long"
-
-  # ---- BAM STATS ----
-  samtools_stats_pre_filter:
-    mem_mb: 2048
-    runtime: 60
-
-  samtools_stats:
-    mem_mb: 2048
-    runtime: 60
-
-  # ---- PEAK QC / FRiP ----
-  featurecounts_in_peaks:
-    mem_mb: 2048
-    runtime: 60
-
-  frip_score:
-    mem_mb: 2048
-    runtime: 60
-
-  macs3_peak_qc_plot:
-    mem_mb: 4096
-    runtime: 60
-
-  # ---- QC / ANNOTATION ----
-  homer_annotate_peaks:
-    mem_mb: 10240
-    runtime: 240
-    lsf_queue: "long"
-
-  bedtools_genomecov:
-    mem_mb: 40960
-    runtime: 240
-    lsf_queue: "long"
-
-  ucsc_bedgraphtobigwig:
-    mem_mb: 6144
-    runtime: 120
-
-  ataqv:
-    mem_mb: 6144
     runtime: 480
     lsf_queue: "verylong"
-
-  atac_qc_metrics:
-    mem_mb: 256
-    runtime: 60
-
-  ataqv_mkarv:
-    mem_mb: 1024
-    runtime: 60
-
-  # ---- DEEPTOOLS PT SCORE ----
-  deeptools_pt_score:
-    mem_mb: 16384
-    runtime: 240
-    lsf_queue: "long"
 
   # ---- NFR ----
   nfr_bigwig_nfr:
@@ -258,11 +252,27 @@ set-resources:
     runtime: 240
     lsf_queue: "long"
 
-  # ---- FINAL ----
-  picard_collect_multiple_metrics:
-    mem_mb: 16384
-    runtime: 120
+  # ---- ataqv ----
+  ataqv:
+    mem_mb: 6144
+    runtime: 480
+    lsf_queue: "verylong"
 
+  ataqv_score:
+    mem_mb: 256
+    runtime: 60
+
+  ataqv_mkarv:
+    mem_mb: 1024
+    runtime: 60
+
+  # ---- ATACSEQQC ----
+  atacseqqc_score:
+    mem_mb: 16384
+    runtime: 480
+    lsf_queue: "verylong"
+
+  # ---- FINAL ----
   multiqc:
     mem_mb: 2048
     runtime: 60

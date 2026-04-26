@@ -17,13 +17,16 @@ ref:
   mito_name: "MT"
   # Keep mitochondrial contig in include_regions (bam_filter); false = remove mito
   keep_mito: false
-  autosome_pattern: "^(I|II|III|IV|V)$"   # C. elegans ce11 autosomes
+  # autosome_pattern: awk regex for TRUE autosomes used by ataqv (--autosomal-reference-file).
+  # Default (human hg19/hg38): "^chr([1-9]|1[0-9]|2[0-2])$"
+  autosome_pattern: "^(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV|XVI)$"
 
 trimming:
   # Enable adapter trimming with Trim Galore or fastp
   enabled: true
   delete_trimming: true  # Delete trimmed FASTQ files after pipeline completes (only applies when enabled: true)
   tool: "trim_galore"  # Choose trimming tool: "fastp" or "trim_galore"
+  trim_galore_params: "--nextseq 25 --length 36"
   fastp_params: "--cut_tail --cut_tail_window_size 4 --cut_tail_mean_quality 20 --trim_poly_g --length_required 36"
 
 align:
@@ -51,10 +54,6 @@ markduplicates:
   # Mark duplicates with Picard before bam_filter
   enabled: true
 
-deeptools:
-  # Enable computeMatrix / plotProfile / plotHeatmap / plotFingerprint
-  enabled: true
-
 call_peaks:
   enabled: true
   peak_type: "narrow"  # choices: narrow, broad
@@ -76,8 +75,23 @@ annotate_peaks:
   # HOMER annotatePeaks + summary table
   enabled: true
 
+deeptools:
+  # Enable computeMatrix / plotProfile / plotHeatmap / plotFingerprint / fragment_size_distribution
+  enabled: true
+# Optional: tune fragment size boundaries for NFR vs mononucleosomal analysis.
+# NFR analysis runs automatically when deeptools.enabled=true and call_peaks.peak_type=narrow.
+# nfr:
+#   nfr_max_fragment: 150      # fragments ≤ this bp → NFR bigWig (default: 150)
+#   mono_min_fragment: 151     # fragments ≥ this bp → mono bigWig (default: 151)
+#   mono_max_fragment: 300     # fragments ≤ this bp → mono bigWig (default: 300)
+
 ataqv:
   # ATAC-specific QC JSON + mkarv HTML + TSS enrichment / NFR metrics for MultiQC
+  enabled: true
+
+atacseqqc:
+  # ATACseqQC R package: PT score, NFR score, TSSE score + QC plots.
+  # Requires call_peaks.peak_type=narrow. BED file auto-generated from ref.gtf.
   enabled: true
 
 multiqc:

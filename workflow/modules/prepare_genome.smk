@@ -83,6 +83,7 @@ rule get_chromsizes:
 _BAM_FILTER_CFG = config.get("bam_filter", {}) if isinstance(config.get("bam_filter", {}), dict) else {}
 _REF_CFG = config.get("ref", {}) if isinstance(config.get("ref", {}), dict) else {}
 
+
 # Pattern for ALL canonical chromosomes (used by bam_filter include_regions).
 # Default: human hg19/hg38 (chr1-22 + X + Y + M).
 # Override via bam_filter.canonical_chroms_pattern for other genomes:
@@ -93,6 +94,7 @@ _CANONICAL_PATTERN = (
     str(_BAM_FILTER_CFG.get("canonical_chroms_pattern", "")).strip()
     or _DEFAULT_CANONICAL_PATTERN
 )
+
 
 # Pattern for TRUE autosomes only (used by ataqv --autosomal-reference-file).
 # Default: human hg19/hg38 autosomes (chr1-22).

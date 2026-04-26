@@ -73,6 +73,15 @@ def get_effective_genome_size(chromsizes_path, configured_value=""):
     return str(total)
 
 
+def get_gsize(wildcards, input):
+    """Resolve effective genome size from call_peaks.macs3_gsize or chromsizes."""
+    call_peaks_cfg = config.get("call_peaks", {})
+    if not isinstance(call_peaks_cfg, dict):
+        call_peaks_cfg = {}
+    configured = cfg_str(call_peaks_cfg, "macs3_gsize", "")
+    return get_effective_genome_size(input.chromsizes, configured)
+
+
 def get_sample_rows(sample_id):
     """Return all samplesheet rows matching a sample ID."""
     sample_rows = samplesheet[samplesheet['sample_id'] == sample_id]
@@ -213,6 +222,7 @@ def get_target_files(sample_ids):
     shift_bam_on = CALL_PEAKS_PEAK_TYPE == "narrow"
     deeptools_on = is_enabled("deeptools")
     ataqv_on = is_enabled("ataqv") and call_peaks_on
+    atacseqqc_on = is_enabled("atacseqqc") and shift_bam_on and call_peaks_on
        
     # Process each sample
     for sample_id in sample_ids:
@@ -264,7 +274,7 @@ def get_target_files(sample_ids):
                 _path("bam",    f"{sample_id}.shifted.bam.bai"),
                 _path("bigwig", f"{sample_id}.shifted.bigWig"),
             ])
-            
+
         if call_peaks_qc_on:
             targets.extend([
                 _path("peaks", f"{sample_id}.macs_peakqc.summary.txt"),
@@ -291,16 +301,16 @@ def get_target_files(sample_ids):
         # deepTools outputs.
         if deeptools_on:
             targets.extend([
-                _path("deeptools", f"{sample_id}.scale_regions.computeMatrix.mat.gz"),
-                _path("deeptools", f"{sample_id}.scale_regions.computeMatrix.vals.mat.tab"),
-                _path("deeptools", f"{sample_id}.reference_point.computeMatrix.mat.gz"),
-                _path("deeptools", f"{sample_id}.reference_point.computeMatrix.vals.mat.tab"),
+                _path("deeptools", f"{sample_id}.scale_regions.computeMatrix.gz"),
+                _path("deeptools", f"{sample_id}.scale_regions.computeMatrix.tab"),
+                _path("deeptools", f"{sample_id}.reference_point.computeMatrix.gz"),
+                _path("deeptools", f"{sample_id}.reference_point.computeMatrix.tab"),
                 _path("deeptools", f"{sample_id}.scale_regions.plotProfile.pdf"),
                 _path("deeptools", f"{sample_id}.scale_regions.plotProfile.tab"),
                 _path("deeptools", f"{sample_id}.reference_point.plotProfile.pdf"),
                 _path("deeptools", f"{sample_id}.reference_point.plotProfile.tab"),
                 _path("deeptools", f"{sample_id}.reference_point.plotHeatmap.pdf"),
-                _path("deeptools", f"{sample_id}.reference_point.plotHeatmap.mat.tab"),
+                _path("deeptools", f"{sample_id}.reference_point.plotHeatmap.tab"),
                 _path("deeptools", f"{sample_id}.plotFingerprint.pdf"),
                 _path("deeptools", f"{sample_id}.plotFingerprint.raw_counts.txt"),
                 _path("deeptools", f"{sample_id}.plotFingerprint.qcmetrics.txt"),
@@ -308,14 +318,6 @@ def get_target_files(sample_ids):
                 _path("deeptools", f"{sample_id}.fragment_size.raw_lengths.txt"),
                 _path("deeptools", f"{sample_id}.fragment_size.qcmetrics.txt"),
             ])
-            if shift_bam_on:
-                targets.append(_path("deeptools", f"{sample_id}.pt_score_mqc.tsv"))
-
-        # ataqv outputs.
-        if ataqv_on:
-            targets.append(_path("ataqv", f"{sample_id}.ataqv.json"))
-            targets.append(_path("ataqv", f"{sample_id}.mkarv_html", "index.html"))
-            targets.append(_path("ataqv", f"{sample_id}.atac_qc_mqc.tsv"))
 
         # NFR vs mononucleosomal analysis (requires deeptools + narrow peaks + shift_bam).
         nfr_on = deeptools_on and shift_bam_on and call_peaks_on
@@ -323,12 +325,28 @@ def get_target_files(sample_ids):
             targets.extend([
                 _path("nfr", f"{sample_id}.nfr.bigWig"),
                 _path("nfr", f"{sample_id}.mono.bigWig"),
-                _path("nfr", f"{sample_id}.nfr_vs_mono.computeMatrix.mat.gz"),
-                _path("nfr", f"{sample_id}.nfr_vs_mono.computeMatrix.vals.mat.tab"),
+                _path("nfr", f"{sample_id}.nfr_vs_mono.computeMatrix.gz"),
+                _path("nfr", f"{sample_id}.nfr_vs_mono.computeMatrix.tab"),
                 _path("nfr", f"{sample_id}.nfr_vs_mono.plotProfile.pdf"),
                 _path("nfr", f"{sample_id}.nfr_vs_mono.plotProfile.tab"),
                 _path("nfr", f"{sample_id}.nfr_vs_mono.plotHeatmap.pdf"),
-                _path("nfr", f"{sample_id}.nfr_vs_mono.plotHeatmap.mat.tab"),
+                _path("nfr", f"{sample_id}.nfr_vs_mono.plotHeatmap.tab"),
+            ])
+
+        # ataqv outputs.
+        if ataqv_on:
+            targets.append(_path("ataqv", f"{sample_id}.ataqv.json"))
+            targets.append(_path("ataqv", f"{sample_id}.mkarv_html", "index.html"))
+            targets.append(_path("ataqv", f"{sample_id}.ataqv_score.tsv"))
+
+        # ATACseqQC outputs (independent toggle; narrow peaks only).
+        if atacseqqc_on:
+            targets.extend([
+                _path("atacseqqc", f"{sample_id}.atacseqqc_score.tsv"),
+                _path("atacseqqc", f"{sample_id}.fragsize_dist.png"),
+                _path("atacseqqc", f"{sample_id}.pt_score.png"),
+                _path("atacseqqc", f"{sample_id}.nfr_score.png"),
+                _path("atacseqqc", f"{sample_id}.tsse.png"),
             ])
 
         ## Always include deletion log

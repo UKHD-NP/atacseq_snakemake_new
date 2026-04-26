@@ -43,6 +43,7 @@ rule fastqc_raw:
         rmdir {params.temp_dir} || true
         """
 
+
 # Rule for FastQC on trimmed reads (after trimming) - only for trim_galore
 rule fastqc_trimmed:
     # Run FastQC on trimmed FASTQ files after trim_galore
