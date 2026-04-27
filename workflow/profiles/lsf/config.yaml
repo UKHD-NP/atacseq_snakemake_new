@@ -126,22 +126,22 @@ set-resources:
   # ---- BAM PROCESSING ----
   sort_bam:
     mem_mb: 36864
-    runtime: "lambda wildcards, attempt: attempt * 240"
-    lsf_queue: "lambda wildcards, attempt: 'verylong' if attempt > 1 else 'long'"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 240"
+    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
 
   mark_duplicates:
     mem_mb: 49152
-    runtime: "lambda wildcards, attempt: attempt * 240"
-    lsf_queue: "lambda wildcards, attempt: 'verylong' if attempt > 1 else 'long'"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 240"
+    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
 
   bam_filter:
     mem_mb: 36864
-    runtime: "lambda wildcards, attempt: attempt * 240"
-    lsf_queue: "lambda wildcards, attempt: 'verylong' if attempt > 1 else 'long'"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 240"
+    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
 
   shift_bam:
     mem_mb: 40960
-    runtime: "lambda wildcards, attempt: attempt * 960"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 960"
     lsf_queue: "verylong"
 
   # ---- POST ALIGNMENT QC ----
@@ -155,13 +155,13 @@ set-resources:
 
   picard_collect_multiple_metrics:
     mem_mb: 16384
-    runtime: "lambda wildcards, attempt: attempt * 120"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 120"
 
   # ---- PEAK CALLING ----
   macs3_callpeak_tn5:
     mem_mb: 8192
-    runtime: "lambda wildcards, attempt: attempt * 240"
-    lsf_queue: "lambda wildcards, attempt: 'verylong' if attempt > 1 else 'long'"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 240"
+    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
 
   # ---- PEAK QC / FRiP ----
   macs3_peak_qc_plot:
@@ -179,101 +179,102 @@ set-resources:
   # ---- ANNOTATION ----
   homer_annotate_peaks:
     mem_mb: 10240
-    runtime: "lambda wildcards, attempt: attempt * 240"
-    lsf_queue: "lambda wildcards, attempt: 'verylong' if attempt > 1 else 'long'"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 240"
+    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
 
   # ---- BIGWIG ----
   bedtools_genomecov:
     mem_mb: 40960
-    runtime: "lambda wildcards, attempt: attempt * 240"
-    lsf_queue: "lambda wildcards, attempt: 'verylong' if attempt > 1 else 'long'"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 240"
+    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
 
   ucsc_bedgraphtobigwig:
     mem_mb: 6144
-    runtime: "lambda wildcards, attempt: attempt * 120"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 120"
 
   # ---- POST PEAK CALLING QC ----
   # ---- DEEPTOOLS ----
   deeptools_compute_matrix_gene_body:
     mem_mb: 6144
-    runtime: "lambda wildcards, attempt: attempt * 240"
-    lsf_queue: "lambda wildcards, attempt: 'verylong' if attempt > 1 else 'long'"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 240"
+    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
 
   deeptools_compute_matrix_tss:
     mem_mb: 6144
-    runtime: "lambda wildcards, attempt: attempt * 240"
-    lsf_queue: "lambda wildcards, attempt: 'verylong' if attempt > 1 else 'long'"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 240"
+    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
 
   deeptools_plot_fingerprint:
     mem_mb: 6144
-    runtime: "lambda wildcards, attempt: attempt * 240"
-    lsf_queue: "lambda wildcards, attempt: 'verylong' if attempt > 1 else 'long'"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 240"
+    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
 
   deeptools_plot_profile_gene_body:
     mem_mb: 6144
-    runtime: "lambda wildcards, attempt: attempt * 120"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 120"
 
   deeptools_plot_profile_tss:
     mem_mb: 6144
-    runtime: "lambda wildcards, attempt: attempt * 120"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 120"
 
   deeptools_plot_heatmap_tss:
     mem_mb: 20480
-    runtime: "lambda wildcards, attempt: attempt * 240"
-    lsf_queue: "lambda wildcards, attempt: 'verylong' if attempt > 1 else 'long'"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 240"
+    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
 
   deeptools_fragment_size_distribution:
     mem_mb: 6144
-    runtime: "lambda wildcards, attempt: attempt * 480"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 480"
     lsf_queue: "verylong"
 
   # ---- NFR ----
   nfr_bigwig_nfr:
     mem_mb: 16384
-    runtime: "lambda wildcards, attempt: attempt * 240"
-    lsf_queue: "lambda wildcards, attempt: 'verylong' if attempt > 1 else 'long'"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 240"
+    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
 
   nfr_bigwig_mono:
     mem_mb: 16384
-    runtime: "lambda wildcards, attempt: attempt * 240"
-    lsf_queue: "lambda wildcards, attempt: 'verylong' if attempt > 1 else 'long'"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 240"
+    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
 
   nfr_compute_matrix:
     mem_mb: 6144
-    runtime: "lambda wildcards, attempt: attempt * 240"
-    lsf_queue: "lambda wildcards, attempt: 'verylong' if attempt > 1 else 'long'"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 240"
+    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
 
   nfr_plot_profile:
     mem_mb: 4096
-    runtime: "lambda wildcards, attempt: attempt * 120"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 120"
 
   nfr_plot_heatmap:
     mem_mb: 20480
-    runtime: "lambda wildcards, attempt: attempt * 240"
-    lsf_queue: "lambda wildcards, attempt: 'verylong' if attempt > 1 else 'long'"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 240"
+    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
 
   # ---- ataqv ----
   ataqv:
     mem_mb: 6144
-    runtime: "lambda wildcards, attempt: attempt * 480"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 480"
     lsf_queue: "verylong"
 
   ataqv_score:
     mem_mb: 256
-    runtime: "lambda wildcards, attempt: attempt * 60"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 60"
 
   ataqv_mkarv:
     mem_mb: 1024
-    runtime: "lambda wildcards, attempt: attempt * 60"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 60"
 
   # ---- ATACSEQQC ----
   atacseqqc_score:
     mem_mb: 16384
-    runtime: "lambda wildcards, attempt: attempt * 480"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 480"
     lsf_queue: "verylong"
 
   # ---- FINAL ----
   multiqc:
     mem_mb: 2048
-    runtime: "lambda wildcards, attempt: attempt * 60"
+    runtime: "lambda wildcards, attempt, **kwargs: attempt * 60"
+
 
