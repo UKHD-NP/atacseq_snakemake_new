@@ -141,7 +141,7 @@ set-resources:
 
   shift_bam:
     mem_mb: 40960
-    runtime: "lambda wildcards, attempt: attempt * 480"
+    runtime: "lambda wildcards, attempt: attempt * 960"
     lsf_queue: "verylong"
 
   # ---- POST ALIGNMENT QC ----
