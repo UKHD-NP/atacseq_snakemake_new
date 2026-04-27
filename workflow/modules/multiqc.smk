@@ -87,8 +87,8 @@ def get_input_multiqc(wildcards):
     if deeptools_on:
         targets.append(_path("deeptools", f"{sample_id}.plotFingerprint.qcmetrics.txt"))
         targets.append(_path("deeptools", f"{sample_id}.plotFingerprint.raw_counts.txt"))
-        targets.append(_path("deeptools", f"{sample_id}.scale_regions.plotProfile.tab"))
-        targets.append(_path("deeptools", f"{sample_id}.reference_point.plotProfile.tab"))
+        targets.append(_path("deeptools", f"{sample_id}.gene_body.plotProfile.tab"))
+        targets.append(_path("deeptools", f"{sample_id}.tss.plotProfile.tab"))
         targets.append(_path("deeptools", f"{sample_id}.fragment_size.qcmetrics.txt"))
         targets.append(_path("deeptools", f"{sample_id}.fragment_size.raw_lengths.txt"))
 

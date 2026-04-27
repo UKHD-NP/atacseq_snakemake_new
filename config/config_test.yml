@@ -61,6 +61,7 @@ call_peaks:
   # - Recommended: use effective genome size values
   #   https://deeptools.readthedocs.io/en/latest/content/feature/effectiveGenomeSize.html
   # - If left empty, this pipeline auto-sums chromsizes as fallback"
+  macs3_gsize: ""  # empty = auto-sum from chromsizes (suitable for small test genome)
   macs3_narrow_params: >-
     --trackline --shift -75 --extsize 150 --keep-dup all --nomodel --call-summits -q 0.01
   # Broad peaks always use -f BAMPE (paired-end fragments, no --shift/--extsize needed).
@@ -97,6 +98,3 @@ atacseqqc:
 multiqc:
   # MultiQC config path
   config: "workflow/scripts/multiqc_config.yml"
-
-# Wait for delayed filesystem visibility (HPC/NFS)
-latency-wait: 60

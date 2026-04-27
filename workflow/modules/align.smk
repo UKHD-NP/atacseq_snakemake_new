@@ -6,12 +6,14 @@ config.setdefault("ref", {})
 
 
 ALIGN_CFG = config.get("align", {}) if isinstance(config.get("align", {}), dict) else {}
-ALIGN_TOOL = str(ALIGN_CFG.get("tool", "bwa")).strip().lower()
+ALIGN_TOOL = str(ALIGN_CFG.get("tool", "bowtie2")).strip().lower()
+# Normalize legacy "bwa" alias to the canonical "bwa-mem2" name.
+if ALIGN_TOOL == "bwa":
+    ALIGN_TOOL = "bwa-mem2"
 
-
-if ALIGN_TOOL not in ["bwa", "bowtie2"]:
+if ALIGN_TOOL not in ["bwa-mem2", "bowtie2"]:
     raise ValueError(
-        f"Invalid align.tool: '{ALIGN_TOOL}'. Allowed values: 'bwa' or 'bowtie2'."
+        f"Invalid align.tool: '{ALIGN_TOOL}'. Allowed values: 'bwa-mem2' or 'bowtie2'."
     )
 
 
@@ -19,7 +21,7 @@ if ALIGN_TOOL not in ["bwa", "bowtie2"]:
 # (Snakemake needs this if both rules can create the same output)
 if ALIGN_TOOL == "bowtie2":
     ruleorder: bowtie2_align > bwa_mem2_align
-else:
+else:  # bwa-mem2
     ruleorder: bwa_mem2_align > bowtie2_align
 
 

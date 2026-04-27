@@ -104,6 +104,3 @@ atacseqqc:
 multiqc:
   # MultiQC config path
   config: "workflow/scripts/multiqc_config.yml"
-
-# Wait for delayed filesystem visibility (HPC/NFS)
-latency-wait: 60

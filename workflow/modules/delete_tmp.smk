@@ -30,6 +30,9 @@ rule delete_tmp:
         ).lower()
     message:
         "{wildcards.sample_id}: Cleaning up temporary files"
+    threads: 1
+    resources:
+        mem_mb = 256
     log:
         os.path.join("{outdir}", "logs", "cleanup", "{sample_id}.cleanup.log")
     shell:

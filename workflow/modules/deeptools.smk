@@ -10,27 +10,27 @@ def _deeptools_bigwig(wildcards):
     return os.path.join(wildcards.outdir, "bigwig", f"{wildcards.sample_id}.bigWig")
 
 
-rule deeptools_compute_matrix_scale_regions:
+rule deeptools_compute_matrix_gene_body:
     input:
         regions = config["ref"]["bed"],
         bigwig = lambda wildcards: _deeptools_bigwig(wildcards)
     output:
-        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.computeMatrix.gz"),
-        values = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.computeMatrix.tab")
+        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.gene_body.computeMatrix.gz"),
+        values = os.path.join("{outdir}", "deeptools", "{sample_id}.gene_body.computeMatrix.tab")
     params:
         region_body_length = 1000,
         flank_length = 3000
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
-        "{wildcards.sample_id}: Running deepTools computeMatrix (scale-regions)"
+        "{wildcards.sample_id}: Running deepTools computeMatrix over gene bodies (scale-regions)"
     threads: 12
     resources:
         mem_mb = 6144
     log:
-        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.computeMatrix.scale_regions.log")
+        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.gene_body.computeMatrix.log")
     benchmark:
-        os.path.join("{outdir}", "benchmarks", "{sample_id}.computeMatrix.scale_regions.benchmark.txt")
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.computeMatrix.gene_body.benchmark.txt")
     shell:
         """
         mkdir -p "$(dirname "{output.matrix}")"
@@ -60,27 +60,27 @@ rule deeptools_compute_matrix_scale_regions:
         """
 
 
-rule deeptools_compute_matrix_reference_point:
+rule deeptools_compute_matrix_tss:
     input:
         regions = config["ref"]["tss"],
         bigwig = lambda wildcards: _deeptools_bigwig(wildcards)
     output:
-        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.gz"),
-        values = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.tab")
+        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.tss.computeMatrix.gz"),
+        values = os.path.join("{outdir}", "deeptools", "{sample_id}.tss.computeMatrix.tab")
     params:
         upstream = 2000,
         downstream = 2000
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
-        "{wildcards.sample_id}: Running deepTools computeMatrix (reference-point)"
+        "{wildcards.sample_id}: Running deepTools computeMatrix over TSS (reference-point)"
     threads: 12
     resources:
         mem_mb = 6144
     log:
-        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.computeMatrix.reference_point.log")
+        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.tss.computeMatrix.log")
     benchmark:
-        os.path.join("{outdir}", "benchmarks", "{sample_id}.computeMatrix.reference_point.benchmark.txt")
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.computeMatrix.tss.benchmark.txt")
     shell:
         """
         mkdir -p "$(dirname "{output.matrix}")"
@@ -109,21 +109,21 @@ rule deeptools_compute_matrix_reference_point:
         """
 
 
-rule deeptools_plot_profile:
+rule deeptools_plot_profile_gene_body:
     input:
-        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.computeMatrix.gz")
+        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.gene_body.computeMatrix.gz")
     output:
-        plot = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.plotProfile.pdf"),
-        table = os.path.join("{outdir}", "deeptools", "{sample_id}.scale_regions.plotProfile.tab")
+        plot = os.path.join("{outdir}", "deeptools", "{sample_id}.gene_body.plotProfile.pdf"),
+        table = os.path.join("{outdir}", "deeptools", "{sample_id}.gene_body.plotProfile.tab")
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
-        "{wildcards.sample_id}: Running deepTools plotProfile"
+        "{wildcards.sample_id}: Running deepTools plotProfile over gene bodies"
     threads: 2
     resources:
         mem_mb = 6144
     log:
-        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.plotProfile.log")
+        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.gene_body.plotProfile.log")
     benchmark:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.plotProfile.benchmark.txt")
     shell:
@@ -148,19 +148,19 @@ rule deeptools_plot_profile:
 
 rule deeptools_plot_profile_tss:
     input:
-        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.gz")
+        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.tss.computeMatrix.gz")
     output:
-        plot = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.plotProfile.pdf"),
-        table = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.plotProfile.tab")
+        plot = os.path.join("{outdir}", "deeptools", "{sample_id}.tss.plotProfile.pdf"),
+        table = os.path.join("{outdir}", "deeptools", "{sample_id}.tss.plotProfile.tab")
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
-        "{wildcards.sample_id}: Running deepTools plotProfile (TSS)"
+        "{wildcards.sample_id}: Running deepTools plotProfile over TSS"
     threads: 2
     resources:
         mem_mb = 6144
     log:
-        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.plotProfile.tss.log")
+        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.tss.plotProfile.log")
     benchmark:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.plotProfile.tss.benchmark.txt")
     shell:
@@ -183,21 +183,21 @@ rule deeptools_plot_profile_tss:
         """
 
 
-rule deeptools_plot_heatmap:
+rule deeptools_plot_heatmap_tss:
     input:
-        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.computeMatrix.gz")
+        matrix = os.path.join("{outdir}", "deeptools", "{sample_id}.tss.computeMatrix.gz")
     output:
-        plot = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.plotHeatmap.pdf"),
-        table = os.path.join("{outdir}", "deeptools", "{sample_id}.reference_point.plotHeatmap.tab")
+        plot = os.path.join("{outdir}", "deeptools", "{sample_id}.tss.plotHeatmap.pdf"),
+        table = os.path.join("{outdir}", "deeptools", "{sample_id}.tss.plotHeatmap.tab")
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
-        "{wildcards.sample_id}: Running deepTools plotHeatmap"
+        "{wildcards.sample_id}: Running deepTools plotHeatmap over TSS"
     threads: 2
     resources:
         mem_mb = 20480
     log:
-        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.plotHeatmap.log")
+        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.tss.plotHeatmap.log")
     benchmark:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.plotHeatmap.benchmark.txt")
     shell:
@@ -235,7 +235,7 @@ rule deeptools_plot_fingerprint:
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
-        "{wildcards.sample_id}: Plotting Lorenz curves-Fingerprint"
+        "{wildcards.sample_id}: Running deepTools plotFingerprint (Lorenz curves)"
     threads: 6
     resources:
         mem_mb = 6144
@@ -284,12 +284,12 @@ rule deeptools_fragment_size_distribution:
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
-        "{wildcards.sample_id}: Plotting the fragment size distribution"
+        "{wildcards.sample_id}: Running deepTools bamPEFragmentSize (fragment size distribution)"
     threads: 2
     resources:
         mem_mb = 6144
     log:
-        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.fragment_size.log")
+        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.deeptools_fragment_size.log")
     benchmark:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.fragment_size.benchmark.txt")
     shell:

@@ -150,21 +150,21 @@ All per-sample rules in execution order. Toggle columns: `t` = threads, `MB` = `
 | 4 | FastQC trimmed | `fastqc_trimmed` | qc.smk | FastQC | 2 | 4 096 | trimmed FASTQ → `trim/*_trimmed_{1,2}_fastqc.{html,zip}` |
 | 5 | BWA-MEM2 index | `bwa_mem2_index` | align.smk | bwa-mem2 index | 12 | 65 536 | FASTA → `.amb / .ann / .bwt.2bit.64 / .pac / .0123` |
 | 6 | Bowtie2 index | `bowtie2_index` | align.smk | bowtie2-build | 12 | 8 192 | FASTA → `*.{1,2,3,4,rev.1,rev.2}.bt2` |
-| 7 | Align | `bwa_mem2_align` **or** `bowtie2_align` | align.smk | BWA-MEM2 / Bowtie2 + samtools view | 12 / 26 | 49 152 / 16 384 | trimmed FASTQ + index → `bam/*.unsorted.bam` |
+| 7 | Align | `bwa_mem2_align` **or** `bowtie2_align` | align.smk | bwa-mem2 / bowtie2 + samtools view | 12 / 26 | 49 152 / 16 384 | trimmed FASTQ + index → `bam/*.unsorted.bam` |
 | 8 | Sort BAM | `sort_bam` | align.smk | samtools sort + index | 6 | 36 864 | `.unsorted.bam` → `bam/*.bam + *.bam.bai` |
 | 9 | Mark duplicates | `mark_duplicates` | mark_duplicates.smk | Picard MarkDuplicates | 2 | 49 152 | `.bam` → `bam/*.markdup.sorted.bam + *.MarkDuplicates.metrics.txt` |
 | 10 | Samtools stats pre-filter | `samtools_stats_pre_filter` | align_stats.smk | samtools stats / flagstat / idxstats | 1 | 1 024 | pre-filter BAM → `bam/*.pre_filter.bam.{stats,flagstat,idxstats}` |
 | 11 | BAM filter | `bam_filter` | bam_filter.smk | samtools view + bamtools filter + pysam bampe_rm_orphan | 6 | 36 864 | `.markdup.sorted.bam` + include_regions → `bam/*.filtered.bam + *.bai` |
 | 12 | Samtools stats | `samtools_stats` | align_stats.smk | samtools stats / flagstat / idxstats | 1 | 1 024 | `.filtered.bam` → `bam/*.filtered.bam.{stats,flagstat,idxstats}` |
 | 13 | Picard metrics | `picard_collect_multiple_metrics` | align_stats.smk | Picard CollectMultipleMetrics | 1 | 16 384 | `.filtered.bam` → alignment_summary / insert_size / base_dist / quality_* metrics |
-| 14 | BigWig (unshifted) | `bedtools_genomecov` → `ucsc_bedgraphtobigwig` | bam_to_bigwig.smk | bedtools genomecov + bedGraphToBigWig | 2 / 1 | 40 960 / 1 024 | `.filtered.bam` → `bigwig/*.bedGraph` → `bigwig/*.bigWig` |
+| 14 | BigWig (unshifted) | `bedtools_genomecov` → `ucsc_bedgraphtobigwig` | bam_to_bigwig.smk | bedtools genomecov + bedGraphToBigWig | 2 / 2 | 40 960 / 1 024 | `.filtered.bam` → `bigwig/*.bedGraph` → `bigwig/*.bigWig` |
 | 15 | Shift BAM | `shift_bam` | shift_bam.smk | deepTools alignmentSieve + bamCoverage (RPGC) | 8 | 40 960 | `.filtered.bam` → `bam/*.shifted.bam` + `bigwig/*.shifted.bigWig` |
 | 16 | MACS3 peak calling | `macs3_callpeak_tn5` | call_peaks.smk | bedtools bamtobed + awk Tn5-shift + MACS3 (narrow: BED mode; broad: BAMPE mode) | 2 | 8 192 | `.filtered.bam` → `peaks/*.tn5_shifted.bed + *_peaks.peak + *_peaks.xls` |
 | 17 | MACS3 peak QC | `macs3_peak_qc_plot` | call_peaks.smk | R (plot_macs_qc.r) | 2 | — | `*_peaks.peak` → `peaks/*.macs_peakqc.summary.txt + *.plots.pdf` |
 | 18 | featureCounts | `featurecounts_in_peaks` | quant.smk | featureCounts / Subread (SAF, paired, unstranded) | 1 | 2 048 | `.filtered.bam` + peaks SAF → `featurecounts/*.readCountInPeaks.txt` |
 | 19 | FRiP score | `frip_score` | frip_score.smk | bedtools intersect (+ featureCounts log parse) | 1 | 2 048 | `.filtered.bam` + peaks + flagstat → `peaks/*.FRiP.txt + *_peaks.{FRiP,count}_mqc.tsv` |
-| 20 | HOMER annotation | `homer_annotate_peaks` | annotate_peaks.smk | HOMER annotatePeaks.pl + R (plot_homer_annotatepeaks.r) | 1 | 10 240 | peaks + FASTA + GTF → `annotation/*_peaks.annotatePeaks.txt + *.summary.txt` |
-| 21 | deepTools | `deeptools_compute_matrix_scale_regions` / `deeptools_compute_matrix_reference_point` / `deeptools_plot_profile*` / `deeptools_plot_heatmap` / `deeptools_plot_fingerprint` / `deeptools_fragment_size_distribution` | deeptools.smk | deepTools computeMatrix / plotProfile / plotHeatmap / plotFingerprint / bamPEFragmentSize | 2–12 | 6 144–20 480 | `.shifted.bigWig` (narrow) or `.bigWig` (broad) + `.filtered.bam` → `deeptools/` matrices, profiles, heatmaps, fingerprint, fragment-size plots |
+| 20 | HOMER annotation | `homer_annotate_peaks` | annotate_peaks.smk | HOMER annotatePeaks.pl + R (plot_homer_annotatepeaks.r) | 2 | 10 240 | peaks + FASTA + GTF → `annotation/*_peaks.annotatePeaks.txt + *.summary.txt` |
+| 21 | deepTools | `deeptools_compute_matrix_gene_body` / `deeptools_compute_matrix_tss` / `deeptools_plot_profile_gene_body` / `deeptools_plot_profile_tss` / `deeptools_plot_heatmap_tss` / `deeptools_plot_fingerprint` / `deeptools_fragment_size_distribution` | deeptools.smk | deepTools computeMatrix / plotProfile / plotHeatmap / plotFingerprint / bamPEFragmentSize | 2–12 | 6 144–20 480 | `.shifted.bigWig` (narrow) or `.bigWig` (broad) + `.filtered.bam` → `deeptools/` matrices, profiles, heatmaps, fingerprint, fragment-size plots |
 | 22 | NFR analysis | `nfr_bigwig_nfr` / `nfr_bigwig_mono` / `nfr_compute_matrix` / `nfr_plot_profile` / `nfr_plot_heatmap` | nfr.smk | deepTools alignmentSieve + bamCoverage + computeMatrix / plotProfile / plotHeatmap | 2–12 | 4 096–20 480 | `.shifted.bam` → `nfr/*.nfr.bigWig + *.mono.bigWig` + NFR-vs-mono TSS profile/heatmap |
 | 23 | ataqv | `ataqv` / `ataqv_mkarv` / `ataqv_score` | ataqv.smk | ataqv + mkarv + Python (extract_ataqv_score.py) | 1 | 6 144 / 1 024 / 256 | `.filtered.bam` + peaks + TSS + autosomes → `ataqv/*.ataqv.json + *.mkarv_html/index.html + *.ataqv_score.tsv` |
 | 24 | ATACseqQC | `atacseqqc_score` | atacseqqc.smk | ATACseqQC R pkg (calc_pt_score.R) | 1 | 16 384 | `.shifted.bam` + BED → `atacseqqc/*.atacseqqc_score.tsv + fragsize/pt_score/nfr_score/tsse .png` |
@@ -510,7 +510,7 @@ trimming:
   fastp_params: "--cut_tail --cut_tail_window_size 4 --cut_tail_mean_quality 20 --trim_poly_g --length_required 36"
 
 align:
-  tool: "bowtie2"               # bwa-mem2 / bowtie2
+  tool: "bowtie2"               # bowtie2 / bwa-mem2  (alias: bwa)
   bowtie2_params: "--very-sensitive --no-discordant -X 2000"
   bwa_params: "-I 0,2000"
 
@@ -554,8 +554,6 @@ atacseqqc:
 
 multiqc:
   config: "workflow/scripts/multiqc_config.yml"
-
-latency-wait: 60
 ```
 
 Explanation by block:
@@ -565,7 +563,7 @@ Explanation by block:
 - `ref.keep_mito`: set `true` to retain mitochondrial reads in `include_regions`; `false` (default) excludes them.
 - `ref.autosome_pattern` *(optional)*: awk regex for the autosome list passed to `ataqv --autosomal-reference-file`. Default covers **hg19/hg38**: `^chr([1-9]|1[0-9]|2[0-2])$`. Override for other genomes, e.g. `^([0-9]+)$` for ENSEMBL naming or `^(I|II|III|IV|V)$` for `ce11`.
 - `trimming`: choose one trimming engine and pass tool-specific options.
-- `align`: choose aligner and set aligner-specific CLI parameters.
+- `align`: choose aligner (`bowtie2` or `bwa-mem2`) and set aligner-specific CLI parameters. The alias `bwa` is also accepted and maps to `bwa-mem2`.
 - `bam_filter.params`: SAMtools core filter flags; see [BAM Filtering](#re-mark-duplicates-and-bam-filtering-criteria) for full breakdown.
 - `bam_filter.apply_canonical_chromosomes`: controls whether reads are restricted to standard chromosomes before blacklist and mito filtering.
   - `true` — filter chromosomes using `canonical_chroms_pattern` (see below). Removes noise from unplaced contigs (`chrUn_*`, `*_random`, EBV, decoy sequences) that inflate peak-calling background.
@@ -593,7 +591,6 @@ Explanation by block:
 - `ataqv.enabled`: run ATAC-specific QC (`ataqv`) and render interactive HTML (`mkarv`), plus extract short mononucleosomal ratio and TSS enrichment score (TSSE)  score to `ataqv_score.tsv` for MultiQC. Requires `call_peaks.enabled=true`.
 - `atacseqqc.enabled`: run ATACseqQC R package to compute Promoter/transcript body score (PT), per-TSS nucleosome-free region score (NFR), and TSS enrichment score (TSSE) and produce QC plots. Outputs `atacseqqc_score.tsv` for MultiQC. Requires `call_peaks.enabled=true` and `call_peaks.peak_type=narrow`.
 - `multiqc.config`: path to MultiQC config used by this pipeline.
-- `latency-wait`: useful on slow/network filesystems to avoid false missing-output errors.
 
 ### Why these default params were chosen
 
@@ -724,13 +721,13 @@ Per sample under `<outdir>`:
   - `trim/{sample}_trimmed_1_fastqc.html` + `.zip` and `trim/{sample}_trimmed_2_fastqc.html` + `.zip` (Trim Galore mode)
   - `trim/{sample}.fastp.html` and `trim/{sample}.fastp.json` (fastp mode)
 - deepTools
-  - `deeptools/{sample}.scale_regions.computeMatrix.gz`
-  - `deeptools/{sample}.scale_regions.computeMatrix.tab`
-  - `deeptools/{sample}.scale_regions.plotProfile.pdf` + `.tab`
-  - `deeptools/{sample}.reference_point.computeMatrix.gz`
-  - `deeptools/{sample}.reference_point.computeMatrix.tab`
-  - `deeptools/{sample}.reference_point.plotProfile.pdf` + `.tab`
-  - `deeptools/{sample}.reference_point.plotHeatmap.pdf` + `.tab`
+  - `deeptools/{sample}.gene_body.computeMatrix.gz`
+  - `deeptools/{sample}.gene_body.computeMatrix.tab`
+  - `deeptools/{sample}.gene_body.plotProfile.pdf` + `.tab`
+  - `deeptools/{sample}.tss.computeMatrix.gz`
+  - `deeptools/{sample}.tss.computeMatrix.tab`
+  - `deeptools/{sample}.tss.plotProfile.pdf` + `.tab`
+  - `deeptools/{sample}.tss.plotHeatmap.pdf` + `.tab`
   - `deeptools/{sample}.plotFingerprint.pdf`
   - `deeptools/{sample}.plotFingerprint.raw_counts.txt`
   - `deeptools/{sample}.plotFingerprint.qcmetrics.txt`

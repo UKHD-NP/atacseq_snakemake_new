@@ -27,8 +27,8 @@ rule shift_bam:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.alignmentSieve.benchmark.txt")
     shell:
         """
-        ulimit -n 65536
-        
+        ulimit -n 65536 || true
+
         mkdir -p "$(dirname "{output.bam}")"
         mkdir -p "$(dirname "{output.bigwig}")"
         mkdir -p "$(dirname "{log}")"
