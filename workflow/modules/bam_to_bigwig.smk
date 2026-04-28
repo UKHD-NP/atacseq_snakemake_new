@@ -19,7 +19,8 @@ rule bedtools_genomecov:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.bedtools_genomecov.benchmark.txt")
     shell:
         """
-        ulimit -n 65536 || true
+        ulimit -Sn $(ulimit -Hn) 2>/dev/null || ulimit -n 65536 2>/dev/null || true
+        echo "[INFO] File descriptor limit: $(ulimit -n)" >> "{log}"
 
         mkdir -p "$(dirname "{output.bedgraph}")"
         mkdir -p "$(dirname "{log}")"

@@ -47,7 +47,7 @@ set-threads:
   sort_bam: 6
   mark_duplicates: 2
   bam_filter: 6
-  shift_bam: 8
+  shift_bam: 16
   macs3_callpeak_tn5: 2
   deeptools_compute_matrix_gene_body: 12
   deeptools_compute_matrix_tss: 12

@@ -18,7 +18,7 @@ rule shift_bam:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
         "{wildcards.sample_id}: ATAC-shifting BAM with alignmentSieve"
-    threads: 8
+    threads: 16
     resources:
         mem_mb = 40960
     log:
@@ -27,7 +27,8 @@ rule shift_bam:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.alignmentSieve.benchmark.txt")
     shell:
         """
-        ulimit -n 65536 || true
+        ulimit -Sn $(ulimit -Hn) 2>/dev/null || ulimit -n 65536 2>/dev/null || true
+        echo "[INFO] File descriptor limit: $(ulimit -n)" >> "{log}"
 
         mkdir -p "$(dirname "{output.bam}")"
         mkdir -p "$(dirname "{output.bigwig}")"
@@ -37,7 +38,7 @@ rule shift_bam:
             --numberOfProcessors {threads} \
             --ATACshift \
             --bam "{input.bam}" \
-            -o "{params.tmp_bam}" > "{log}" 2>&1 || {{
+            -o "{params.tmp_bam}" >> "{log}" 2>&1 || {{
             echo "[ERROR] alignmentSieve failed." >> "{log}"
             exit 1
         }}
@@ -46,7 +47,7 @@ rule shift_bam:
             --write-index \
             -m "{params.memory_per_thread}" \
             -T "{params.tempdir}/{wildcards.sample_id}.shifted" \
-            -@ {threads} \
+            -@ 6 \
             -o "{output.bam}##idx##{output.bai}" \
             "{params.tmp_bam}" >> "{log}" 2>&1 || {{
                 echo "[ERROR] BAM sorting failed." >> "{log}"
