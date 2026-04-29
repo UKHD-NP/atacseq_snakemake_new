@@ -12,7 +12,8 @@ rule shift_bam:
         gsize = get_gsize,
         bin_size = 10,
         tempdir = os.path.join("{outdir}", "bam", "tmp"),
-        memory_per_thread = "2G"
+        memory_per_thread = "2G",
+        unsorted_bam = os.path.join("{outdir}", "bam", "{sample_id}.shifted.unsorted.bam")
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
@@ -31,43 +32,67 @@ rule shift_bam:
 
         mkdir -p "$(dirname "{output.bam}")"
         mkdir -p "$(dirname "{output.bigwig}")"
+        mkdir -p "{params.tempdir}"
         mkdir -p "$(dirname "{log}")"
 
+        # Step 1: alignmentSieve → unsorted BAM
+        echo "[INFO] alignmentSieve start: $(date)" >> "{log}"
         alignmentSieve \
             --numberOfProcessors {threads} \
             --ATACshift \
             --verbose \
             --bam "{input.bam}" \
-            -o /dev/stdout 2>> "{log}" | \
+            -o "{params.unsorted_bam}" \
+            2>> "{log}" || {{
+            echo "[ERROR] alignmentSieve failed." >> "{log}"
+            exit 1
+        }}
+        echo "[INFO] alignmentSieve done: $(date)" >> "{log}"
+
+        if [ ! -s "{params.unsorted_bam}" ]; then
+            echo "[ERROR] Unsorted BAM missing or empty." >> "{log}"
+            exit 1
+        fi
+
+        # Step 2: samtools sort
+        echo "[INFO] samtools sort start: $(date)" >> "{log}"
         samtools sort \
             --write-index \
             -m "{params.memory_per_thread}" \
             -T "{params.tempdir}/{wildcards.sample_id}.shifted" \
             -@ {threads} \
             -o "{output.bam}##idx##{output.bai}" \
-            - 2>> "{log}" || {{
-            echo "[ERROR] alignmentSieve | samtools sort failed." >> "{log}"
+            "{params.unsorted_bam}" \
+            2>> "{log}" || {{
+            echo "[ERROR] samtools sort failed." >> "{log}"
             exit 1
         }}
+        echo "[INFO] samtools sort done: $(date)" >> "{log}"
+
+        rm -f "{params.unsorted_bam}"
 
         if [ ! -s "{output.bam}" ] || [ ! -s "{output.bai}" ]; then
             echo "[ERROR] Sorted BAM or BAI missing." >> "{log}"
             exit 1
         fi
 
+        # Step 3: bamCoverage
+        echo "[INFO] bamCoverage start: $(date)" >> "{log}"
         bamCoverage \
             --numberOfProcessors {threads} \
             --binSize {params.bin_size} \
             --normalizeUsing RPGC \
             --effectiveGenomeSize "{params.gsize}" \
             --bam "{output.bam}" \
-            -o "{output.bigwig}" >> "{log}" 2>&1 || {{
+            -o "{output.bigwig}" \
+            2>> "{log}" || {{
             echo "[ERROR] bamCoverage failed." >> "{log}"
             exit 1
         }}
+        echo "[INFO] Step 3: bamCoverage done: $(date)" >> "{log}"
 
         if [ ! -s "{output.bigwig}" ]; then
-            echo "[ERROR] Shifted bigWig output is missing or empty: {output.bigwig}" >> "{log}"
+            echo "[ERROR] BigWig missing or empty." >> "{log}"
             exit 1
         fi
         """
