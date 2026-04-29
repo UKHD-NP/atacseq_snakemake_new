@@ -11,9 +11,8 @@ rule shift_bam:
     params:
         gsize = get_gsize,
         bin_size = 10,
-        tempdir = os.path.join("{outdir}", "bam"),
-        tmp_bam = os.path.join("{outdir}", "bam", "{sample_id}.shifted.tmp.bam"),
-        memory_per_thread = "1G"
+        tempdir = os.path.join("{outdir}", "bam", "tmp"),
+        memory_per_thread = "2G"
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
@@ -37,27 +36,21 @@ rule shift_bam:
         alignmentSieve \
             --numberOfProcessors {threads} \
             --ATACshift \
+            --verbose \
             --bam "{input.bam}" \
-            -o "{params.tmp_bam}" >> "{log}" 2>&1 || {{
-            echo "[ERROR] alignmentSieve failed." >> "{log}"
-            exit 1
-        }}
-
+            -o /dev/stdout 2>> "{log}" | \
         samtools sort \
             --write-index \
             -m "{params.memory_per_thread}" \
             -T "{params.tempdir}/{wildcards.sample_id}.shifted" \
-            -@ 6 \
+            -@ {threads} \
             -o "{output.bam}##idx##{output.bai}" \
-            "{params.tmp_bam}" >> "{log}" 2>&1 || {{
-                echo "[ERROR] BAM sorting failed." >> "{log}"
-                exit 1
-            }}
+            - 2>> "{log}" || {{
+            echo "[ERROR] alignmentSieve | samtools sort failed." >> "{log}"
+            exit 1
+        }}
 
-        if [ -s "{output.bam}" ] && [ -s "{output.bai}" ]; then
-            echo "[INFO] Removing unsorted BAM to save space." >> "{log}"
-            rm -f "{params.tmp_bam}"
-        else
+        if [ ! -s "{output.bam}" ] || [ ! -s "{output.bai}" ]; then
             echo "[ERROR] Sorted BAM or BAI missing." >> "{log}"
             exit 1
         fi
