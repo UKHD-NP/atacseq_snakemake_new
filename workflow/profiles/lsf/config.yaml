@@ -55,7 +55,7 @@ set-threads:
   deeptools_plot_profile_gene_body: 2
   deeptools_plot_profile_tss: 2
   deeptools_plot_heatmap_tss: 2
-  deeptools_fragment_size_distribution: 2
+  deeptools_fragment_size_distribution: 6
   samtools_stats_pre_filter: 1
   samtools_stats: 1
   featurecounts_in_peaks: 1

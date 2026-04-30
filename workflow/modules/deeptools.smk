@@ -285,16 +285,16 @@ rule deeptools_fragment_size_distribution:
         qc_metrics = os.path.join("{outdir}", "deeptools", "{sample_id}.fragment_size.qcmetrics.txt")
     params:
         label = lambda wildcards: wildcards.sample_id,
-        bin_size = 10,
+        bin_size = 500,
         max_fragment_length = 1500
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
         "{wildcards.sample_id}: Running deepTools bamPEFragmentSize (fragment size distribution)"
-    threads: 2
+    threads: 6
     resources:
         mem_mb = 6144,
-        runtime = lambda wildcards, attempt: attempt * 480
+        runtime = lambda wildcards, attempt: attempt * 120
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.deeptools_fragment_size.log")
     benchmark:
