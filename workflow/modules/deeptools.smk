@@ -285,7 +285,7 @@ rule deeptools_fragment_size_distribution:
         qc_metrics = os.path.join("{outdir}", "deeptools", "{sample_id}.fragment_size.qcmetrics.txt")
     params:
         label = lambda wildcards: wildcards.sample_id,
-        bin_size = 500,
+        bin_size = 1000,
         max_fragment_length = 1500
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
