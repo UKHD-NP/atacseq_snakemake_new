@@ -15,7 +15,8 @@ rule homer_annotate_peaks:
         "{wildcards.sample_id}: Annotating peaks with HOMER"
     threads: 1
     resources:
-        mem_mb = 10240
+        mem_mb = 10240,
+        runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "homer", "{sample_id}.annotatePeaks.log")
     benchmark:

@@ -132,7 +132,8 @@ rule picard_collect_multiple_metrics:
     threads: 1
     resources:
         mem_mb = 16384,
-        jvm_mem_mb = 14336  # mem_mb minus ~2 GB JVM overhead (metaspace, GC, native)
+        jvm_mem_mb = 14336,  # mem_mb minus ~2 GB JVM overhead (metaspace, GC, native)
+        runtime = lambda wildcards, attempt: attempt * 120
     log:
         os.path.join("{outdir}", "logs", "picard", "{sample_id}.collect_multiple_metrics.log")
     benchmark:

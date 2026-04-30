@@ -18,7 +18,8 @@ rule mark_duplicates:
         "{wildcards.sample_id}: Marking duplicate reads"
     threads: 2
     resources:
-        mem_mb = 49152
+        mem_mb = 49152,
+        runtime = lambda wildcards, attempt: attempt * 480
     log:
         os.path.join("{outdir}", "logs", "markdup", "{sample_id}.markduplicates.log")
     benchmark:

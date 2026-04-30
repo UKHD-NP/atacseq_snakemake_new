@@ -59,7 +59,8 @@ rule macs3_callpeak_tn5:
         "{wildcards.sample_id}: Calling peaks with MACS3"
     threads: 2
     resources:
-        mem_mb = 8192
+        mem_mb = 8192,
+        runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "macs3", "{sample_id}.callpeak.log")
     benchmark:

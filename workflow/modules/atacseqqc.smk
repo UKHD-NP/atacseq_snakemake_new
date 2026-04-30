@@ -15,7 +15,8 @@ rule atacseqqc_score:
         "{wildcards.sample_id}: Calculating PT score, NFR score and TSSE score via ATACseqQC"
     threads: 1
     resources:
-        mem_mb = 16384
+        mem_mb = 16384,
+        runtime = lambda wildcards, attempt: attempt * 480
     log:
         os.path.join("{outdir}", "logs", "atacseqqc", "{sample_id}.pt_score.log")
     benchmark:

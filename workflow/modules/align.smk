@@ -78,7 +78,8 @@ rule bwa_mem2_index:
         "Building BWA-MEM2 index"
     threads: 12
     resources:
-        mem_mb = 65536
+        mem_mb = 65536,
+        runtime = lambda wildcards, attempt: attempt * 480
     log:
         os.path.join(ref_dir, "bwa_mem2_index.log")
     benchmark:
@@ -119,7 +120,8 @@ rule bwa_mem2_align:
         "{wildcards.sample_id}: Aligning with bwa-mem2"
     threads: 12
     resources:
-        mem_mb = 49152  # ~4 GB per thread
+        mem_mb = 49152,  # ~4 GB per thread
+        runtime = lambda wildcards, attempt: attempt * 1440
     log:
         os.path.join("{outdir}", "logs", "bwa_mem2", "{sample_id}.align.log")
     benchmark:
@@ -174,7 +176,8 @@ rule bowtie2_index:
         "Building Bowtie2 index"
     threads: 12
     resources:
-        mem_mb = 8192
+        mem_mb = 8192,
+        runtime = lambda wildcards, attempt: attempt * 480
     log:
         os.path.join(ref_dir, "bowtie2_index.log")
     benchmark:
@@ -220,7 +223,8 @@ rule bowtie2_align:
         "{wildcards.sample_id}: Aligning with bowtie2"
     threads: 26
     resources:
-        mem_mb = 16384
+        mem_mb = 16384,
+        runtime = lambda wildcards, attempt: attempt * 1440
     log:
         os.path.join("{outdir}", "logs", "bowtie2", "{sample_id}.align.log")
     benchmark:
@@ -268,7 +272,8 @@ rule sort_bam:
         "{wildcards.sample_id}: Sorting BAM by coordinates"
     threads: 6
     resources:
-        mem_mb = 36864
+        mem_mb = 36864,
+        runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "samtools", "{sample_id}.sort.log")
     benchmark:
