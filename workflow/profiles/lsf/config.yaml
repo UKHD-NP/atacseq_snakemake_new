@@ -17,7 +17,7 @@ default-resources:
   runtime: 120
 
 # Job submission settings
-jobs: 30
+jobs: 20
 rerun-incomplete: true
 latency-wait: 60
 keep-going: false
@@ -29,7 +29,7 @@ conda-frontend: mamba
 conda-prefix: "/path/to/group/storage/conda_envs"
 
 # Retries on job failure
-retries: 3
+retries: 5
 
 # Global cores cap: controls --cores passed to each per-job subprocess
 cores: 300
