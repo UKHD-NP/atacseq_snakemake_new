@@ -219,7 +219,7 @@ def get_target_files(sample_ids):
     )
     annotate_peaks_on = call_peaks_on and is_enabled("annotate_peaks")
     feature_counts_on = call_peaks_on  # always run featureCounts when peaks are called (required for FRiP score)
-    shift_bam_on = CALL_PEAKS_PEAK_TYPE == "narrow"
+    shift_bam_on = CALL_PEAKS_PEAK_TYPE == "narrow" and is_enabled("shift_bam", default=True)
     deeptools_on = is_enabled("deeptools")
     ataqv_on = is_enabled("ataqv") and call_peaks_on
     atacseqqc_on = is_enabled("atacseqqc") and shift_bam_on and call_peaks_on

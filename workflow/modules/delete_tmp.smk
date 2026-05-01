@@ -1,6 +1,6 @@
 def _final_bam(wildcards, ext=""):
     """Return the path to the last permanent BAM: shifted (narrow peaks) or filtered."""
-    if is_enabled("call_peaks") and CALL_PEAKS_PEAK_TYPE == "narrow":
+    if is_enabled("call_peaks") and CALL_PEAKS_PEAK_TYPE == "narrow" and is_enabled("shift_bam", default=True):
         return os.path.join(wildcards.outdir, "bam", f"{wildcards.sample_id}.shifted.bam{ext}")
     return os.path.join(wildcards.outdir, "bam", f"{wildcards.sample_id}.filtered.bam{ext}")
 

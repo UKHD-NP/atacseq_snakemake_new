@@ -29,7 +29,7 @@ rule nfr_fragment_counts:
     threads: 2
     resources:
         mem_mb = 2048,
-        runtime = lambda wildcards, attempt: attempt * 60
+        runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "nfr", "{sample_id}.fragment_counts.log")
     benchmark:
@@ -104,7 +104,7 @@ rule nfr_bigwig_nfr:
     threads: 8
     resources:
         mem_mb = 16384,
-        runtime = lambda wildcards, attempt: attempt * 240
+        runtime = lambda wildcards, attempt: attempt * 480
     log:
         os.path.join("{outdir}", "logs", "nfr", "{sample_id}.nfr.bigwig.log")
     benchmark:
@@ -175,7 +175,7 @@ rule nfr_bigwig_mono:
     threads: 8
     resources:
         mem_mb = 16384,
-        runtime = lambda wildcards, attempt: attempt * 240
+        runtime = lambda wildcards, attempt: attempt * 480
     log:
         os.path.join("{outdir}", "logs", "nfr", "{sample_id}.mono.bigwig.log")
     benchmark:

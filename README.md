@@ -180,9 +180,9 @@ All per-sample rules in execution order. Toggle columns: `t` = threads, `MB` = `
 | Peak QC plot | `call_peaks.macs3_peak_qc_plot` | true | call_peaks |
 | Annotation | `annotate_peaks.enabled` | true | call_peaks |
 | featureCounts + FRiP | *(auto with call_peaks)* | — | call_peaks |
-| Shift BAM + shifted bigWig | *(auto for narrow peaks)* | — | narrow peaks |
+| Shift BAM + shifted bigWig | `shift_bam.enabled` | true | narrow peaks |
 | deepTools | `deeptools.enabled` | true | call_peaks |
-| NFR analysis | *(auto)* | — | deeptools + narrow peaks |
+| NFR analysis | `nfr.enabled` | true | deeptools + shift_bam + narrow peaks |
 | ataqv | `ataqv.enabled` | true | call_peaks |
 | ATACseqQC | `atacseqqc.enabled` | true | call_peaks + narrow peaks |
 
@@ -591,6 +591,7 @@ Explanation by block:
 - `call_peaks.frip_overlap_fraction`: minimum read-peak overlap fraction for FRiP (passed to both `bedtools intersect -f` and featureCounts `--fracOverlap`).
 - `call_peaks.frip_threshold`: FRiP percentage threshold for quality label in `*.FRiP.txt`; samples at or above this value are labelled `good`, below is `bad` (default: 20%).
 - `annotate_peaks.enabled`: run HOMER `annotatePeaks` and summary plotting.
+- `shift_bam.enabled` (default: `true`): Tn5-shift the filtered BAM with `alignmentSieve --ATACshift` and produce `shifted.bam` + `shifted.bigWig`. Set `false` to skip — saves significant time (24 threads, up to 16h runtime) and disk. **Disabling also skips NFR analysis and ATACseqQC**, which both require `shifted.bam`.
 - `deeptools.enabled`: run computeMatrix/plotProfile/plotHeatmap/plotFingerprint modules. Requires `call_peaks.enabled=true`. For narrow peaks, computeMatrix uses the Tn5-shifted bigWig (`shifted.bigWig`); for broad peaks, it uses the unshifted bigWig (`bigWig`).
 - `nfr.enabled` (default: `true`): enable/disable NFR bigWigs, fragment size counts, and TSS profile/heatmap. NFR runs automatically when `deeptools.enabled=true` and `call_peaks.peak_type=narrow`; set `false` to skip. Fragment size boundaries can be tuned in the same `nfr:` block (see config comments for defaults).
 - `ataqv.enabled`: run ATAC-specific QC (`ataqv`) and render interactive HTML (`mkarv`), plus extract short mononucleosomal ratio and TSS enrichment score (TSSE)  score to `ataqv_mqc.tsv` for MultiQC. Requires `call_peaks.enabled=true`.

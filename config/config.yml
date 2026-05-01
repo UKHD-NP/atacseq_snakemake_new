@@ -85,6 +85,13 @@ annotate_peaks:
 deeptools:
   # Enable computeMatrix / plotProfile / plotHeatmap / plotFingerprint / fragment_size_distribution
   enabled: true
+
+shift_bam:
+  # Tn5-shift the filtered BAM (alignmentSieve --ATACshift) and produce shifted.bigWig.
+  # Disabling skips shifted.bam, shifted.bigWig, NFR analysis, and ATACseqQC.
+  # Set false to save time and disk when only unshifted signal tracks are needed.
+  enabled: true
+
 # NFR vs mononucleosomal analysis.
 # Runs when deeptools.enabled=true and call_peaks.peak_type=narrow.
 # Set enabled: false to skip NFR bigWigs, fragment size counts, and TSS profile/heatmap.
