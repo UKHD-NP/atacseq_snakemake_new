@@ -92,19 +92,20 @@ def get_input_multiqc(wildcards):
         targets.append(_path("deeptools", f"{sample_id}.fragment_size.qcmetrics.txt"))
         targets.append(_path("deeptools", f"{sample_id}.fragment_size.raw_lengths.txt"))
 
-    # Add NFR vs mono profile table for MultiQC.
-    nfr_on = deeptools_on and is_enabled("call_peaks") and CALL_PEAKS_PEAK_TYPE == "narrow"
+    # Add NFR vs mono profile table and fragment counts for MultiQC.
+    nfr_on = deeptools_on and is_enabled("call_peaks") and CALL_PEAKS_PEAK_TYPE == "narrow" and is_enabled("nfr", default=True)
     if nfr_on:
         targets.append(_path("nfr", f"{sample_id}.nfr_vs_mono.plotProfile.tab"))
+        targets.append(_path("nfr", f"{sample_id}.fragment_counts_mqc.tsv"))
 
     # Add ataqv JSON metrics for ATAC QC.
     if ataqv_on:
         targets.append(_path("ataqv", f"{sample_id}.ataqv.json"))
-        targets.append(_path("ataqv", f"{sample_id}.ataqv_score.tsv"))
+        targets.append(_path("ataqv", f"{sample_id}.ataqv_mqc.tsv"))
 
     # Add ATACseqQC score table.
     if atacseqqc_on:
-        targets.append(_path("atacseqqc", f"{sample_id}.atacseqqc_score.tsv"))
+        targets.append(_path("atacseqqc", f"{sample_id}.atacseqqc_mqc.tsv"))
 
     return list(dict.fromkeys(targets))
 
@@ -134,7 +135,7 @@ rule multiqc:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.multiqc.benchmark.txt")
     shell:
         """
-        # Set max file size limit for Python processes
+        # Set open file descriptor limit
         ulimit -n 2048 || true
 
         # Set Python environment variables to optimize memory usage

@@ -107,12 +107,12 @@ rule ataqv_mkarv:
         """
 
 
-rule ataqv_score:
+rule ataqv_mqc:
     # Extract TSS enrichment score and NFR ratio from ataqv JSON for MultiQC.
     input:
         ataqv_json = os.path.join("{outdir}", "ataqv", "{sample_id}.ataqv.json")
     output:
-        mqc_tsv = os.path.join("{outdir}", "ataqv", "{sample_id}.ataqv_score.tsv")
+        mqc_tsv = os.path.join("{outdir}", "ataqv", "{sample_id}.ataqv_mqc.tsv")
     conda:
         os.path.join(workflow.basedir, "envs", "ataqv.yml")
     message:
@@ -122,8 +122,8 @@ rule ataqv_score:
         mem_mb = 256,
         runtime = lambda wildcards, attempt: attempt * 60
     log:
-        os.path.join("{outdir}", "logs", "ataqv", "{sample_id}.ataqv_score.log")
+        os.path.join("{outdir}", "logs", "ataqv", "{sample_id}.ataqv_mqc.log")
     benchmark:
-        os.path.join("{outdir}", "benchmarks", "{sample_id}.ataqv_score.benchmark.txt")
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.ataqv_mqc.benchmark.txt")
     script:
         os.path.join(workflow.basedir, "scripts", "extract_ataqv_score.py")

@@ -294,7 +294,7 @@ rule deeptools_fragment_size_distribution:
     threads: 6
     resources:
         mem_mb = 6144,
-        runtime = lambda wildcards, attempt: attempt * 120
+        runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.deeptools_fragment_size.log")
     benchmark:

@@ -47,7 +47,7 @@ set-threads:
   sort_bam: 6
   mark_duplicates: 2
   bam_filter: 6
-  shift_bam: 16
+  shift_bam: 24
   macs3_callpeak_tn5: 2
   deeptools_compute_matrix_gene_body: 12
   deeptools_compute_matrix_tss: 12
@@ -65,9 +65,9 @@ set-threads:
   bedtools_genomecov: 2
   ucsc_bedgraphtobigwig: 2
   ataqv: 1
-  ataqv_score: 1
+  ataqv_mqc: 1
   ataqv_mkarv: 1
-  atacseqqc_score: 1
+  atacseqqc_mqc: 1
   nfr_bigwig_nfr: 8
   nfr_bigwig_mono: 8
   nfr_compute_matrix: 12
@@ -176,7 +176,7 @@ set-resources:
     lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
 
   ucsc_bedgraphtobigwig:
-    mem_mb: 6144
+    mem_mb: 4096
     lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
 
   # ---- POST PEAK CALLING QC ----
@@ -235,7 +235,7 @@ set-resources:
     mem_mb: 6144
     lsf_queue: "verylong"
 
-  ataqv_score:
+  ataqv_mqc:
     mem_mb: 256
     lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
   
@@ -244,7 +244,7 @@ set-resources:
     lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
 
   # ---- ATACSEQQC ----
-  atacseqqc_score:
+  atacseqqc_mqc:
     mem_mb: 16384
     lsf_queue: "verylong"
 

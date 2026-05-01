@@ -1,10 +1,10 @@
-rule atacseqqc_score:
+rule atacseqqc_mqc:
     input:
         bam = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam"),
         bai = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam.bai"),
         bed = config["ref"]["bed"],
     output:
-        score_tsv    = os.path.join("{outdir}", "atacseqqc", "{sample_id}.atacseqqc_score.tsv"),
+        score_tsv    = os.path.join("{outdir}", "atacseqqc", "{sample_id}.atacseqqc_mqc.tsv"),
         plot_fragsize = os.path.join("{outdir}", "atacseqqc", "{sample_id}.fragsize_dist.png"),
         plot_pt       = os.path.join("{outdir}", "atacseqqc", "{sample_id}.pt_score.png"),
         plot_nfr      = os.path.join("{outdir}", "atacseqqc", "{sample_id}.nfr_score.png"),

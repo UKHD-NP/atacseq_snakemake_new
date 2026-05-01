@@ -69,7 +69,7 @@ rule ucsc_bedgraphtobigwig:
         "{wildcards.sample_id}: Converting bedGraph to bigWig (Source: Filtered BAM, NOT SHIFTED)"
     threads: 1
     resources:
-        mem_mb = 1024,
+        mem_mb = 4096,
         runtime = lambda wildcards, attempt: attempt * 120
     log:
         os.path.join("{outdir}", "logs", "ucsc", "{sample_id}.bedgraphtobigwig.log")

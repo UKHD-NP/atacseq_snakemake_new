@@ -124,12 +124,12 @@ bam_filter  --->  filtered.bam / filtered.bam.bai
         |                               |    +--> alignmentSieve → nfr.bigWig + mono.bigWig
         |                               |    +--> computeMatrix / plotProfile / plotHeatmap (nfr vs mono)
         |                               +--> ataqv (optional; filtered.bam)
-        |                               |    +--> ataqv_score → ataqv_score.tsv (TSS enrichment, NFR ratio)
+        |                               |    +--> ataqv_mqc → ataqv_mqc.tsv (TSS enrichment, NFR ratio)
         |                               +--> atacseqqc (optional; narrow peaks only)
         |                               |    +--> fragSizeDist → fragsize_dist.png
-        |                               |    +--> PTscore → pt_score.png + atacseqqc_score.tsv
-        |                               |    +--> NFRscore → nfr_score.png + atacseqqc_score.tsv
-        |                               |    +--> TSSEscore → tsse.png + atacseqqc_score.tsv
+        |                               |    +--> PTscore → pt_score.png + atacseqqc_mqc.tsv
+        |                               |    +--> NFRscore → nfr_score.png + atacseqqc_mqc.tsv
+        |                               |    +--> TSSEscore → tsse.png + atacseqqc_mqc.tsv
         |
         v
      multiqc
@@ -157,7 +157,7 @@ All per-sample rules in execution order. Toggle columns: `t` = threads, `MB` = `
 | 11 | BAM filter | `bam_filter` | bam_filter.smk | samtools view + bamtools filter + pysam bampe_rm_orphan | 6 | 36 864 | `.markdup.sorted.bam` + include_regions → `bam/*.filtered.bam + *.bai` |
 | 12 | Samtools stats | `samtools_stats` | align_stats.smk | samtools stats / flagstat / idxstats | 1 | 1 024 | `.filtered.bam` → `bam/*.filtered.bam.{stats,flagstat,idxstats}` |
 | 13 | Picard metrics | `picard_collect_multiple_metrics` | align_stats.smk | Picard CollectMultipleMetrics | 1 | 16 384 | `.filtered.bam` → alignment_summary / insert_size / base_dist / quality_* metrics |
-| 14 | BigWig (unshifted) | `bedtools_genomecov` → `ucsc_bedgraphtobigwig` | bam_to_bigwig.smk | bedtools genomecov + bedGraphToBigWig | 2 / 2 | 40 960 / 1 024 | `.filtered.bam` → `bigwig/*.bedGraph` → `bigwig/*.bigWig` |
+| 14 | BigWig (unshifted) | `bedtools_genomecov` → `ucsc_bedgraphtobigwig` | bam_to_bigwig.smk | bedtools genomecov + bedGraphToBigWig | 2 / 2 | 40 960 / 4 096 | `.filtered.bam` → `bigwig/*.bedGraph` → `bigwig/*.bigWig` |
 | 15 | Shift BAM | `shift_bam` | shift_bam.smk | deepTools alignmentSieve + bamCoverage (RPGC) | 8 | 40 960 | `.filtered.bam` → `bam/*.shifted.bam` + `bigwig/*.shifted.bigWig` |
 | 16 | MACS3 peak calling | `macs3_callpeak_tn5` | call_peaks.smk | bedtools bamtobed + awk Tn5-shift + MACS3 (narrow: BED mode; broad: BAMPE mode) | 2 | 8 192 | `.filtered.bam` → `peaks/*.tn5_shifted.bed + *_peaks.peak + *_peaks.xls` |
 | 17 | MACS3 peak QC | `macs3_peak_qc_plot` | call_peaks.smk | R (plot_macs_qc.r) | 2 | — | `*_peaks.peak` → `peaks/*.macs_peakqc.summary.txt + *.plots.pdf` |
@@ -165,9 +165,9 @@ All per-sample rules in execution order. Toggle columns: `t` = threads, `MB` = `
 | 19 | FRiP score | `frip_score` | frip_score.smk | bedtools intersect (+ featureCounts log parse) | 1 | 2 048 | `.filtered.bam` + peaks + flagstat → `peaks/*.FRiP.txt + *_peaks.{FRiP,count}_mqc.tsv` |
 | 20 | HOMER annotation | `homer_annotate_peaks` | annotate_peaks.smk | HOMER annotatePeaks.pl + R (plot_homer_annotatepeaks.r) | 2 | 10 240 | peaks + FASTA + GTF → `annotation/*_peaks.annotatePeaks.txt + *.summary.txt` |
 | 21 | deepTools | `deeptools_compute_matrix_gene_body` / `deeptools_compute_matrix_tss` / `deeptools_plot_profile_gene_body` / `deeptools_plot_profile_tss` / `deeptools_plot_heatmap_tss` / `deeptools_plot_fingerprint` / `deeptools_fragment_size_distribution` | deeptools.smk | deepTools computeMatrix / plotProfile / plotHeatmap / plotFingerprint / bamPEFragmentSize | 2–12 | 6 144–20 480 | `.shifted.bigWig` (narrow) or `.bigWig` (broad) + `.filtered.bam` → `deeptools/` matrices, profiles, heatmaps, fingerprint, fragment-size plots |
-| 22 | NFR analysis | `nfr_bigwig_nfr` / `nfr_bigwig_mono` / `nfr_compute_matrix` / `nfr_plot_profile` / `nfr_plot_heatmap` | nfr.smk | deepTools alignmentSieve + bamCoverage + computeMatrix / plotProfile / plotHeatmap | 2–12 | 4 096–20 480 | `.shifted.bam` → `nfr/*.nfr.bigWig + *.mono.bigWig` + NFR-vs-mono TSS profile/heatmap |
-| 23 | ataqv | `ataqv` / `ataqv_mkarv` / `ataqv_score` | ataqv.smk | ataqv + mkarv + Python (extract_ataqv_score.py) | 1 | 6 144 / 1 024 / 256 | `.filtered.bam` + peaks + TSS + autosomes → `ataqv/*.ataqv.json + *.mkarv_html/index.html + *.ataqv_score.tsv` |
-| 24 | ATACseqQC | `atacseqqc_score` | atacseqqc.smk | ATACseqQC R pkg (calc_pt_score.R) | 1 | 16 384 | `.shifted.bam` + BED → `atacseqqc/*.atacseqqc_score.tsv + fragsize/pt_score/nfr_score/tsse .png` |
+| 22 | NFR analysis | `nfr_fragment_counts` / `nfr_bigwig_nfr` / `nfr_bigwig_mono` / `nfr_compute_matrix` / `nfr_plot_profile` / `nfr_plot_heatmap` | nfr.smk | samtools view + awk + deepTools alignmentSieve + bamCoverage + computeMatrix / plotProfile / plotHeatmap | 2–12 | 2 048–20 480 | `.shifted.bam` → `nfr/*.fragment_counts_mqc.tsv` (NFR/mono/di/tri read counts) + `*.nfr.bigWig + *.mono.bigWig` + NFR-vs-mono TSS profile/heatmap |
+| 23 | ataqv | `ataqv` / `ataqv_mkarv` / `ataqv_mqc` | ataqv.smk | ataqv + mkarv + Python (extract_ataqv_score.py) | 1 | 6 144 / 1 024 / 256 | `.filtered.bam` + peaks + TSS + autosomes → `ataqv/*.ataqv.json + *.mkarv_html/index.html + *.ataqv_mqc.tsv` |
+| 24 | ATACseqQC | `atacseqqc_mqc` | atacseqqc.smk | ATACseqQC R pkg (calc_pt_score.R) | 1 | 16 384 | `.shifted.bam` + BED → `atacseqqc/*.atacseqqc_mqc.tsv + fragsize/pt_score/nfr_score/tsse .png` |
 
 **Module toggle summary** (config.yml):
 
@@ -539,12 +539,17 @@ annotate_peaks:
 deeptools:
   enabled: true
 
-# Optional: tune NFR/mononucleosomal fragment size boundaries.
-# NFR analysis runs automatically when deeptools + narrow peaks are enabled.
+# NFR vs mononucleosomal analysis (runs when deeptools + narrow peaks enabled).
+# Set enabled: false to skip NFR bigWigs, fragment size counts, and TSS profiles.
 nfr:
-  nfr_max_fragment: 150      # fragments ≤ this bp → NFR bigWig
-  mono_min_fragment: 151     # fragments ≥ this bp → mono bigWig
-  mono_max_fragment: 300     # fragments ≤ this bp → mono bigWig
+  enabled: true
+  nfr_max_fragment:  150     # fragments ≤ this bp → NFR bigWig / NFR count (default: 150)
+  mono_min_fragment: 151     # fragments ≥ this bp → mono bigWig / mono count (default: 151)
+  mono_max_fragment: 300     # fragments ≤ this bp → mono bigWig / mono count (default: 300)
+  di_min_fragment:   301     # dinucleosomal count lower bound (default: 301)
+  di_max_fragment:   500     # dinucleosomal count upper bound (default: 500)
+  tri_min_fragment:  501     # trinucleosomal count lower bound (default: 501)
+  tri_max_fragment:  700     # trinucleosomal count upper bound (default: 700)
 
 ataqv:
   enabled: true
@@ -587,9 +592,9 @@ Explanation by block:
 - `call_peaks.frip_threshold`: FRiP percentage threshold for quality label in `*.FRiP.txt`; samples at or above this value are labelled `good`, below is `bad` (default: 20%).
 - `annotate_peaks.enabled`: run HOMER `annotatePeaks` and summary plotting.
 - `deeptools.enabled`: run computeMatrix/plotProfile/plotHeatmap/plotFingerprint modules. Requires `call_peaks.enabled=true`. For narrow peaks, computeMatrix uses the Tn5-shifted bigWig (`shifted.bigWig`); for broad peaks, it uses the unshifted bigWig (`bigWig`).
-- `nfr` (optional block): tune fragment size cutoffs for nucleosome-free region score (NFR) vs mononucleosomal analysis. Omit to use defaults (NFR ≤150 bp, mono 151–300 bp).
-- `ataqv.enabled`: run ATAC-specific QC (`ataqv`) and render interactive HTML (`mkarv`), plus extract short mononucleosomal ratio and TSS enrichment score (TSSE)  score to `ataqv_score.tsv` for MultiQC. Requires `call_peaks.enabled=true`.
-- `atacseqqc.enabled`: run ATACseqQC R package to compute Promoter/transcript body score (PT), per-TSS nucleosome-free region score (NFR), and TSS enrichment score (TSSE) and produce QC plots. Outputs `atacseqqc_score.tsv` for MultiQC. Requires `call_peaks.enabled=true` and `call_peaks.peak_type=narrow`.
+- `nfr.enabled` (default: `true`): enable/disable NFR bigWigs, fragment size counts, and TSS profile/heatmap. NFR runs automatically when `deeptools.enabled=true` and `call_peaks.peak_type=narrow`; set `false` to skip. Fragment size boundaries can be tuned in the same `nfr:` block (see config comments for defaults).
+- `ataqv.enabled`: run ATAC-specific QC (`ataqv`) and render interactive HTML (`mkarv`), plus extract short mononucleosomal ratio and TSS enrichment score (TSSE)  score to `ataqv_mqc.tsv` for MultiQC. Requires `call_peaks.enabled=true`.
+- `atacseqqc.enabled`: run ATACseqQC R package to compute Promoter/transcript body score (PT), per-TSS nucleosome-free region score (NFR), and TSS enrichment score (TSSE) and produce QC plots. Outputs `atacseqqc_mqc.tsv` for MultiQC. Requires `call_peaks.enabled=true` and `call_peaks.peak_type=narrow`.
 - `multiqc.config`: path to MultiQC config used by this pipeline.
 
 ### Why these default params were chosen
@@ -735,6 +740,7 @@ Per sample under `<outdir>`:
   - `deeptools/{sample}.fragment_size.raw_lengths.txt`
   - `deeptools/{sample}.fragment_size.qcmetrics.txt`
 - NFR analysis
+  - `nfr/{sample}.fragment_counts_mqc.tsv` (NFR / mono / di / tri read counts + % for MultiQC)
   - `nfr/{sample}.nfr.bigWig` (fragments ≤150 bp)
   - `nfr/{sample}.mono.bigWig` (fragments 151–300 bp)
   - `nfr/{sample}.nfr_vs_mono.computeMatrix.gz`
@@ -744,13 +750,13 @@ Per sample under `<outdir>`:
 - ataqv
   - `ataqv/{sample}.ataqv.json`
   - `ataqv/{sample}.mkarv_html/index.html`
-  - `ataqv/{sample}.ataqv_score.tsv` (NFR ratio + TSSE score for MultiQC)
+  - `ataqv/{sample}.ataqv_mqc.tsv` (NFR ratio + TSSE score for MultiQC)
 - ATACseqQC
   - `atacseqqc/{sample}.fragsize_dist.png`
   - `atacseqqc/{sample}.pt_score.png`
   - `atacseqqc/{sample}.nfr_score.png`
   - `atacseqqc/{sample}.tsse.png`
-  - `atacseqqc/{sample}.atacseqqc_score.tsv` (PT/NFR/TSSE scores for MultiQC)
+  - `atacseqqc/{sample}.atacseqqc_mqc.tsv` (PT/NFR/TSSE scores for MultiQC)
 - MultiQC
   - `multiqc/{sample}.multiqc.html`
 - Cleanup
@@ -803,11 +809,11 @@ Sources: [ENCODE ATAC-seq Standards](https://www.encodeproject.org/atac-seq/) ·
 | Alignment rate | ENCODE | Bowtie2 / BWA-MEM2 log | >95% | ≥80% |
 | Duplication rate | general practice | `*.MarkDuplicates.metrics.txt` | <20% | <30% |
 | FRiP score | ENCODE | `*_peaks.FRiP_mqc.tsv` | ≥0.3 | ≥0.2 |
-| NFR ratio (short:mono) | ataqv | `ataqv/*.ataqv_score.tsv` | >2 | — |
-| TSSE score | ataqv / ENCODE (hg38) | `ataqv/*.ataqv_score.tsv` | ≥7 | ≥5 |
-| PT score (2^mean) | ATACseqQC / pipeline | `atacseqqc/*.atacseqqc_score.tsv` | ≥10 | ≥5 |
-| NFR score (mean) | ATACseqQC | `atacseqqc/*.atacseqqc_score.tsv` | >0 | — |
-| TSSE score | ATACseqQC / ENCODE | `atacseqqc/*.atacseqqc_score.tsv` | ≥7 | ≥5 |
+| NFR ratio (short:mono) | ataqv | `ataqv/*.ataqv_mqc.tsv` | >2 | — |
+| TSSE score | ataqv / ENCODE (hg38) | `ataqv/*.ataqv_mqc.tsv` | ≥7 | ≥5 |
+| PT score (2^mean) | ATACseqQC / pipeline | `atacseqqc/*.atacseqqc_mqc.tsv` | ≥10 | ≥5 |
+| NFR score (mean) | ATACseqQC | `atacseqqc/*.atacseqqc_mqc.tsv` | >0 | — |
+| TSSE score | ATACseqQC / ENCODE | `atacseqqc/*.atacseqqc_mqc.tsv` | ≥7 | ≥5 |
 
 ---
 
@@ -854,7 +860,7 @@ This is a **ratio**, not a percentage of all reads. A ratio of 5 means there are
 
 > Compare values across your own samples. A consistent drop within a batch is more informative than any single absolute threshold.
 
-**In this pipeline:** extracted from ataqv JSON as `short_mononucleosomal_ratio`, reported in `ataqv/{sample}.ataqv_score.tsv`, shown in MultiQC.
+**In this pipeline:** extracted from ataqv JSON as `short_mononucleosomal_ratio`, reported in `ataqv/{sample}.ataqv_mqc.tsv`, shown in MultiQC.
 
 ---
 
@@ -879,7 +885,7 @@ TSS enrichment = mean signal in TSS ±150 bp window
 
 > These thresholds are annotation-dependent. For mouse (mm10) or custom genomes, expect lower absolute values. Compare across your own samples rather than using human thresholds as hard cutoffs.
 
-**In this pipeline:** reported in `ataqv/{sample}.ataqv_score.tsv`, shown in MultiQC.
+**In this pipeline:** reported in `ataqv/{sample}.ataqv_mqc.tsv`, shown in MultiQC.
 
 ---
 
@@ -911,7 +917,7 @@ The mean PT score is in log2 scale; the equivalent linear ratio is **2^PT_score_
 
 > The ≥5 cutoff is set in this pipeline's `calc_pt_score.R`, not by the ATACseqQC package or its vignette. Compare across your own samples.
 
-**In this pipeline:** calculated on shifted BAM (`shifted.bam`), reported alongside NFR score in `atacseqqc/{sample}.atacseqqc_score.tsv`. A `[INFO] QC: PASS` or `[WARNING] QC: FAIL` line is written to the rule log. Scatter plot saved to `atacseqqc/{sample}.pt_score.png`. Only available for narrow peak mode.
+**In this pipeline:** calculated on shifted BAM (`shifted.bam`), reported alongside NFR score in `atacseqqc/{sample}.atacseqqc_mqc.tsv`. A `[INFO] QC: PASS` or `[WARNING] QC: FAIL` line is written to the rule log. Scatter plot saved to `atacseqqc/{sample}.pt_score.png`. Only available for narrow peak mode.
 
 ---
 
@@ -936,7 +942,7 @@ A positive score means the NFR window has more Tn5 insertion signal than the ave
 
 **Thresholds:** ATACseqQC does not publish fixed cutoffs. A positive mean NFR score (> 0) indicates the expected TSS accessibility pattern; compare across samples within the same experiment.
 
-**In this pipeline:** computed alongside PT score on shifted BAM; mean and median NFR score are reported as additional columns in `atacseqqc/{sample}.atacseqqc_score.tsv`. Scatter plot saved to `atacseqqc/{sample}.nfr_score.png`. Only available for narrow peak mode.
+**In this pipeline:** computed alongside PT score on shifted BAM; mean and median NFR score are reported as additional columns in `atacseqqc/{sample}.atacseqqc_mqc.tsv`. Scatter plot saved to `atacseqqc/{sample}.nfr_score.png`. Only available for narrow peak mode.
 
 ---
 
@@ -960,7 +966,7 @@ TSSE = max(mean(per-step score across all TSS))
 - `5–7` — acceptable
 - `<5` — poor; same interpretation as ataqv TSS enrichment
 
-**In this pipeline:** computed alongside PT score and NFR score on shifted BAM; reported as `TSSE_score` column in `atacseqqc/{sample}.atacseqqc_score.tsv`. Plot with ENCODE threshold lines saved to `atacseqqc/{sample}.tsse.png`. Only available for narrow peak mode.
+**In this pipeline:** computed alongside PT score and NFR score on shifted BAM; reported as `TSSE_score` column in `atacseqqc/{sample}.atacseqqc_mqc.tsv`. Plot with ENCODE threshold lines saved to `atacseqqc/{sample}.tsse.png`. Only available for narrow peak mode.
 
 ---
 

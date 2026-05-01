@@ -320,7 +320,7 @@ def get_target_files(sample_ids):
             ])
 
         # NFR vs mononucleosomal analysis (requires deeptools + narrow peaks + shift_bam).
-        nfr_on = deeptools_on and shift_bam_on and call_peaks_on
+        nfr_on = deeptools_on and shift_bam_on and call_peaks_on and is_enabled("nfr", default=True)
         if nfr_on:
             targets.extend([
                 _path("nfr", f"{sample_id}.nfr.bigWig"),
@@ -331,18 +331,19 @@ def get_target_files(sample_ids):
                 _path("nfr", f"{sample_id}.nfr_vs_mono.plotProfile.tab"),
                 _path("nfr", f"{sample_id}.nfr_vs_mono.plotHeatmap.pdf"),
                 _path("nfr", f"{sample_id}.nfr_vs_mono.plotHeatmap.tab"),
+                _path("nfr", f"{sample_id}.fragment_counts_mqc.tsv"),
             ])
 
         # ataqv outputs.
         if ataqv_on:
             targets.append(_path("ataqv", f"{sample_id}.ataqv.json"))
             targets.append(_path("ataqv", f"{sample_id}.mkarv_html", "index.html"))
-            targets.append(_path("ataqv", f"{sample_id}.ataqv_score.tsv"))
+            targets.append(_path("ataqv", f"{sample_id}.ataqv_mqc.tsv"))
 
         # ATACseqQC outputs (independent toggle; narrow peaks only).
         if atacseqqc_on:
             targets.extend([
-                _path("atacseqqc", f"{sample_id}.atacseqqc_score.tsv"),
+                _path("atacseqqc", f"{sample_id}.atacseqqc_mqc.tsv"),
                 _path("atacseqqc", f"{sample_id}.fragsize_dist.png"),
                 _path("atacseqqc", f"{sample_id}.pt_score.png"),
                 _path("atacseqqc", f"{sample_id}.nfr_score.png"),

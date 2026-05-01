@@ -30,9 +30,9 @@ report_section_order:
     order: 2500
   frip_score:
     order: 2400
-  ataqv_score:
+  ataqv_mqc:
     order: 2300
-  atacseqqc_score:
+  atacseqqc_mqc:
     order: 2200
   homer_annotation:
     order: 2100
@@ -124,10 +124,10 @@ extra_fn_clean_exts:
 fn_clean_sample_names: true
 
 sp:
-  ataqv_score:
-    fn: "*.ataqv_score.tsv"
-  atacseqqc_score:
-    fn: "*.atacseqqc_score.tsv"
+  ataqv_mqc:
+    fn: "*.ataqv_mqc.tsv"
+  atacseqqc_mqc:
+    fn: "*.atacseqqc_mqc.tsv"
   fastqc/zip:
     fn: "*_fastqc.zip"
   fastp:
@@ -162,6 +162,8 @@ sp:
     fn: "*_peaks.count_mqc.tsv"
   frip_score:
     fn: "*_peaks.FRiP_mqc.tsv"
+  nfr_fragment_counts:
+    fn: "*.fragment_counts_mqc.tsv"
   featurecounts:
     fn: "*.readCountInPeaks.txt.summary"
 
@@ -207,15 +209,15 @@ custom_data:
       FRiP_featureCounts:
         title: "FRiP (featureCounts %)"
         format: "{:,.2f}"
-  ataqv_score:
-    id: "ataqv_score"
+  ataqv_mqc:
+    id: "ataqv_mqc"
     section_name: "ataqv Metrics (NFR / TSSE)"
     description: "Short mononucleosomal ratio and TSS enrichment score (TSSE) computed by ataqv."
     file_format: "tsv"
     plot_type: "table"
     pconfig:
       namespace: "ATAC"
-      id: "ataqv_score_table"
+      id: "ataqv_mqc_table"
       title: "ataqv Metrics (NFR / TSSE)"
     headers:
       nfr_ratio:
@@ -238,15 +240,15 @@ custom_data:
         format: "{:,.4f}"
         min: 0
         scale: "RdYlGn"
-  atacseqqc_score:
-    id: "atacseqqc_score"
+  atacseqqc_mqc:
+    id: "atacseqqc_mqc"
     section_name: "ATACseqQC Metrics (PT / NFR / TSSE)"
     description: "Promoter/transcript body score (PT), per-TSS nucleosome-free region score (NFR), and TSS enrichment score (TSSE) computed by ATACseqQC on Tn5-shifted BAM."
     file_format: "tsv"
     plot_type: "table"
     pconfig:
       namespace: "ATAC"
-      id: "atacseqqc_score_table"
+      id: "atacseqqc_mqc_table"
       title: "ATACseqQC Metrics (PT / NFR / TSSE)"
     headers:
       PT_score_mean:
@@ -284,6 +286,65 @@ custom_data:
         description: "Depth at each 100 bp step within ±1000 bp of TSS / mean depth at 100 bp end flanks; TSSE = max(mean(per-window TSS score)) (ATACseqQC)"
         format: "{:,.4f}"
         min: 0
+        scale: "RdYlGn"
+  nfr_fragment_counts:
+    id: "nfr_fragment_counts"
+    section_name: "Fragment Size Class Counts"
+    description: "Number and percentage of read pairs per nucleosomal size class (NFR ≤150 bp, mono 151–300 bp, di 301–500 bp, tri 501–700 bp), counted from the Tn5-shifted BAM."
+    file_format: "tsv"
+    plot_type: "table"
+    pconfig:
+      namespace: "ATAC"
+      id: "nfr_fragment_counts_table"
+      title: "Fragment Size Class Counts"
+    headers:
+      nfr_reads:
+        title: "NFR Reads"
+        description: "Read pairs with fragment length ≤150 bp"
+        format: "{:,.0f}"
+        min: 0
+      mono_reads:
+        title: "Mono Reads"
+        description: "Read pairs with fragment length 151–300 bp"
+        format: "{:,.0f}"
+        min: 0
+      di_reads:
+        title: "Di Reads"
+        description: "Read pairs with fragment length 301–500 bp"
+        format: "{:,.0f}"
+        min: 0
+      tri_reads:
+        title: "Tri Reads"
+        description: "Read pairs with fragment length 501–700 bp"
+        format: "{:,.0f}"
+        min: 0
+      nfr_pct:
+        title: "NFR %"
+        description: "NFR reads as % of all properly paired read1"
+        format: "{:,.2f}"
+        min: 0
+        max: 100
+        scale: "RdYlGn"
+      mono_pct:
+        title: "Mono %"
+        description: "Mono reads as % of all properly paired read1"
+        format: "{:,.2f}"
+        min: 0
+        max: 100
+        scale: "RdYlGn"
+      di_pct:
+        title: "Di %"
+        description: "Di reads as % of all properly paired read1"
+        format: "{:,.2f}"
+        min: 0
+        max: 100
+        scale: "RdYlGn"
+      tri_pct:
+        title: "Tri %"
+        description: "Tri reads as % of all properly paired read1"
+        format: "{:,.2f}"
+        min: 0
+        max: 100
         scale: "RdYlGn"
   homer_annotation_summary:
     id: "homer_annotation_summary"

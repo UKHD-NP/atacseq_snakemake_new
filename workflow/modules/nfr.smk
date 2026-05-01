@@ -1,7 +1,86 @@
 NFR_CFG = config.get("nfr", {})
-NFR_MAX_FRAGMENT = int(NFR_CFG.get("nfr_max_fragment", 150))
+NFR_MAX_FRAGMENT  = int(NFR_CFG.get("nfr_max_fragment",  150))
 MONO_MIN_FRAGMENT = int(NFR_CFG.get("mono_min_fragment", 151))
 MONO_MAX_FRAGMENT = int(NFR_CFG.get("mono_max_fragment", 300))
+DI_MIN_FRAGMENT   = int(NFR_CFG.get("di_min_fragment",   301))
+DI_MAX_FRAGMENT   = int(NFR_CFG.get("di_max_fragment",   500))
+TRI_MIN_FRAGMENT  = int(NFR_CFG.get("tri_min_fragment",  501))
+TRI_MAX_FRAGMENT  = int(NFR_CFG.get("tri_max_fragment",  700))
+
+
+rule nfr_fragment_counts:
+    input:
+        bam = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam"),
+        bai = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam.bai")
+    output:
+        mqc = os.path.join("{outdir}", "nfr", "{sample_id}.fragment_counts_mqc.tsv")
+    params:
+        nfr_max  = NFR_MAX_FRAGMENT,
+        mono_min = MONO_MIN_FRAGMENT,
+        mono_max = MONO_MAX_FRAGMENT,
+        di_min   = DI_MIN_FRAGMENT,
+        di_max   = DI_MAX_FRAGMENT,
+        tri_min  = TRI_MIN_FRAGMENT,
+        tri_max  = TRI_MAX_FRAGMENT
+    conda:
+        os.path.join(workflow.basedir, "envs", "samtools.yml")
+    message:
+        "{wildcards.sample_id}: Counting NFR, mono, di, and trinucleosomal reads"
+    threads: 2
+    resources:
+        mem_mb = 2048,
+        runtime = lambda wildcards, attempt: attempt * 60
+    log:
+        os.path.join("{outdir}", "logs", "nfr", "{sample_id}.fragment_counts.log")
+    benchmark:
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.fragment_counts.benchmark.txt")
+    shell:
+        """
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.mqc}")"
+        mkdir -p "$(dirname "{log}")"
+
+        samtools view \
+            --threads {threads} \
+            -f 66 -F 4 \
+            "{input.bam}" \
+        | awk \
+            -v nfr_max={params.nfr_max} \
+            -v mono_min={params.mono_min} \
+            -v mono_max={params.mono_max} \
+            -v di_min={params.di_min} \
+            -v di_max={params.di_max} \
+            -v tri_min={params.tri_min} \
+            -v tri_max={params.tri_max} \
+            -v sample="{wildcards.sample_id}" \
+            -v outfile="{output.mqc}" \
+            -v log="{log}" \
+        '
+        $9 > 0 {{
+            total++
+            if      ($9 <= nfr_max)                      nfr++
+            else if ($9 >= mono_min && $9 <= mono_max)   mono++
+            else if ($9 >= di_min   && $9 <= di_max)     di++
+            else if ($9 >= tri_min  && $9 <= tri_max)    tri++
+        }}
+        END {{
+            nfr_pct  = (total > 0) ? nfr  / total * 100 : 0
+            mono_pct = (total > 0) ? mono / total * 100 : 0
+            di_pct   = (total > 0) ? di   / total * 100 : 0
+            tri_pct  = (total > 0) ? tri  / total * 100 : 0
+            print "Sample\tnfr_reads\tmono_reads\tdi_reads\ttri_reads\tnfr_pct\tmono_pct\tdi_pct\ttri_pct" > outfile
+            printf "%s\t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f\n",
+                sample, nfr, mono, di, tri, nfr_pct, mono_pct, di_pct, tri_pct >> outfile
+            printf "[INFO] NFR: %d (%.2f%%) | Mono: %d (%.2f%%) | Di: %d (%.2f%%) | Tri: %d (%.2f%%) | Total: %d\n",
+                nfr, nfr_pct, mono, mono_pct, di, di_pct, tri, tri_pct, total >> log
+        }}
+        ' 2>> "{log}"
+
+        if [ ! -s "{output.mqc}" ]; then
+            echo "[ERROR] fragment_counts output missing or empty." >> "{log}"
+            exit 1
+        fi
+        """
 
 
 rule nfr_bigwig_nfr:
