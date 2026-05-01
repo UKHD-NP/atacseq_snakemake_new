@@ -5,7 +5,7 @@ if FRAGMENT_SIZE_PLOT_FORMAT not in {"pdf", "png", "svg", "eps"}:
 
 
 def _deeptools_bigwig(wildcards):
-    if is_enabled("call_peaks") and CALL_PEAKS_PEAK_TYPE == "narrow":
+    if is_enabled("call_peaks") and CALL_PEAKS_PEAK_TYPE == "narrow" and is_enabled("shift_bam", default=True):
         return os.path.join(wildcards.outdir, "bigwig", f"{wildcards.sample_id}.shifted.bigWig")
     return os.path.join(wildcards.outdir, "bigwig", f"{wildcards.sample_id}.bigWig")
 
