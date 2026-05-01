@@ -319,7 +319,7 @@ def get_target_files(sample_ids):
                 _path("deeptools", f"{sample_id}.fragment_size.qcmetrics.txt"),
             ])
 
-        # NFR vs mononucleosomal analysis (requires deeptools + narrow peaks + shift_bam).
+        # NFR bigWigs + TSS profile/heatmap (requires shift_bam).
         nfr_on = deeptools_on and shift_bam_on and call_peaks_on and is_enabled("nfr", default=True)
         if nfr_on:
             targets.extend([
@@ -331,8 +331,12 @@ def get_target_files(sample_ids):
                 _path("nfr", f"{sample_id}.nfr_vs_mono.plotProfile.tab"),
                 _path("nfr", f"{sample_id}.nfr_vs_mono.plotHeatmap.pdf"),
                 _path("nfr", f"{sample_id}.nfr_vs_mono.plotHeatmap.tab"),
-                _path("nfr", f"{sample_id}.fragment_counts_mqc.tsv"),
             ])
+
+        # Fragment size class counts (NFR/mono/di/tri) — runs with shifted or filtered BAM.
+        fragment_counts_on = is_enabled("nfr", default=True) and CALL_PEAKS_PEAK_TYPE == "narrow"
+        if fragment_counts_on:
+            targets.append(_path("nfr", f"{sample_id}.fragment_counts_mqc.tsv"))
 
         # ataqv outputs.
         if ataqv_on:

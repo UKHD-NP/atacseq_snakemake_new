@@ -8,10 +8,19 @@ TRI_MIN_FRAGMENT  = int(NFR_CFG.get("tri_min_fragment",  501))
 TRI_MAX_FRAGMENT  = int(NFR_CFG.get("tri_max_fragment",  700))
 
 
+def _fragment_counts_bam(wildcards, ext=""):
+    """Use shifted BAM if shift_bam is enabled, otherwise fall back to filtered BAM."""
+    if is_enabled("shift_bam", default=True):
+        name = f"{wildcards.sample_id}.shifted.bam{ext}"
+    else:
+        name = f"{wildcards.sample_id}.filtered.bam{ext}"
+    return os.path.join(wildcards.outdir, "bam", name)
+
+
 rule nfr_fragment_counts:
     input:
-        bam = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam"),
-        bai = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam.bai")
+        bam = lambda wildcards: _fragment_counts_bam(wildcards),
+        bai = lambda wildcards: _fragment_counts_bam(wildcards, ".bai")
     output:
         mqc = os.path.join("{outdir}", "nfr", "{sample_id}.fragment_counts_mqc.tsv")
     params:
@@ -29,7 +38,7 @@ rule nfr_fragment_counts:
     threads: 2
     resources:
         mem_mb = 2048,
-        runtime = lambda wildcards, attempt: attempt * 240
+        runtime = lambda wildcards, attempt: attempt * 60
     log:
         os.path.join("{outdir}", "logs", "nfr", "{sample_id}.fragment_counts.log")
     benchmark:

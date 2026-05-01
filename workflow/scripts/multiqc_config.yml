@@ -34,6 +34,8 @@ report_section_order:
     order: 2300
   atacseqqc_mqc:
     order: 2200
+  nfr_fragment_counts:
+    order: 2150
   homer_annotation:
     order: 2100
   featurecounts:

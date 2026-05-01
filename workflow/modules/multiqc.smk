@@ -15,8 +15,9 @@ def get_input_multiqc(wildcards):
     annotation_on = is_enabled("annotate_peaks") and call_peaks_on
     feature_counts_on = call_peaks_on  # always run featureCounts when peaks are called (required for FRiP score)
     deeptools_on = is_enabled("deeptools")
+    shift_bam_on = CALL_PEAKS_PEAK_TYPE == "narrow" and is_enabled("shift_bam", default=True)
     ataqv_on = is_enabled("ataqv") and call_peaks_on
-    atacseqqc_on = is_enabled("atacseqqc") and call_peaks_on and CALL_PEAKS_PEAK_TYPE == "narrow"
+    atacseqqc_on = is_enabled("atacseqqc") and shift_bam_on and call_peaks_on and CALL_PEAKS_PEAK_TYPE == "narrow"
 
     # Conditionally add trimming quality control reports
     if is_enabled("trimming"):
@@ -92,10 +93,14 @@ def get_input_multiqc(wildcards):
         targets.append(_path("deeptools", f"{sample_id}.fragment_size.qcmetrics.txt"))
         targets.append(_path("deeptools", f"{sample_id}.fragment_size.raw_lengths.txt"))
 
-    # Add NFR vs mono profile table and fragment counts for MultiQC.
-    nfr_on = deeptools_on and is_enabled("call_peaks") and CALL_PEAKS_PEAK_TYPE == "narrow" and is_enabled("nfr", default=True)
+    # Add NFR vs mono profile table (requires shift_bam).
+    nfr_on = deeptools_on and call_peaks_on and CALL_PEAKS_PEAK_TYPE == "narrow" and shift_bam_on and is_enabled("nfr", default=True)
     if nfr_on:
         targets.append(_path("nfr", f"{sample_id}.nfr_vs_mono.plotProfile.tab"))
+
+    # Fragment size class counts — runs with shifted or filtered BAM.
+    fragment_counts_on = is_enabled("nfr", default=True) and CALL_PEAKS_PEAK_TYPE == "narrow"
+    if fragment_counts_on:
         targets.append(_path("nfr", f"{sample_id}.fragment_counts_mqc.tsv"))
 
     # Add ataqv JSON metrics for ATAC QC.
