@@ -63,7 +63,7 @@ rule nfr_fragment_counts:
             -v tri_max={params.tri_max} \
             -v sample="{wildcards.sample_id}" \
             -v outfile="{output.mqc}" \
-            -v log="{log}" \
+            -v logfile="{log}" \
         '
         $9 > 0 {{
             total++
@@ -81,7 +81,7 @@ rule nfr_fragment_counts:
             printf "%s\t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f\n",
                 sample, nfr, mono, di, tri, nfr_pct, mono_pct, di_pct, tri_pct >> outfile
             printf "[INFO] NFR: %d (%.2f%%) | Mono: %d (%.2f%%) | Di: %d (%.2f%%) | Tri: %d (%.2f%%) | Total: %d\n",
-                nfr, nfr_pct, mono, mono_pct, di, di_pct, tri, tri_pct, total >> log
+                nfr, nfr_pct, mono, mono_pct, di, di_pct, tri, tri_pct, total >> logfile
         }}
         ' 2>> "{log}"
 

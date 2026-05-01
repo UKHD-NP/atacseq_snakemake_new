@@ -79,12 +79,26 @@ annotate_peaks:
 deeptools:
   # Enable computeMatrix / plotProfile / plotHeatmap / plotFingerprint / fragment_size_distribution
   enabled: true
-# Optional: tune fragment size boundaries for NFR vs mononucleosomal analysis.
-# NFR analysis runs automatically when deeptools.enabled=true and call_peaks.peak_type=narrow.
-# nfr:
-#   nfr_max_fragment: 150      # fragments ≤ this bp → NFR bigWig (default: 150)
-#   mono_min_fragment: 151     # fragments ≥ this bp → mono bigWig (default: 151)
-#   mono_max_fragment: 300     # fragments ≤ this bp → mono bigWig (default: 300)
+
+shift_bam:
+  # Tn5-shift the filtered BAM (alignmentSieve --ATACshift) and produce shifted.bigWig.
+  # Disabling skips shifted.bam, shifted.bigWig, NFR analysis, and ATACseqQC.
+  # Set false to save time and disk when only unshifted signal tracks are needed.
+  enabled: false
+
+# NFR vs mononucleosomal analysis.
+# Runs when deeptools.enabled=true and call_peaks.peak_type=narrow.
+# Set enabled: false to skip NFR bigWigs, fragment size counts, and TSS profile/heatmap.
+nfr:
+  enabled: false
+# Optional: tune fragment size boundaries (defaults shown):
+#   nfr_max_fragment:  150     # fragments ≤ this bp → NFR bigWig / NFR count
+#   mono_min_fragment: 151     # fragments ≥ this bp → mono bigWig / mono count
+#   mono_max_fragment: 300     # fragments ≤ this bp → mono bigWig / mono count
+#   di_min_fragment:   301     # dinucleosomal count lower bound
+#   di_max_fragment:   500     # dinucleosomal count upper bound
+#   tri_min_fragment:  501     # trinucleosomal count lower bound
+#   tri_max_fragment:  700     # trinucleosomal count upper bound
 
 ataqv:
   # ATAC-specific QC JSON + mkarv HTML + TSS enrichment / NFR metrics for MultiQC
