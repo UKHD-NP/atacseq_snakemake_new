@@ -37,7 +37,7 @@ rule nfr_fragment_counts:
         "{wildcards.sample_id}: Counting NFR, mono, di, and trinucleosomal reads"
     threads: 2
     resources:
-        mem_mb = 2048,
+        mem_mb = lambda wildcards, attempt: attempt * 6144,
         runtime = lambda wildcards, attempt: attempt * 60
     log:
         os.path.join("{outdir}", "logs", "nfr", "{sample_id}.fragment_counts.log")
@@ -112,7 +112,7 @@ rule nfr_bigwig_nfr:
         "{wildcards.sample_id}: Creating NFR bigWig (fragments ≤ {params.max_fragment} bp)"
     threads: 8
     resources:
-        mem_mb = 16384,
+        mem_mb = lambda wildcards, attempt: attempt * 16384,
         runtime = lambda wildcards, attempt: attempt * 480
     log:
         os.path.join("{outdir}", "logs", "nfr", "{sample_id}.nfr.bigwig.log")
@@ -183,7 +183,7 @@ rule nfr_bigwig_mono:
         "{wildcards.sample_id}: Creating mononucleosomal bigWig ({params.min_fragment}–{params.max_fragment} bp)"
     threads: 8
     resources:
-        mem_mb = 16384,
+        mem_mb = lambda wildcards, attempt: attempt * 16384,
         runtime = lambda wildcards, attempt: attempt * 480
     log:
         os.path.join("{outdir}", "logs", "nfr", "{sample_id}.mono.bigwig.log")
@@ -253,7 +253,7 @@ rule nfr_compute_matrix:
         "{wildcards.sample_id}: Computing NFR vs mono matrix around TSS"
     threads: 12
     resources:
-        mem_mb = 6144,
+        mem_mb = lambda wildcards, attempt: attempt * 6144,
         runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "nfr", "{sample_id}.nfr_vs_mono.computeMatrix.log")
@@ -301,7 +301,7 @@ rule nfr_plot_profile:
         "{wildcards.sample_id}: Plotting NFR vs mono profile around TSS"
     threads: 2
     resources:
-        mem_mb = 4096,
+        mem_mb = lambda wildcards, attempt: attempt * 6144,
         runtime = lambda wildcards, attempt: attempt * 120
     log:
         os.path.join("{outdir}", "logs", "nfr", "{sample_id}.nfr_vs_mono.plotProfile.log")
@@ -343,7 +343,7 @@ rule nfr_plot_heatmap:
         "{wildcards.sample_id}: Plotting NFR vs mono heatmap around TSS"
     threads: 2
     resources:
-        mem_mb = 20480,
+        mem_mb = lambda wildcards, attempt: attempt * 20480,
         runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "nfr", "{sample_id}.nfr_vs_mono.plotHeatmap.log")

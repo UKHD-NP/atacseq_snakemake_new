@@ -13,7 +13,8 @@ rule samtools_stats_pre_filter:
         "{wildcards.sample_id}: Running Samtools statistics (pre-filter)"
     threads: 1
     resources:
-        mem_mb = 1024
+        mem_mb = lambda wildcards, attempt: attempt * 2048,
+        runtime = 60
     log:
         os.path.join("{outdir}", "logs", "samtools", "{sample_id}.samtools_stats_pre_filter.log")
     benchmark:
@@ -46,7 +47,8 @@ rule samtools_stats:
         "{wildcards.sample_id}: Running Samtools statistics"
     threads: 1
     resources:
-        mem_mb = 1024
+        mem_mb = lambda wildcards, attempt: attempt * 2048,
+        runtime = 60
     log:
         os.path.join("{outdir}", "logs", "samtools", "{sample_id}.samtools_stats.log")
     benchmark:
@@ -131,8 +133,8 @@ rule picard_collect_multiple_metrics:
         "{wildcards.sample_id}: Running Picard CollectMultipleMetrics"
     threads: 1
     resources:
-        mem_mb = 16384,
-        jvm_mem_mb = 14336,  # mem_mb minus ~2 GB JVM overhead (metaspace, GC, native)
+        mem_mb = lambda wildcards, attempt: attempt * 16384,
+        jvm_mem_mb = 14336,  # mem_mb minus ~2 GB JVM overhead (metaspace, GC, native),
         runtime = lambda wildcards, attempt: attempt * 120
     log:
         os.path.join("{outdir}", "logs", "picard", "{sample_id}.collect_multiple_metrics.log")

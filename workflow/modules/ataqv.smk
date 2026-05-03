@@ -28,7 +28,7 @@ rule ataqv:
         "{wildcards.sample_id}: Running ataqv"
     threads: 1
     resources:
-        mem_mb = 6144,
+        mem_mb = lambda wildcards, attempt: attempt * 6144,
         runtime = lambda wildcards, attempt: attempt * 480
     log:
         os.path.join("{outdir}", "logs", "ataqv", "{sample_id}.ataqv.log")
@@ -77,7 +77,7 @@ rule ataqv_mkarv:
         "{wildcards.sample_id}: Building ataqv HTML report with mkarv"
     threads: 1
     resources:
-        mem_mb = 1024,
+        mem_mb = lambda wildcards, attempt: attempt * 6144,
         runtime = lambda wildcards, attempt: attempt * 60
     log:
         os.path.join("{outdir}", "logs", "ataqv", "{sample_id}.mkarv.log")
@@ -119,7 +119,7 @@ rule ataqv_mqc:
         "{wildcards.sample_id}: Extracting NFR score and TSSE score via ataqv JSON for MultiQC"
     threads: 1
     resources:
-        mem_mb = 256,
+        mem_mb = lambda wildcards, attempt: attempt * 6144,
         runtime = lambda wildcards, attempt: attempt * 60
     log:
         os.path.join("{outdir}", "logs", "ataqv", "{sample_id}.ataqv_mqc.log")

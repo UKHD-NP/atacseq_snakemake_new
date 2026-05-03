@@ -23,7 +23,8 @@ rule frip_score:
         "{wildcards.sample_id}: Calculating FRiP score"
     threads: 1
     resources:
-        mem_mb = 2048
+        mem_mb = lambda wildcards, attempt: attempt * 6144,
+        runtime = 60
     log:
         os.path.join("{outdir}", "logs", "frip", "{sample_id}.frip.log")
     benchmark:

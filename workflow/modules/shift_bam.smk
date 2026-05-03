@@ -12,14 +12,14 @@ rule shift_bam:
         gsize = get_gsize,
         bin_size = 10,
         tempdir = lambda wildcards: os.path.join(wildcards.outdir, "bam", f"tmp_{wildcards.sample_id}"),
-        memory_per_thread = "4G"
+        memory_per_thread = "6G"
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
         "{wildcards.sample_id}: ATAC-shifting BAM with alignmentSieve"
-    threads: 24
+    threads: 48
     resources:
-        mem_mb = 40960, 
+        mem_mb = lambda wildcards, attempt: attempt * 65536,
         runtime = lambda wildcards, attempt: attempt * 960
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.alignmentSieve.log")
@@ -68,6 +68,7 @@ rule shift_bam:
 
             alignmentSieve \
                 --numberOfProcessors 1 \
+                --genomeChunkLength 5000000 \
                 --ATACshift \
                 --bam "$OUTDIR/$CHR.bam" \
                 -o "$OUTDIR/$CHR.shifted.bam" \
@@ -109,7 +110,7 @@ rule shift_bam:
 
         # Step 2: merge + sort
         echo "[INFO] samtools merge start: $(date)" >> "{log}"
-        samtools merge -f -@ 6 \
+        samtools merge -f -@ 16 \
             "{params.tempdir}"/merged.bam \
             "{params.tempdir}"/*.shifted.bam \
             2>> "{log}" || {{
@@ -122,7 +123,7 @@ rule shift_bam:
             --write-index \
             -m "{params.memory_per_thread}" \
             -T "{params.tempdir}"/sort \
-            -@ 6 \
+            -@ 16 \
             -o "{output.bam}##idx##{output.bai}" \
             "{params.tempdir}"/merged.bam \
             2>> "{log}" || {{

@@ -32,7 +32,7 @@ rule delete_tmp:
         "{wildcards.sample_id}: Cleaning up temporary files"
     threads: 1
     resources:
-        mem_mb = 256
+        mem_mb = 1024
     log:
         os.path.join("{outdir}", "logs", "cleanup", "{sample_id}.cleanup.log")
     shell:

@@ -16,7 +16,8 @@ rule featurecounts_in_peaks:
         "{wildcards.sample_id}: Running featureCounts on peaks"
     threads: 1
     resources:
-        mem_mb = 2048
+        mem_mb = lambda wildcards, attempt: attempt * 6144,
+        runtime = 60
     log:
         os.path.join("{outdir}", "logs", "featurecounts", "{sample_id}.featureCounts.log"),
     benchmark:

@@ -36,7 +36,7 @@ rule fastp:
         "{wildcards.sample_id}: Trimming and performing quality control on paired-end FASTQ files"
     threads: 12
     resources:
-        mem_mb = 16384,
+        mem_mb = lambda wildcards, attempt: attempt * 16384,
         runtime = lambda wildcards, attempt: attempt * 480
     log:
         os.path.join("{outdir}", "logs", "fastp", "{sample_id}.fastp.log")
@@ -83,7 +83,7 @@ rule trim_galore:
         "{wildcards.sample_id}: Trimming reads with trim_galore"
     threads: 12
     resources:
-        mem_mb = 36864,
+        mem_mb = lambda wildcards, attempt: attempt * 36864,
         runtime = lambda wildcards, attempt: attempt * 960
     log:
         os.path.join("{outdir}", "logs", "trim_galore", "{sample_id}.trim.log")

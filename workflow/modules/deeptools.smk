@@ -26,7 +26,7 @@ rule deeptools_compute_matrix_gene_body:
         "{wildcards.sample_id}: Running deepTools computeMatrix over gene bodies (scale-regions)"
     threads: 12
     resources:
-        mem_mb = 6144,
+        mem_mb = lambda wildcards, attempt: attempt * 6144,
         runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.gene_body.computeMatrix.log")
@@ -77,7 +77,7 @@ rule deeptools_compute_matrix_tss:
         "{wildcards.sample_id}: Running deepTools computeMatrix over TSS (reference-point)"
     threads: 12
     resources:
-        mem_mb = 6144,
+        mem_mb = lambda wildcards, attempt: attempt * 6144,
         runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.tss.computeMatrix.log")
@@ -123,7 +123,7 @@ rule deeptools_plot_profile_gene_body:
         "{wildcards.sample_id}: Running deepTools plotProfile over gene bodies"
     threads: 2
     resources:
-        mem_mb = 6144,
+        mem_mb = lambda wildcards, attempt: attempt * 6144,
         runtime = lambda wildcards, attempt: attempt * 120
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.gene_body.plotProfile.log")
@@ -161,7 +161,7 @@ rule deeptools_plot_profile_tss:
         "{wildcards.sample_id}: Running deepTools plotProfile over TSS"
     threads: 2
     resources:
-        mem_mb = 6144,
+        mem_mb = lambda wildcards, attempt: attempt * 6144,
         runtime = lambda wildcards, attempt: attempt * 120
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.tss.plotProfile.log")
@@ -199,7 +199,7 @@ rule deeptools_plot_heatmap_tss:
         "{wildcards.sample_id}: Running deepTools plotHeatmap over TSS"
     threads: 2
     resources:
-        mem_mb = 20480,
+        mem_mb = lambda wildcards, attempt: attempt * 20480,
         runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.tss.plotHeatmap.log")
@@ -243,7 +243,7 @@ rule deeptools_plot_fingerprint:
         "{wildcards.sample_id}: Running deepTools plotFingerprint (Lorenz curves)"
     threads: 6
     resources:
-        mem_mb = 6144,
+        mem_mb = lambda wildcards, attempt: attempt * 6144,
         runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.plotFingerprint.log")
@@ -293,7 +293,7 @@ rule deeptools_fragment_size_distribution:
         "{wildcards.sample_id}: Running deepTools bamPEFragmentSize (fragment size distribution)"
     threads: 6
     resources:
-        mem_mb = 6144,
+        mem_mb = lambda wildcards, attempt: attempt * 6144,
         runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.deeptools_fragment_size.log")

@@ -139,6 +139,9 @@ if CALL_PEAKS_MACS3_PEAK_QC_PLOT_ON:
         message:
             "{wildcards.sample_id}: Plotting MACS peak QC"
         threads: 2
+        resources:
+            mem_mb = 8192,
+            runtime = 60
         log:
             os.path.join("{outdir}", "logs", "macs3", "{sample_id}.peak_qc.log"),
         benchmark:

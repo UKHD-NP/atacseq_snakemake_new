@@ -12,7 +12,7 @@ rule bedtools_genomecov:
         "{wildcards.sample_id}: Generating scaled bedGraph - [Source: Filtered BAM, NOT SHIFTED]"
     threads: 2
     resources:
-        mem_mb = 40960,
+        mem_mb = lambda wildcards, attempt: attempt * 40960,
         runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "bedtools", "{sample_id}.genomecov.log")
@@ -67,9 +67,9 @@ rule ucsc_bedgraphtobigwig:
         os.path.join(workflow.basedir, "envs", "ucsc_tools.yml")
     message:
         "{wildcards.sample_id}: Converting bedGraph to bigWig (Source: Filtered BAM, NOT SHIFTED)"
-    threads: 1
+    threads: 2
     resources:
-        mem_mb = 4096,
+        mem_mb = lambda wildcards, attempt: attempt * 6144,
         runtime = lambda wildcards, attempt: attempt * 120
     log:
         os.path.join("{outdir}", "logs", "ucsc", "{sample_id}.bedgraphtobigwig.log")

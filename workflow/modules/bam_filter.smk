@@ -30,7 +30,7 @@ rule bam_filter:
         "{wildcards.sample_id}: Filtering BAM"
     threads: 6
     resources:
-        mem_mb = 36864,
+        mem_mb = lambda wildcards, attempt: attempt * 36864,
         runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "samtools", "{sample_id}.bam_filter.log")

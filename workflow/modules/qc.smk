@@ -17,7 +17,7 @@ rule fastqc_raw:
         "{wildcards.sample_id}: Running FastQC on raw reads"
     threads: 2
     resources:
-        mem_mb = 4096,
+        mem_mb = lambda wildcards, attempt: attempt * 4096,
         runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "fastqc_raw", "{sample_id}.fastqc_raw.log")
@@ -64,7 +64,7 @@ rule fastqc_trimmed:
         "{wildcards.sample_id}: Running FastQC on trimmed reads"
     threads: 2
     resources:
-        mem_mb = 4096,
+        mem_mb = lambda wildcards, attempt: attempt * 4096,
         runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "fastqc_trimmed", "{sample_id}.fastqc_trimmed.log")
