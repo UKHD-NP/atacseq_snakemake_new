@@ -77,10 +77,10 @@ rule nfr_fragment_counts:
             mono_pct = (total > 0) ? mono / total * 100 : 0
             di_pct   = (total > 0) ? di   / total * 100 : 0
             tri_pct  = (total > 0) ? tri  / total * 100 : 0
-            print "Sample\tnfr_reads\tmono_reads\tdi_reads\ttri_reads\tnfr_pct\tmono_pct\tdi_pct\ttri_pct" > outfile
-            printf "%s\t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f\n",
+            print "Sample\\tnfr_reads\\tmono_reads\\tdi_reads\\ttri_reads\\tnfr_pct\\tmono_pct\\tdi_pct\\ttri_pct" > outfile
+            printf "%s\\t%d\\t%d\\t%d\\t%d\\t%.2f\\t%.2f\\t%.2f\\t%.2f\\n",
                 sample, nfr, mono, di, tri, nfr_pct, mono_pct, di_pct, tri_pct >> outfile
-            printf "[INFO] NFR: %d (%.2f%%) | Mono: %d (%.2f%%) | Di: %d (%.2f%%) | Tri: %d (%.2f%%) | Total: %d\n",
+            printf "[INFO] NFR: %d (%.2f%%) | Mono: %d (%.2f%%) | Di: %d (%.2f%%) | Tri: %d (%.2f%%) | Total: %d\\n",
                 nfr, nfr_pct, mono, mono_pct, di, di_pct, tri, tri_pct, total >> logfile
         }}
         ' 2>> "{log}"

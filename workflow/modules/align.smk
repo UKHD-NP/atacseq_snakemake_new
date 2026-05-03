@@ -176,7 +176,7 @@ rule bowtie2_index:
         "Building Bowtie2 index"
     threads: 12
     resources:
-        mem_mb = 8192,
+        mem_mb = 16384,
         runtime = lambda wildcards, attempt: attempt * 480
     log:
         os.path.join(ref_dir, "bowtie2_index.log")

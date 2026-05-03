@@ -132,7 +132,7 @@ rule multiqc:
         "{wildcards.sample_id}: Running MultiQC"
     threads: 1
     resources:
-        mem_mb = 2048,
+        mem_mb = lambda wildcards, attempt: attempt * 2048,
         runtime = lambda wildcards, attempt: attempt * 60
     log:
         os.path.join("{outdir}", "logs", "multiqc", "{sample_id}.multiqc.log")

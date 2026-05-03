@@ -59,7 +59,7 @@ rule macs3_callpeak_tn5:
         "{wildcards.sample_id}: Calling peaks with MACS3"
     threads: 2
     resources:
-        mem_mb = 8192,
+        mem_mb = lambda wildcards, attempt: attempt * 8192,
         runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "macs3", "{sample_id}.callpeak.log")
@@ -140,8 +140,8 @@ if CALL_PEAKS_MACS3_PEAK_QC_PLOT_ON:
             "{wildcards.sample_id}: Plotting MACS peak QC"
         threads: 2
         resources:
-            mem_mb = 8192,
-            runtime = 60
+            mem_mb = lambda wildcards, attempt: attempt * 8192,
+            runtime = lambda wildcards, attempt: attempt * 60
         log:
             os.path.join("{outdir}", "logs", "macs3", "{sample_id}.peak_qc.log"),
         benchmark:

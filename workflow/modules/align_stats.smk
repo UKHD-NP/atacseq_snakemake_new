@@ -14,7 +14,7 @@ rule samtools_stats_pre_filter:
     threads: 1
     resources:
         mem_mb = lambda wildcards, attempt: attempt * 2048,
-        runtime = 60
+        runtime = lambda wildcards, attempt: attempt * 60
     log:
         os.path.join("{outdir}", "logs", "samtools", "{sample_id}.samtools_stats_pre_filter.log")
     benchmark:
@@ -48,7 +48,7 @@ rule samtools_stats:
     threads: 1
     resources:
         mem_mb = lambda wildcards, attempt: attempt * 2048,
-        runtime = 60
+        runtime = lambda wildcards, attempt: attempt * 60
     log:
         os.path.join("{outdir}", "logs", "samtools", "{sample_id}.samtools_stats.log")
     benchmark:
