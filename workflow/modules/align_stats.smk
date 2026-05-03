@@ -133,7 +133,7 @@ rule picard_collect_multiple_metrics:
         "{wildcards.sample_id}: Running Picard CollectMultipleMetrics"
     threads: 1
     resources:
-        mem_mb = lambda wildcards, attempt: attempt * 16384,
+        mem_mb = 16384,
         jvm_mem_mb = 14336,  # mem_mb minus ~2 GB JVM overhead (metaspace, GC, native),
         runtime = lambda wildcards, attempt: attempt * 120
     log:
