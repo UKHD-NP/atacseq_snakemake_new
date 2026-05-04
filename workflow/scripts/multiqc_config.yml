@@ -291,14 +291,14 @@ custom_data:
         scale: "RdYlGn"
   nfr_fragment_counts:
     id: "nfr_fragment_counts"
-    section_name: "Fragment Size Class Counts"
-    description: "Number and percentage of read pairs per nucleosomal size class (NFR ≤150 bp, mono 151–300 bp, di 301–500 bp, tri 501–700 bp), counted from the Tn5-shifted BAM."
+    section_name: "Fragment Length Class Counts"
+    description: "Number and percentage of read pairs per fragment length class counted from the BAM file (NFR <=150 bp, putative mono-nucleosome-associated 151-300 bp, putative di-nucleosome-associated 301-500 bp, putative tri-nucleosome-associated 501-700 bp)."
     file_format: "tsv"
     plot_type: "table"
     pconfig:
       namespace: "ATAC"
       id: "nfr_fragment_counts_table"
-      title: "Fragment Size Class Counts"
+      title: "Fragment Length Class Counts"
     headers:
       nfr_reads:
         title: "NFR Reads"
@@ -306,44 +306,44 @@ custom_data:
         format: "{:,.0f}"
         min: 0
       mono_reads:
-        title: "Mono Reads"
-        description: "Read pairs with fragment length 151–300 bp"
+        title: "Mono-class Reads"
+        description: "Read pairs with fragment length 151–300 bp (putative mono-nucleosome-associated)"
         format: "{:,.0f}"
         min: 0
       di_reads:
-        title: "Di Reads"
-        description: "Read pairs with fragment length 301–500 bp"
+        title: "Di-class Reads"
+        description: "Read pairs with fragment length 301–500 bp (putative di-nucleosome-associated)"
         format: "{:,.0f}"
         min: 0
       tri_reads:
-        title: "Tri Reads"
-        description: "Read pairs with fragment length 501–700 bp"
+        title: "Tri-class Reads"
+        description: "Read pairs with fragment length 501–700 bp (putative tri-nucleosome-associated)"
         format: "{:,.0f}"
         min: 0
       nfr_pct:
         title: "NFR %"
-        description: "NFR reads as % of all properly paired read1"
+        description: "Percent of counted read pairs in the NFR fragment length class"
         format: "{:,.2f}"
         min: 0
         max: 100
         scale: "RdYlGn"
       mono_pct:
         title: "Mono %"
-        description: "Mono reads as % of all properly paired read1"
+        description: "Percent of counted read pairs in the putative mono-class fragment length bin"
         format: "{:,.2f}"
         min: 0
         max: 100
         scale: "RdYlGn"
       di_pct:
         title: "Di %"
-        description: "Di reads as % of all properly paired read1"
+        description: "Percent of counted read pairs in the putative di-class fragment length bin"
         format: "{:,.2f}"
         min: 0
         max: 100
         scale: "RdYlGn"
       tri_pct:
         title: "Tri %"
-        description: "Tri reads as % of all properly paired read1"
+        description: "Percent of counted read pairs in the putative tri-class fragment length bin"
         format: "{:,.2f}"
         min: 0
         max: 100

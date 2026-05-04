@@ -31,7 +31,7 @@ rule bam_filter:
     threads: 6
     resources:
         mem_mb = lambda wildcards, attempt: attempt * 36864,
-        runtime = lambda wildcards, attempt: attempt * 240
+        runtime = lambda wildcards, attempt: attempt * 480
     log:
         os.path.join("{outdir}", "logs", "samtools", "{sample_id}.bam_filter.log")
     benchmark:

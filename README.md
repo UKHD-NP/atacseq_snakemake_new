@@ -74,7 +74,7 @@ Main workflow (per sample):
 11. FRiP (two methods: bedtools intersect + featureCounts log)
 12. Peak annotation (HOMER + summary)
 13. deepTools matrix/profile/heatmap/fingerprint/bamPEFragmentSize
-14. NFR analysis — nucleosome-free vs mononucleosomal bigWigs + TSS profile/heatmap
+14. NFR / fragment-length-class analysis — short-fragment vs mono-class bigWigs + TSS profile/heatmap
 15. ataqv JSON + mkarv HTML report + TSS enrichment / NFR metrics table for MultiQC
 16. ATACseqQC — PT score, NFR score, TSSE score + QC plots (narrow peaks only)
 17. MultiQC
@@ -121,8 +121,8 @@ bam_filter  --->  filtered.bam / filtered.bam.bai
         |                               |    +--> computeMatrix / plotProfile / plotHeatmap (shifted.bigWig for narrow peaks; bigWig for broad peaks)
         |                               |    +--> plotFingerprint / bamPEFragmentSize (filtered.bam)
         |                               +--> nfr (optional; when deeptools + narrow peaks)
-        |                               |    +--> alignmentSieve → nfr.bigWig + mono.bigWig
-        |                               |    +--> computeMatrix / plotProfile / plotHeatmap (nfr vs mono)
+        |                               |    +--> alignmentSieve → nfr.bigWig + mono.bigWig (fragment-length classes)
+        |                               |    +--> computeMatrix / plotProfile / plotHeatmap (short-fragment vs mono-class)
         |                               +--> ataqv (optional; filtered.bam)
         |                               |    +--> ataqv_mqc → ataqv_mqc.tsv (TSS enrichment, NFR ratio)
         |                               +--> atacseqqc (optional; narrow peaks only)
@@ -165,7 +165,7 @@ All per-sample rules in execution order. Toggle columns: `t` = threads, `MB` = `
 | 19 | FRiP score | `frip_score` | frip_score.smk | bedtools intersect (+ featureCounts log parse) | 1 | 2 048 | `.filtered.bam` + peaks + flagstat → `peaks/*.FRiP.txt + *_peaks.{FRiP,count}_mqc.tsv` |
 | 20 | HOMER annotation | `homer_annotate_peaks` | annotate_peaks.smk | HOMER annotatePeaks.pl + R (plot_homer_annotatepeaks.r) | 2 | 10 240 | peaks + FASTA + GTF → `annotation/*_peaks.annotatePeaks.txt + *.summary.txt` |
 | 21 | deepTools | `deeptools_compute_matrix_gene_body` / `deeptools_compute_matrix_tss` / `deeptools_plot_profile_gene_body` / `deeptools_plot_profile_tss` / `deeptools_plot_heatmap_tss` / `deeptools_plot_fingerprint` / `deeptools_fragment_size_distribution` | deeptools.smk | deepTools computeMatrix / plotProfile / plotHeatmap / plotFingerprint / bamPEFragmentSize | 2–12 | 6 144–20 480 | `.shifted.bigWig` (narrow) or `.bigWig` (broad) + `.filtered.bam` → `deeptools/` matrices, profiles, heatmaps, fingerprint, fragment-size plots |
-| 22 | NFR analysis | `nfr_fragment_counts` / `nfr_bigwig_nfr` / `nfr_bigwig_mono` / `nfr_compute_matrix` / `nfr_plot_profile` / `nfr_plot_heatmap` | nfr.smk | samtools view + awk + deepTools alignmentSieve + bamCoverage + computeMatrix / plotProfile / plotHeatmap | 2–12 | 2 048–20 480 | `.shifted.bam` → `nfr/*.fragment_counts_mqc.tsv` (NFR/mono/di/tri read counts) + `*.nfr.bigWig + *.mono.bigWig` + NFR-vs-mono TSS profile/heatmap |
+| 22 | NFR / fragment-length-class analysis | `nfr_fragment_counts` / `nfr_bigwig_nfr` / `nfr_bigwig_mono` / `nfr_compute_matrix` / `nfr_plot_profile` / `nfr_plot_heatmap` | nfr.smk | samtools view + awk + deepTools alignmentSieve + bamCoverage + computeMatrix / plotProfile / plotHeatmap | 2–12 | 2 048–20 480 | `.shifted.bam` → `nfr/*.fragment_counts_mqc.tsv` (NFR/mono/di/tri fragment-length class counts) + `*.nfr.bigWig + *.mono.bigWig` + NFR-vs-mono TSS profile/heatmap |
 | 23 | ataqv | `ataqv` / `ataqv_mkarv` / `ataqv_mqc` | ataqv.smk | ataqv + mkarv + Python (extract_ataqv_score.py) | 1 | 6 144 / 1 024 / 256 | `.filtered.bam` + peaks + TSS + autosomes → `ataqv/*.ataqv.json + *.mkarv_html/index.html + *.ataqv_mqc.tsv` |
 | 24 | ATACseqQC | `atacseqqc_mqc` | atacseqqc.smk | ATACseqQC R pkg (calc_pt_score.R) | 1 | 16 384 | `.shifted.bam` + BED → `atacseqqc/*.atacseqqc_mqc.tsv + fragsize/pt_score/nfr_score/tsse .png` |
 
@@ -539,17 +539,17 @@ annotate_peaks:
 deeptools:
   enabled: true
 
-# NFR vs mononucleosomal analysis (runs when deeptools + narrow peaks enabled).
-# Set enabled: false to skip NFR bigWigs, fragment size counts, and TSS profiles.
+# NFR / fragment-length-class analysis (runs when deeptools + narrow peaks enabled).
+# Set enabled: false to skip NFR/mono bigWigs, fragment length class counts, and TSS profiles.
 nfr:
   enabled: true
   nfr_max_fragment:  150     # fragments ≤ this bp → NFR bigWig / NFR count (default: 150)
-  mono_min_fragment: 151     # fragments ≥ this bp → mono bigWig / mono count (default: 151)
-  mono_max_fragment: 300     # fragments ≤ this bp → mono bigWig / mono count (default: 300)
-  di_min_fragment:   301     # dinucleosomal count lower bound (default: 301)
-  di_max_fragment:   500     # dinucleosomal count upper bound (default: 500)
-  tri_min_fragment:  501     # trinucleosomal count lower bound (default: 501)
-  tri_max_fragment:  700     # trinucleosomal count upper bound (default: 700)
+  mono_min_fragment: 151     # fragments ≥ this bp → mono-class bigWig / count (default: 151)
+  mono_max_fragment: 300     # fragments ≤ this bp → mono-class bigWig / count (default: 300)
+  di_min_fragment:   301     # putative di-class count lower bound (default: 301)
+  di_max_fragment:   500     # putative di-class count upper bound (default: 500)
+  tri_min_fragment:  501     # putative tri-class count lower bound (default: 501)
+  tri_max_fragment:  700     # putative tri-class count upper bound (default: 700)
 
 ataqv:
   enabled: true
@@ -593,7 +593,7 @@ Explanation by block:
 - `annotate_peaks.enabled`: run HOMER `annotatePeaks` and summary plotting.
 - `shift_bam.enabled` (default: `true`): Tn5-shift the filtered BAM with `alignmentSieve --ATACshift` and produce `shifted.bam` + `shifted.bigWig`. Set `false` to skip — saves significant time (24 threads, up to 16h runtime) and disk. **Disabling also skips NFR analysis and ATACseqQC**, which both require `shifted.bam`.
 - `deeptools.enabled`: run computeMatrix/plotProfile/plotHeatmap/plotFingerprint modules. Requires `call_peaks.enabled=true`. For narrow peaks, computeMatrix uses the Tn5-shifted bigWig (`shifted.bigWig`); for broad peaks, it uses the unshifted bigWig (`bigWig`).
-- `nfr.enabled` (default: `true`): enable/disable NFR bigWigs, fragment size counts, and TSS profile/heatmap. NFR runs automatically when `deeptools.enabled=true` and `call_peaks.peak_type=narrow`; set `false` to skip. Fragment size boundaries can be tuned in the same `nfr:` block (see config comments for defaults).
+- `nfr.enabled` (default: `true`): enable/disable NFR/mono fragment-length-class bigWigs, fragment length class counts, and TSS profile/heatmap. This module runs automatically when `deeptools.enabled=true` and `call_peaks.peak_type=narrow`; set `false` to skip. Fragment size boundaries can be tuned in the same `nfr:` block (see config comments for defaults).
 - `ataqv.enabled`: run ATAC-specific QC (`ataqv`) and render interactive HTML (`mkarv`), plus extract short mononucleosomal ratio and TSS enrichment score (TSSE)  score to `ataqv_mqc.tsv` for MultiQC. Requires `call_peaks.enabled=true`.
 - `atacseqqc.enabled`: run ATACseqQC R package to compute Promoter/transcript body score (PT), per-TSS nucleosome-free region score (NFR), and TSS enrichment score (TSSE) and produce QC plots. Outputs `atacseqqc_mqc.tsv` for MultiQC. Requires `call_peaks.enabled=true` and `call_peaks.peak_type=narrow`.
 - `multiqc.config`: path to MultiQC config used by this pipeline.
@@ -741,9 +741,9 @@ Per sample under `<outdir>`:
   - `deeptools/{sample}.fragment_size.raw_lengths.txt`
   - `deeptools/{sample}.fragment_size.qcmetrics.txt`
 - NFR analysis
-  - `nfr/{sample}.fragment_counts_mqc.tsv` (NFR / mono / di / tri read counts + % for MultiQC)
+  - `nfr/{sample}.fragment_counts_mqc.tsv` (NFR / mono / di / tri fragment-length class counts + % for MultiQC)
   - `nfr/{sample}.nfr.bigWig` (fragments ≤150 bp)
-  - `nfr/{sample}.mono.bigWig` (fragments 151–300 bp)
+  - `nfr/{sample}.mono.bigWig` (fragments 151–300 bp; putative mono-class)
   - `nfr/{sample}.nfr_vs_mono.computeMatrix.gz`
   - `nfr/{sample}.nfr_vs_mono.computeMatrix.tab`
   - `nfr/{sample}.nfr_vs_mono.plotProfile.pdf` + `.tab`
@@ -788,7 +788,7 @@ Produced by: `bamPEFragmentSize` → `deeptools/{sample}.fragment_size_distribut
 ![ATAC fragment size examples](resources/fragmentSize_distribution_examples.svg)
 
 How to read:
-- Good ATAC libraries usually show a nucleosome-free peak (short fragments) plus mono-/di-nucleosome periodic peaks.
+- Good ATAC libraries usually show a short-fragment peak plus putative mono-/di-nucleosome periodic peaks.
 - A flat/noisy pattern without clear peaks often indicates lower signal quality.
 
 ### 4. Fingerprint / library complexity trend
