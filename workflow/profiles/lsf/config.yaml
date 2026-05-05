@@ -17,7 +17,7 @@ default-resources:
   runtime: 120
 
 # Job submission settings
-jobs: 20
+jobs: 30
 rerun-incomplete: true
 latency-wait: 60
 keep-going: true
