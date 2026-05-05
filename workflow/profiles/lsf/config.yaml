@@ -105,7 +105,7 @@ set-resources:
   frip_score:
     lsf_queue: "medium"
 
-  # ---- ANNOTATION ----
+  # ---- ANNOTATION ---- 
   homer_annotate_peaks:
     lsf_queue: "medium"
 
@@ -125,7 +125,7 @@ set-resources:
     lsf_queue: "long"
 
   deeptools_plot_fingerprint:
-    lsf_queue: "verylong"
+    lsf_queue: "long"
 
   deeptools_plot_profile_gene_body:
     lsf_queue: "long"
@@ -137,9 +137,12 @@ set-resources:
     lsf_queue: "long"
 
   deeptools_fragment_size_distribution:
-    lsf_queue: "verylong"
+    lsf_queue: "long"
 
   # ---- NFR ----
+  nfr_fragment_counts:
+    lsf_queue: "medium"
+
   nfr_bigwig_nfr:
     lsf_queue: "verylong"
 
