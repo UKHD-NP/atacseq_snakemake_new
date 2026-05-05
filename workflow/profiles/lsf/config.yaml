@@ -34,48 +34,6 @@ retries: 5
 # Global cores cap: controls --cores passed to each per-job subprocess
 cores: 300
 
-# Per-rule thread overrides
-set-threads:
-  fastqc_raw: 2
-  fastqc_trimmed: 2
-  trim_galore: 12
-  fastp: 12
-  bwa_mem2_index: 12
-  bowtie2_index: 12
-  bwa_mem2_align: 12
-  bowtie2_align: 26
-  sort_bam: 6
-  mark_duplicates: 2
-  bam_filter: 6
-  shift_bam: 48
-  macs3_callpeak_tn5: 2
-  deeptools_compute_matrix_gene_body: 12
-  deeptools_compute_matrix_tss: 12
-  deeptools_plot_fingerprint: 6
-  deeptools_plot_profile_gene_body: 2
-  deeptools_plot_profile_tss: 2
-  deeptools_plot_heatmap_tss: 2
-  deeptools_fragment_size_distribution: 6
-  samtools_stats_pre_filter: 1
-  samtools_stats: 1
-  featurecounts_in_peaks: 1
-  frip_score: 1
-  macs3_peak_qc_plot: 2
-  homer_annotate_peaks: 2
-  bedtools_genomecov: 2
-  ucsc_bedgraphtobigwig: 2
-  ataqv: 1
-  ataqv_mqc: 1
-  ataqv_mkarv: 1
-  atacseqqc_mqc: 1
-  nfr_bigwig_nfr: 8
-  nfr_bigwig_mono: 8
-  nfr_compute_matrix: 12
-  nfr_plot_profile: 2
-  nfr_plot_heatmap: 2
-  picard_collect_multiple_metrics: 1
-  multiqc: 1
-
 # Per-rule resource overrides
 set-resources:
 
@@ -109,16 +67,19 @@ set-resources:
 
   # ---- BAM PROCESSING ----
   sort_bam:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "long"
 
   mark_duplicates:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "verylong"
 
   bam_filter:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "verylong"
 
   shift_bam:
     lsf_queue: "verylong"
+
+  shifted_bam_to_bigwig:
+    lsf_queue: "long"
 
   # ---- POST ALIGNMENT QC ----
   samtools_stats_pre_filter:
@@ -128,81 +89,81 @@ set-resources:
     lsf_queue: "long"
 
   picard_collect_multiple_metrics:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "long"
 
   # ---- PEAK CALLING ----
   macs3_callpeak_tn5:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "long"
 
   # ---- PEAK QC / FRiP ----
   macs3_peak_qc_plot:
-    lsf_queue: "long"
+    lsf_queue: "medium"
 
   featurecounts_in_peaks:
-    lsf_queue: "long"
+    lsf_queue: "medium"
 
   frip_score:
-    lsf_queue: "long"
+    lsf_queue: "medium"
 
   # ---- ANNOTATION ----
   homer_annotate_peaks:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "medium"
 
   # ---- BIGWIG ----
   bedtools_genomecov:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "long"
 
   ucsc_bedgraphtobigwig:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "long"
 
   # ---- POST PEAK CALLING QC ----
   # ---- DEEPTOOLS ----
   deeptools_compute_matrix_gene_body:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "long"
 
   deeptools_compute_matrix_tss:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "long"
 
   deeptools_plot_fingerprint:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "verylong"
 
   deeptools_plot_profile_gene_body:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "long"
 
   deeptools_plot_profile_tss:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "long"
 
   deeptools_plot_heatmap_tss:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "long"
 
   deeptools_fragment_size_distribution:
     lsf_queue: "verylong"
 
   # ---- NFR ----
   nfr_bigwig_nfr:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "verylong"
 
   nfr_bigwig_mono:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "verylong"
 
   nfr_compute_matrix:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "long"
 
   nfr_plot_profile:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "long"
 
   nfr_plot_heatmap:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "long"
 
   # ---- ataqv ----
   ataqv:
-    lsf_queue: "verylong"
+    lsf_queue: "long"
 
   ataqv_mqc:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "medium"
   
   ataqv_mkarv:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "long"
 
   # ---- ATACSEQQC ----
   atacseqqc_mqc:
@@ -210,4 +171,4 @@ set-resources:
 
   # ---- FINAL ----
   multiqc:
-    lsf_queue: "lambda wildcards, attempt, **kwargs: 'verylong' if attempt > 1 else 'long'"
+    lsf_queue: "medium"

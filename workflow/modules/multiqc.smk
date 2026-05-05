@@ -98,7 +98,7 @@ def get_input_multiqc(wildcards):
     if nfr_on:
         targets.append(_path("nfr", f"{sample_id}.nfr_vs_mono.plotProfile.tab"))
 
-    # Fragment size class counts — runs with shifted or filtered BAM.
+    # Fragment size class counts - runs with shifted or filtered BAM.
     fragment_counts_on = is_enabled("nfr", default=True) and CALL_PEAKS_PEAK_TYPE == "narrow"
     if fragment_counts_on:
         targets.append(_path("nfr", f"{sample_id}.fragment_counts_mqc.tsv"))
@@ -133,7 +133,7 @@ rule multiqc:
     threads: 1
     resources:
         mem_mb = lambda wildcards, attempt: attempt * 2048,
-        runtime = lambda wildcards, attempt: attempt * 60
+        runtime = 60
     log:
         os.path.join("{outdir}", "logs", "multiqc", "{sample_id}.multiqc.log")
     benchmark:

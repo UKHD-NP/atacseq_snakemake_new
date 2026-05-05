@@ -93,10 +93,12 @@ shift_bam:
   enabled: true
 
 # NFR vs mononucleosomal analysis.
-# Runs when deeptools.enabled=true and call_peaks.peak_type=narrow.
-# Set enabled: false to skip NFR bigWigs, fragment size counts, and TSS profile/heatmap.
+# Runs when call_peaks.peak_type=narrow.
+# enabled: controls NFR/mono bigWigs + computeMatrix + plotProfile/plotHeatmap (slow).
+# fragment_counts: controls NFR/mono/di/tri read counting only (fast, for MultiQC).
 nfr:
   enabled: true
+  fragment_counts: true
 # Optional: tune fragment size boundaries (defaults shown):
 #   nfr_max_fragment:  150     # fragments ≤ this bp → NFR bigWig / NFR count
 #   mono_min_fragment: 151     # fragments ≥ this bp → mono bigWig / mono count

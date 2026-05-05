@@ -120,7 +120,9 @@ bam_filter  --->  filtered.bam / filtered.bam.bai
         |                               +--> deeptools (optional)
         |                               |    +--> computeMatrix / plotProfile / plotHeatmap (shifted.bigWig for narrow peaks; bigWig for broad peaks)
         |                               |    +--> plotFingerprint / bamPEFragmentSize (filtered.bam)
-        |                               +--> nfr (optional; when deeptools + narrow peaks)
+        |                               +--> nfr_fragment_counts (optional; nfr.fragment_counts + narrow peaks)
+        |                               |    +--> samtools view + awk → fragment_counts_mqc.tsv (NFR/mono/di/tri counts)
+        |                               +--> nfr (optional; nfr.enabled + shift_bam + narrow peaks)
         |                               |    +--> alignmentSieve → nfr.bigWig + mono.bigWig (fragment-length classes)
         |                               |    +--> computeMatrix / plotProfile / plotHeatmap (short-fragment vs mono-class)
         |                               +--> ataqv (optional; filtered.bam)
@@ -149,23 +151,24 @@ All per-sample rules in execution order. Toggle columns: `t` = threads, `MB` = `
 | 3 | Trim | `trim_galore` **or** `fastp` | trim.smk | Trim Galore / fastp | 12 | 36 864 / 16 384 | merged FASTQ → `trim/*_trimmed_{1,2}.fastq.gz` |
 | 4 | FastQC trimmed | `fastqc_trimmed` | qc.smk | FastQC | 2 | 4 096 | trimmed FASTQ → `trim/*_trimmed_{1,2}_fastqc.{html,zip}` |
 | 5 | BWA-MEM2 index | `bwa_mem2_index` | align.smk | bwa-mem2 index | 12 | 65 536 | FASTA → `.amb / .ann / .bwt.2bit.64 / .pac / .0123` |
-| 6 | Bowtie2 index | `bowtie2_index` | align.smk | bowtie2-build | 12 | 8 192 | FASTA → `*.{1,2,3,4,rev.1,rev.2}.bt2` |
+| 6 | Bowtie2 index | `bowtie2_index` | align.smk | bowtie2-build | 12 | 16 384 | FASTA → `*.{1,2,3,4,rev.1,rev.2}.bt2` |
 | 7 | Align | `bwa_mem2_align` **or** `bowtie2_align` | align.smk | bwa-mem2 / bowtie2 + samtools view | 12 / 26 | 49 152 / 16 384 | trimmed FASTQ + index → `bam/*.unsorted.bam` |
-| 8 | Sort BAM | `sort_bam` | align.smk | samtools sort + index | 6 | 36 864 | `.unsorted.bam` → `bam/*.bam + *.bam.bai` |
+| 8 | Sort BAM | `sort_bam` | align.smk | samtools sort + index | 8 | 36 864 | `.unsorted.bam` → `bam/*.bam + *.bam.bai` |
 | 9 | Mark duplicates | `mark_duplicates` | mark_duplicates.smk | Picard MarkDuplicates | 2 | 49 152 | `.bam` → `bam/*.markdup.sorted.bam + *.MarkDuplicates.metrics.txt` |
-| 10 | Samtools stats pre-filter | `samtools_stats_pre_filter` | align_stats.smk | samtools stats / flagstat / idxstats | 1 | 1 024 | pre-filter BAM → `bam/*.pre_filter.bam.{stats,flagstat,idxstats}` |
-| 11 | BAM filter | `bam_filter` | bam_filter.smk | samtools view + bamtools filter + pysam bampe_rm_orphan | 6 | 36 864 | `.markdup.sorted.bam` + include_regions → `bam/*.filtered.bam + *.bai` |
-| 12 | Samtools stats | `samtools_stats` | align_stats.smk | samtools stats / flagstat / idxstats | 1 | 1 024 | `.filtered.bam` → `bam/*.filtered.bam.{stats,flagstat,idxstats}` |
+| 10 | Samtools stats pre-filter | `samtools_stats_pre_filter` | align_stats.smk | samtools stats / flagstat / idxstats | 1 | 2 048 | pre-filter BAM → `bam/*.pre_filter.bam.{stats,flagstat,idxstats}` |
+| 11 | BAM filter | `bam_filter` | bam_filter.smk | samtools view + bamtools filter + pysam bampe_rm_orphan | 8 | 49 152 | `.markdup.sorted.bam` + include_regions → `bam/*.filtered.bam + *.bai` |
+| 12 | Samtools stats | `samtools_stats` | align_stats.smk | samtools stats / flagstat / idxstats | 1 | 2 048 | `.filtered.bam` → `bam/*.filtered.bam.{stats,flagstat,idxstats}` |
 | 13 | Picard metrics | `picard_collect_multiple_metrics` | align_stats.smk | Picard CollectMultipleMetrics | 1 | 16 384 | `.filtered.bam` → alignment_summary / insert_size / base_dist / quality_* metrics |
-| 14 | BigWig (unshifted) | `bedtools_genomecov` → `ucsc_bedgraphtobigwig` | bam_to_bigwig.smk | bedtools genomecov + bedGraphToBigWig | 2 / 2 | 40 960 / 4 096 | `.filtered.bam` → `bigwig/*.bedGraph` → `bigwig/*.bigWig` |
-| 15 | Shift BAM | `shift_bam` | shift_bam.smk | deepTools alignmentSieve + bamCoverage (RPGC) | 8 | 40 960 | `.filtered.bam` → `bam/*.shifted.bam` + `bigwig/*.shifted.bigWig` |
+| 14 | BigWig (unshifted) | `bedtools_genomecov` → `ucsc_bedgraphtobigwig` | bam_to_bigwig.smk | bedtools genomecov + bedGraphToBigWig | 2 / 2 | 40 960 / 6 144 | `.filtered.bam` → `bigwig/*.bedGraph` → `bigwig/*.bigWig` |
+| 15 | Shift BAM | `shift_bam` | shift_bam.smk | deepTools alignmentSieve + bamCoverage (RPGC) | 26 | 98 304 | `.filtered.bam` → `bam/*.shifted.bam` + `bigwig/*.shifted.bigWig` |
 | 16 | MACS3 peak calling | `macs3_callpeak_tn5` | call_peaks.smk | bedtools bamtobed + awk Tn5-shift + MACS3 (narrow: BED mode; broad: BAMPE mode) | 2 | 8 192 | `.filtered.bam` → `peaks/*.tn5_shifted.bed + *_peaks.peak + *_peaks.xls` |
-| 17 | MACS3 peak QC | `macs3_peak_qc_plot` | call_peaks.smk | R (plot_macs_qc.r) | 2 | — | `*_peaks.peak` → `peaks/*.macs_peakqc.summary.txt + *.plots.pdf` |
-| 18 | featureCounts | `featurecounts_in_peaks` | quant.smk | featureCounts / Subread (SAF, paired, unstranded) | 1 | 2 048 | `.filtered.bam` + peaks SAF → `featurecounts/*.readCountInPeaks.txt` |
-| 19 | FRiP score | `frip_score` | frip_score.smk | bedtools intersect (+ featureCounts log parse) | 1 | 2 048 | `.filtered.bam` + peaks + flagstat → `peaks/*.FRiP.txt + *_peaks.{FRiP,count}_mqc.tsv` |
+| 17 | MACS3 peak QC | `macs3_peak_qc_plot` | call_peaks.smk | R (plot_macs_qc.r) | 2 | 8 192 | `*_peaks.peak` → `peaks/*.macs_peakqc.summary.txt + *.plots.pdf` |
+| 18 | featureCounts | `featurecounts_in_peaks` | frip_score.smk | featureCounts / Subread (SAF, paired, unstranded) | 1 | 6 144 | `.filtered.bam` + peaks SAF → `featurecounts/*.readCountInPeaks.txt` |
+| 19 | FRiP score | `frip_score` | frip_score.smk | bedtools intersect (+ featureCounts log parse) | 1 | 6 144 | `.filtered.bam` + peaks + flagstat → `peaks/*.FRiP.txt + *_peaks.{FRiP,count}_mqc.tsv` |
 | 20 | HOMER annotation | `homer_annotate_peaks` | annotate_peaks.smk | HOMER annotatePeaks.pl + R (plot_homer_annotatepeaks.r) | 2 | 10 240 | peaks + FASTA + GTF → `annotation/*_peaks.annotatePeaks.txt + *.summary.txt` |
 | 21 | deepTools | `deeptools_compute_matrix_gene_body` / `deeptools_compute_matrix_tss` / `deeptools_plot_profile_gene_body` / `deeptools_plot_profile_tss` / `deeptools_plot_heatmap_tss` / `deeptools_plot_fingerprint` / `deeptools_fragment_size_distribution` | deeptools.smk | deepTools computeMatrix / plotProfile / plotHeatmap / plotFingerprint / bamPEFragmentSize | 2–12 | 6 144–20 480 | `.shifted.bigWig` (narrow) or `.bigWig` (broad) + `.filtered.bam` → `deeptools/` matrices, profiles, heatmaps, fingerprint, fragment-size plots |
-| 22 | NFR / fragment-length-class analysis | `nfr_fragment_counts` / `nfr_bigwig_nfr` / `nfr_bigwig_mono` / `nfr_compute_matrix` / `nfr_plot_profile` / `nfr_plot_heatmap` | nfr.smk | samtools view + awk + deepTools alignmentSieve + bamCoverage + computeMatrix / plotProfile / plotHeatmap | 2–12 | 2 048–20 480 | `.shifted.bam` → `nfr/*.fragment_counts_mqc.tsv` (NFR/mono/di/tri fragment-length class counts) + `*.nfr.bigWig + *.mono.bigWig` + NFR-vs-mono TSS profile/heatmap |
+| 22a | NFR fragment counts | `nfr_fragment_counts` | nfr.smk | samtools view + awk | 2 | 2 048–6 144 | `.shifted.bam` (or `.filtered.bam`) → `nfr/*.fragment_counts_mqc.tsv` (NFR/mono/di/tri fragment-length class counts) |
+| 22b | NFR bigWigs + TSS profile/heatmap | `nfr_bigwig_nfr` / `nfr_bigwig_mono` / `nfr_compute_matrix` / `nfr_plot_profile` / `nfr_plot_heatmap` | nfr.smk | deepTools alignmentSieve + bamCoverage + computeMatrix / plotProfile / plotHeatmap | 2–12 | 6 144–20 480 | `.shifted.bam` → `*.nfr.bigWig + *.mono.bigWig` + NFR-vs-mono TSS profile/heatmap |
 | 23 | ataqv | `ataqv` / `ataqv_mkarv` / `ataqv_mqc` | ataqv.smk | ataqv + mkarv + Python (extract_ataqv_score.py) | 1 | 6 144 / 1 024 / 256 | `.filtered.bam` + peaks + TSS + autosomes → `ataqv/*.ataqv.json + *.mkarv_html/index.html + *.ataqv_mqc.tsv` |
 | 24 | ATACseqQC | `atacseqqc_mqc` | atacseqqc.smk | ATACseqQC R pkg (calc_pt_score.R) | 1 | 16 384 | `.shifted.bam` + BED → `atacseqqc/*.atacseqqc_mqc.tsv + fragsize/pt_score/nfr_score/tsse .png` |
 
@@ -182,9 +185,10 @@ All per-sample rules in execution order. Toggle columns: `t` = threads, `MB` = `
 | featureCounts + FRiP | *(auto with call_peaks)* | — | call_peaks |
 | Shift BAM + shifted bigWig | `shift_bam.enabled` | true | narrow peaks |
 | deepTools | `deeptools.enabled` | true | call_peaks |
-| NFR analysis | `nfr.enabled` | true | deeptools + shift_bam + narrow peaks |
+| NFR fragment counts | `nfr.fragment_counts` | true | narrow peaks |
+| NFR bigWigs + plots | `nfr.enabled` | true | shift_bam + narrow peaks |
 | ataqv | `ataqv.enabled` | true | call_peaks |
-| ATACseqQC | `atacseqqc.enabled` | true | call_peaks + narrow peaks |
+| ATACseqQC | `atacseqqc.enabled` | true | call_peaks + shift_bam + narrow peaks |
 
 ---
 
@@ -539,10 +543,12 @@ annotate_peaks:
 deeptools:
   enabled: true
 
-# NFR / fragment-length-class analysis (runs when deeptools + narrow peaks enabled).
-# Set enabled: false to skip NFR/mono bigWigs, fragment length class counts, and TSS profiles.
+# NFR / fragment-length-class analysis (runs when call_peaks.peak_type=narrow).
+# enabled: NFR/mono bigWigs + computeMatrix + plotProfile/plotHeatmap (slow; requires shift_bam).
+# fragment_counts: NFR/mono/di/tri read counting only (fast; independent of enabled).
 nfr:
   enabled: true
+  fragment_counts: true
   nfr_max_fragment:  150     # fragments ≤ this bp → NFR bigWig / NFR count (default: 150)
   mono_min_fragment: 151     # fragments ≥ this bp → mono-class bigWig / count (default: 151)
   mono_max_fragment: 300     # fragments ≤ this bp → mono-class bigWig / count (default: 300)
@@ -593,9 +599,10 @@ Explanation by block:
 - `annotate_peaks.enabled`: run HOMER `annotatePeaks` and summary plotting.
 - `shift_bam.enabled` (default: `true`): Tn5-shift the filtered BAM with `alignmentSieve --ATACshift` and produce `shifted.bam` + `shifted.bigWig`. Set `false` to skip — saves significant time (24 threads, up to 16h runtime) and disk. **Disabling also skips NFR analysis and ATACseqQC**, which both require `shifted.bam`.
 - `deeptools.enabled`: run computeMatrix/plotProfile/plotHeatmap/plotFingerprint modules. Requires `call_peaks.enabled=true`. For narrow peaks, computeMatrix uses the Tn5-shifted bigWig (`shifted.bigWig`); for broad peaks, it uses the unshifted bigWig (`bigWig`).
-- `nfr.enabled` (default: `true`): enable/disable NFR/mono fragment-length-class bigWigs, fragment length class counts, and TSS profile/heatmap. This module runs automatically when `deeptools.enabled=true` and `call_peaks.peak_type=narrow`; set `false` to skip. Fragment size boundaries can be tuned in the same `nfr:` block (see config comments for defaults).
-- `ataqv.enabled`: run ATAC-specific QC (`ataqv`) and render interactive HTML (`mkarv`), plus extract short mononucleosomal ratio and TSS enrichment score (TSSE)  score to `ataqv_mqc.tsv` for MultiQC. Requires `call_peaks.enabled=true`.
-- `atacseqqc.enabled`: run ATACseqQC R package to compute Promoter/transcript body score (PT), per-TSS nucleosome-free region score (NFR), and TSS enrichment score (TSSE) and produce QC plots. Outputs `atacseqqc_mqc.tsv` for MultiQC. Requires `call_peaks.enabled=true` and `call_peaks.peak_type=narrow`.
+- `nfr.enabled` (default: `true`): enable/disable NFR/mono bigWigs, computeMatrix, plotProfile, and plotHeatmap (the slow part). Requires `shift_bam.enabled=true` and `call_peaks.peak_type=narrow`. Set `false` to skip bigWig generation and TSS profiles while keeping fragment counts.
+- `nfr.fragment_counts` (default: `true`): enable/disable NFR/mono/di/tri read counting (`fragment_counts_mqc.tsv`). Fast and independent — runs even when `nfr.enabled=false`. Uses `shifted.bam` when `shift_bam.enabled=true`, otherwise falls back to `filtered.bam`. Requires `call_peaks.peak_type=narrow`. Fragment size boundaries can be tuned in the same `nfr:` block (see config comments for defaults).
+- `ataqv.enabled`: run ATAC-specific QC (`ataqv`) and render interactive HTML (`mkarv`), plus extract short mononucleosomal ratio and TSS enrichment score (TSSE) score to `ataqv_mqc.tsv` for MultiQC. Requires `call_peaks.enabled=true`.
+- `atacseqqc.enabled`: run ATACseqQC R package to compute Promoter/transcript body score (PT), per-TSS nucleosome-free region score (NFR), and TSS enrichment score (TSSE) and produce QC plots. Outputs `atacseqqc_mqc.tsv` for MultiQC. Requires `call_peaks.enabled=true`, `call_peaks.peak_type=narrow`, and `shift_bam.enabled=true`.
 - `multiqc.config`: path to MultiQC config used by this pipeline.
 
 ### Why these default params were chosen

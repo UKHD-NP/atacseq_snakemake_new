@@ -16,7 +16,7 @@ rule homer_annotate_peaks:
     threads: 2
     resources:
         mem_mb = lambda wildcards, attempt: attempt * 10240,
-        runtime = lambda wildcards, attempt: attempt * 240
+        runtime = 60
     log:
         os.path.join("{outdir}", "logs", "homer", "{sample_id}.annotatePeaks.log")
     benchmark:

@@ -46,7 +46,7 @@ rule macs3_callpeak_tn5:
         prefix = lambda wildcards: os.path.join(wildcards.outdir, "peaks", wildcards.sample_id),
         gsize = get_gsize,
         macs3_params = get_macs3_params(),
-        use_bampe = CALL_PEAKS_PEAK_TYPE == "broad",
+        use_bampe = "true" if CALL_PEAKS_PEAK_TYPE == "broad" else "false",
         raw_peak = lambda wildcards: os.path.join(
             wildcards.outdir,
             "peaks",
@@ -70,7 +70,7 @@ rule macs3_callpeak_tn5:
         mkdir -p "$(dirname "{output.peak}")"
         mkdir -p "$(dirname "{log}")"
 
-        if [ "{params.use_bampe}" = "True" ]; then
+        if [ "{params.use_bampe}" = "true" ]; then
             # BAMPE mode: call peaks directly from paired-end filtered BAM (broad peaks, fragment-level).
             touch "{output.tn5_bed}"
 
@@ -141,7 +141,7 @@ if CALL_PEAKS_MACS3_PEAK_QC_PLOT_ON:
         threads: 2
         resources:
             mem_mb = lambda wildcards, attempt: attempt * 8192,
-            runtime = lambda wildcards, attempt: attempt * 60
+            runtime = 60
         log:
             os.path.join("{outdir}", "logs", "macs3", "{sample_id}.peak_qc.log"),
         benchmark:

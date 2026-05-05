@@ -267,13 +267,14 @@ def get_target_files(sample_ids):
                 _path("peaks", f"{sample_id}_peaks.xls"),
             ])
 
-        # Shifted BAM + bigWig (narrow peaks only, Tn5-shift via alignmentSieve).
+        # Shifted BAM targets (narrow peaks only, produced by rule shift_bam).
         if shift_bam_on and call_peaks_on:
             targets.extend([
                 _path("bam",    f"{sample_id}.shifted.bam"),
                 _path("bam",    f"{sample_id}.shifted.bam.bai"),
-                _path("bigwig", f"{sample_id}.shifted.bigWig"),
             ])
+            # Shifted bigWig target is produced downstream from shifted BAM.
+            targets.append(_path("bigwig", f"{sample_id}.shifted.bigWig"))
 
         if call_peaks_qc_on:
             targets.extend([
@@ -319,8 +320,8 @@ def get_target_files(sample_ids):
                 _path("deeptools", f"{sample_id}.fragment_size.qcmetrics.txt"),
             ])
 
-        # NFR bigWigs + TSS profile/heatmap (requires shift_bam).
-        nfr_on = deeptools_on and shift_bam_on and call_peaks_on and is_enabled("nfr", default=True)
+        # NFR bigWigs + TSS profile/heatmap (requires shift_bam, slow).
+        nfr_on = shift_bam_on and call_peaks_on and is_enabled("nfr", default=True)
         if nfr_on:
             targets.extend([
                 _path("nfr", f"{sample_id}.nfr.bigWig"),
@@ -333,8 +334,11 @@ def get_target_files(sample_ids):
                 _path("nfr", f"{sample_id}.nfr_vs_mono.plotHeatmap.tab"),
             ])
 
-        # Fragment size class counts (NFR/mono/di/tri) — runs with shifted or filtered BAM.
-        fragment_counts_on = is_enabled("nfr", default=True) and CALL_PEAKS_PEAK_TYPE == "narrow"
+        # Fragment size class counts (NFR/mono/di/tri) - fast, toggled independently.
+        fragment_counts_on = (
+            as_bool(config.get("nfr", {}).get("fragment_counts", True))
+            and CALL_PEAKS_PEAK_TYPE == "narrow"
+        )
         if fragment_counts_on:
             targets.append(_path("nfr", f"{sample_id}.fragment_counts_mqc.tsv"))
 

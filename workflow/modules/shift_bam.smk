@@ -6,21 +6,19 @@ rule shift_bam:
         chromsizes = config["ref"]["chromsizes"]
     output:
         bam = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam"),
-        bai = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam.bai"),
-        bigwig = os.path.join("{outdir}", "bigwig", "{sample_id}.shifted.bigWig")
+        bai = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam.bai")
     params:
-        gsize = get_gsize,
-        bin_size = 10,
-        tempdir = lambda wildcards: os.path.join(wildcards.outdir, "bam", f"tmp_{wildcards.sample_id}"),
-        memory_per_thread = "6G"
+        tmp_dir = lambda wildcards: os.path.join(wildcards.outdir, "bam", f"tmp_{wildcards.sample_id}"),
+        memory_per_thread = "3G",
+        chunk_length = 100000000
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
         "{wildcards.sample_id}: ATAC-shifting BAM with alignmentSieve"
-    threads: 48
+    threads: 26
     resources:
-        mem_mb = lambda wildcards, attempt: attempt * 65536,
-        runtime = lambda wildcards, attempt: attempt * 960
+        mem_mb = lambda wildcards, attempt: attempt * 98304,
+        runtime = lambda wildcards, attempt: attempt * 2880
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.alignmentSieve.log")
     benchmark:
@@ -30,132 +28,107 @@ rule shift_bam:
         ulimit -Sn $(ulimit -Hn) 2>/dev/null || ulimit -n 65536 2>/dev/null || true
         echo "[INFO] File descriptor limit: $(ulimit -n)" >> "{log}"
 
-        mkdir -p "{params.tempdir}"
-        mkdir -p "$(dirname "{output.bigwig}")"
+        mkdir -p "{params.tmp_dir}"
+        mkdir -p "$(dirname "{output.bam}")"
         mkdir -p "$(dirname "{log}")"
-        export TMPDIR="{params.tempdir}"
- 
-        # Step 1: split by chromosome, shift in parallel
+        export TMPDIR="{params.tmp_dir}"
+
+        # Step 1: alignmentSieve on full BAM
         echo "[INFO] alignmentSieve start: $(date)" >> "{log}"
 
-        CHROMS=$(samtools idxstats "{input.bam}" | awk '$3 > 0 {{print $1}}')
-
-        if [ -z "$CHROMS" ]; then
-            echo "[ERROR] No chromosomes with mapped reads found in {input.bam}" >> "{log}"
-            exit 1
-        fi
-
-        CHROM_COUNT=$(printf "%s\n" "$CHROMS" | grep -c .)
-        echo "[INFO] Chromosomes with mapped reads ($CHROM_COUNT): $(printf "%s\n" "$CHROMS" | tr '\n' ' ')" >> "{log}"
-
-        shift_chr() {{
-            CHR=$1
-            BAM=$2
-            OUTDIR=$3
-            LOG=$4
-
-            echo "[INFO] START shift chromosome $CHR: $(date)" >> "$LOG"
-
-            samtools view -b "$BAM" "$CHR" > "$OUTDIR/$CHR.bam" 2>> "$LOG" || {{
-                echo "[ERROR] samtools view failed for $CHR: $(date)" >> "$LOG"
-                exit 1
-            }}
-
-            samtools index "$OUTDIR/$CHR.bam" 2>> "$LOG" || {{
-                echo "[ERROR] samtools index failed for $CHR: $(date)" >> "$LOG"
-                exit 1
-            }}
-
-            alignmentSieve \
-                --numberOfProcessors 1 \
-                --genomeChunkLength 5000000 \
-                --ATACshift \
-                --bam "$OUTDIR/$CHR.bam" \
-                -o "$OUTDIR/$CHR.shifted.bam" \
-                2>> "$LOG" || {{
-                echo "[ERROR] alignmentSieve failed for $CHR: $(date)" >> "$LOG"
-                exit 1
-            }}
-
-            if [ ! -s "$OUTDIR/$CHR.shifted.bam" ]; then
-                echo "[ERROR] Missing shifted BAM for $CHR after alignmentSieve: $(date)" >> "$LOG"
-                exit 1
-            fi
-
-            rm -f "$OUTDIR/$CHR.bam" "$OUTDIR/$CHR.bam.bai"
-            echo "[INFO] DONE shift chromosome $CHR: $(date)" >> "$LOG"
-        }}
-        export -f shift_chr
-
-        printf "%s\n" "$CHROMS" | xargs -r -P {threads} -I{{}} \
-            bash -c 'shift_chr "$@"' _ {{}} "{input.bam}" "{params.tempdir}" "{log}" || {{
-            echo "[ERROR] One or more chromosome shifts failed: $(date)" >> "{log}"
+        alignmentSieve \
+            --numberOfProcessors {threads} \
+            --genomeChunkLength {params.chunk_length} \
+            --ATACshift \
+            --bam "{input.bam}" \
+            -o "{params.tmp_dir}/shifted.unsorted.bam" \
+            2>> "{log}" || {{
+            echo "[ERROR] alignmentSieve failed: $(date)" >> "{log}"
             exit 1
         }}
 
-        # Check missing bam
-        MISSING=0
-        for CHR in $CHROMS; do
-            if [ ! -s "{params.tempdir}/$CHR.shifted.bam" ]; then
-                echo "[ERROR] Missing shifted BAM for $CHR" >> "{log}"
-                MISSING=1
-            fi
-        done
-        if [ "$MISSING" -ne 0 ]; then
-            echo "[ERROR] Missing one or more chromosome shifted BAM files." >> "{log}"
+        if [ ! -s "{params.tmp_dir}/shifted.unsorted.bam" ]; then
+            echo "[ERROR] alignmentSieve output is missing or empty: $(date)" >> "{log}"
             exit 1
         fi
 
         echo "[INFO] alignmentSieve done: $(date)" >> "{log}"
 
-        # Step 2: merge + sort
-        echo "[INFO] samtools merge start: $(date)" >> "{log}"
-        samtools merge -f -@ 16 \
-            "{params.tempdir}"/merged.bam \
-            "{params.tempdir}"/*.shifted.bam \
-            2>> "{log}" || {{
-            echo "[ERROR] samtools merge failed." >> "{log}"
-            exit 1
-        }}
-
+        # Step 2: sort + index
         echo "[INFO] samtools sort start: $(date)" >> "{log}"
+
         samtools sort \
             --write-index \
             -m "{params.memory_per_thread}" \
-            -T "{params.tempdir}"/sort \
-            -@ 16 \
+            -T "{params.tmp_dir}/sort" \
+            -@ {threads} \
             -o "{output.bam}##idx##{output.bai}" \
-            "{params.tempdir}"/merged.bam \
+            "{params.tmp_dir}/shifted.unsorted.bam" \
             2>> "{log}" || {{
-            echo "[ERROR] samtools sort failed." >> "{log}"
+            echo "[ERROR] samtools sort failed: $(date)" >> "{log}"
             exit 1
         }}
+
         echo "[INFO] samtools sort done: $(date)" >> "{log}"
 
-        rm -rf "{params.tempdir}"
+        rm -rf "{params.tmp_dir}"
 
         if [ ! -s "{output.bam}" ] || [ ! -s "{output.bai}" ]; then
-            echo "[ERROR] Sorted BAM or BAI missing." >> "{log}"
+            echo "[ERROR] Sorted BAM or BAI missing: $(date)" >> "{log}"
             exit 1
         fi
+        """
 
-        # Step 3: bamCoverage
+
+rule shifted_bam_to_bigwig:
+    # Build shifted bigWig from the shifted BAM.
+    input:
+        bam = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam"),
+        bai = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam.bai"),
+        chromsizes = config["ref"]["chromsizes"]
+    output:
+        bigwig = os.path.join("{outdir}", "bigwig", "{sample_id}.shifted.bigWig")
+    params:
+        gsize = get_gsize,
+        bin_size = 10
+    conda:
+        os.path.join(workflow.basedir, "envs", "deeptools.yml")
+    message:
+        "{wildcards.sample_id}: Building shifted bigWig with bamCoverage"
+    threads: 16
+    resources:
+        mem_mb = lambda wildcards, attempt: attempt * 36864,
+        runtime = lambda wildcards, attempt: attempt * 240
+    log:
+        os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.shifted_bamCoverage.log")
+    benchmark:
+        os.path.join("{outdir}", "benchmarks", "{sample_id}.shifted_bamCoverage.benchmark.txt")
+    shell:
+        """
+        ulimit -Sn $(ulimit -Hn) 2>/dev/null || ulimit -n 65536 2>/dev/null || true
+        echo "[INFO] File descriptor limit: $(ulimit -n)" >> "{log}"
+
+        mkdir -p "$(dirname "{output.bigwig}")"
+        mkdir -p "$(dirname "{log}")"
+
         echo "[INFO] bamCoverage start: $(date)" >> "{log}"
+
         bamCoverage \
             --numberOfProcessors {threads} \
             --binSize {params.bin_size} \
             --normalizeUsing RPGC \
             --effectiveGenomeSize "{params.gsize}" \
-            --bam "{output.bam}" \
+            --bam "{input.bam}" \
             -o "{output.bigwig}" \
             2>> "{log}" || {{
-            echo "[ERROR] bamCoverage failed." >> "{log}"
+            echo "[ERROR] bamCoverage failed: $(date)" >> "{log}"
             exit 1
         }}
+
         echo "[INFO] bamCoverage done: $(date)" >> "{log}"
 
         if [ ! -s "{output.bigwig}" ]; then
-            echo "[ERROR] Shifted bigWig output is missing or empty: {output.bigwig}" >> "{log}"
+            echo "[ERROR] bigWig output is missing or empty: $(date)" >> "{log}"
             exit 1
         fi
         """

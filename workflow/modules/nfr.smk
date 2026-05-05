@@ -105,15 +105,16 @@ rule nfr_bigwig_nfr:
         bin_size = 10,
         tmp_bam = os.path.join("{outdir}", "nfr", "{sample_id}.nfr.tmp.bam"),
         tmp_sorted = os.path.join("{outdir}", "nfr", "{sample_id}.nfr.sorted.bam"),
-        memory_per_thread = "1G"
+        memory_per_thread = "3G",
+        chunk_length = 100000000
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
-        "{wildcards.sample_id}: Creating NFR bigWig (fragments ≤ {params.max_fragment} bp)"
-    threads: 8
+        "{wildcards.sample_id}: Creating NFR bigWig (fragments <= {params.max_fragment} bp)"
+    threads: 26
     resources:
-        mem_mb = lambda wildcards, attempt: attempt * 16384,
-        runtime = lambda wildcards, attempt: attempt * 480
+        mem_mb = lambda wildcards, attempt: attempt * 98304,
+        runtime = lambda wildcards, attempt: attempt * 2880
     log:
         os.path.join("{outdir}", "logs", "nfr", "{sample_id}.nfr.bigwig.log")
     benchmark:
@@ -126,6 +127,7 @@ rule nfr_bigwig_nfr:
         alignmentSieve \
             --numberOfProcessors {threads} \
             --maxFragmentLength {params.max_fragment} \
+            --genomeChunkLength {params.chunk_length} \
             --bam "{input.bam}" \
             -o "{params.tmp_bam}" > "{log}" 2>&1 || {{
             echo "[ERROR] alignmentSieve (NFR) failed." >> "{log}"
@@ -176,15 +178,16 @@ rule nfr_bigwig_mono:
         bin_size = 10,
         tmp_bam = os.path.join("{outdir}", "nfr", "{sample_id}.mono.tmp.bam"),
         tmp_sorted = os.path.join("{outdir}", "nfr", "{sample_id}.mono.sorted.bam"),
-        memory_per_thread = "1G"
+        memory_per_thread = "3G",
+        chunk_length = 100000000
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
     message:
-        "{wildcards.sample_id}: Creating mononucleosomal bigWig ({params.min_fragment}–{params.max_fragment} bp)"
-    threads: 8
+        "{wildcards.sample_id}: Creating mononucleosomal bigWig ({params.min_fragment}-{params.max_fragment} bp)"
+    threads: 26
     resources:
-        mem_mb = lambda wildcards, attempt: attempt * 16384,
-        runtime = lambda wildcards, attempt: attempt * 480
+        mem_mb = lambda wildcards, attempt: attempt * 98304,
+        runtime = lambda wildcards, attempt: attempt * 2880
     log:
         os.path.join("{outdir}", "logs", "nfr", "{sample_id}.mono.bigwig.log")
     benchmark:
@@ -198,6 +201,7 @@ rule nfr_bigwig_mono:
             --numberOfProcessors {threads} \
             --minFragmentLength {params.min_fragment} \
             --maxFragmentLength {params.max_fragment} \
+            --genomeChunkLength {params.chunk_length} \
             --bam "{input.bam}" \
             -o "{params.tmp_bam}" > "{log}" 2>&1 || {{
             echo "[ERROR] alignmentSieve (mono) failed." >> "{log}"

@@ -120,7 +120,7 @@ rule ataqv_mqc:
     threads: 1
     resources:
         mem_mb = lambda wildcards, attempt: attempt * 6144,
-        runtime = lambda wildcards, attempt: attempt * 60
+        runtime = 60
     log:
         os.path.join("{outdir}", "logs", "ataqv", "{sample_id}.ataqv_mqc.log")
     benchmark:

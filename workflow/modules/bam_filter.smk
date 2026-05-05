@@ -21,17 +21,17 @@ rule bam_filter:
         bam_filter_params = bam_filter_cfg.get("params", default_bam_filter_params),
         bamtools_script = os.path.join(workflow.basedir, "scripts", "bamtools_filter_pe.json"),
         bampe_rm_orphan_script = os.path.join(workflow.basedir, "scripts", "bampe_rm_orphan.py"),
-        tempdir = os.path.join("{outdir}", "bam", "tmp"),
-        memory_per_thread = "4G",
+        tmp_dir = os.path.join("{outdir}", "bam", "tmp"),
+        memory_per_thread = "6G",
         keep_input_bam = "true" if as_bool(bam_filter_cfg.get("keep_input_bam", False), default=False) else "false",
     conda:
         os.path.join(workflow.basedir, "envs", "samtools.yml")
     message:
         "{wildcards.sample_id}: Filtering BAM"
-    threads: 6
+    threads: 8
     resources:
-        mem_mb = lambda wildcards, attempt: attempt * 36864,
-        runtime = lambda wildcards, attempt: attempt * 480
+        mem_mb = lambda wildcards, attempt: attempt * 49152,
+        runtime = lambda wildcards, attempt: attempt * 960
     log:
         os.path.join("{outdir}", "logs", "samtools", "{sample_id}.bam_filter.log")
     benchmark:
@@ -40,11 +40,11 @@ rule bam_filter:
         """
         mkdir -p "$(dirname "{output.bam}")"
         mkdir -p "$(dirname "{log}")"
-        mkdir -p "{params.tempdir}"
+        mkdir -p "{params.tmp_dir}"
 
-        TMP_FILTERED="{params.tempdir}/{wildcards.sample_id}.filtered.tmp.bam"
-        TMP_NAME_SORTED="{params.tempdir}/{wildcards.sample_id}.filtered.name_sorted.tmp.bam"
-        TMP_CLEANED="{params.tempdir}/{wildcards.sample_id}.filtered.cleaned.name_sorted.tmp.bam"
+        TMP_FILTERED="{params.tmp_dir}/{wildcards.sample_id}.filtered.tmp.bam"
+        TMP_NAME_SORTED="{params.tmp_dir}/{wildcards.sample_id}.filtered.name_sorted.tmp.bam"
+        TMP_CLEANED="{params.tmp_dir}/{wildcards.sample_id}.filtered.cleaned.name_sorted.tmp.bam"
 
         set -euo pipefail
 
@@ -82,7 +82,7 @@ rule bam_filter:
             samtools sort \
                 -n \
                 -m {params.memory_per_thread} \
-                -T "{params.tempdir}/{wildcards.sample_id}.name_sort_tmp" \
+                -T "{params.tmp_dir}/{wildcards.sample_id}.name_sort_tmp" \
                 -@ {threads} \
                 -o "$TMP_NAME_SORTED" \
                 "$TMP_FILTERED" >> "{log}" 2>&1 || {{
@@ -107,7 +107,7 @@ rule bam_filter:
         samtools sort \
             --write-index \
             -m {params.memory_per_thread} \
-            -T "{params.tempdir}/{wildcards.sample_id}.filtered" \
+            -T "{params.tmp_dir}/{wildcards.sample_id}.filtered" \
             -@ {threads} \
             -o "{output.bam}##idx##{output.bai}" \
             "$FINAL_INPUT" >> "{log}" 2>&1 || {{
@@ -128,5 +128,5 @@ rule bam_filter:
             echo "[INFO] Removing source BAM to save space: {input.bam}" >> "{log}"
             rm -f "{input.bam}" "{input.bam}.bai"
         fi
-        rm -rf "{params.tempdir}"
+        rm -rf "{params.tmp_dir}"
         """

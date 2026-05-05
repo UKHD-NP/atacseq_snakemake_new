@@ -264,13 +264,13 @@ rule sort_bam:
         bam = os.path.join("{outdir}", "bam", "{sample_id}.bam"),
         bai = os.path.join("{outdir}", "bam", "{sample_id}.bam.bai")
     params:
-        tempdir = os.path.join("{outdir}", "bam"),
+        tmp_dir = os.path.join("{outdir}", "bam"),
         memory_per_thread = "4G"
     conda:
         os.path.join(workflow.basedir, "envs", "samtools.yml")
     message:
         "{wildcards.sample_id}: Sorting BAM by coordinates"
-    threads: 6
+    threads: 8
     resources:
         mem_mb = lambda wildcards, attempt: attempt * 36864,
         runtime = lambda wildcards, attempt: attempt * 240
@@ -280,13 +280,13 @@ rule sort_bam:
         os.path.join("{outdir}", "benchmarks", "{sample_id}.bam_sort.benchmark.txt")
     shell:
         """
-        mkdir -p "{params.tempdir}"
+        mkdir -p "{params.tmp_dir}"
         mkdir -p "$(dirname "{log}")"
 
         samtools sort \
             --write-index \
             -m {params.memory_per_thread} \
-            -T "{params.tempdir}/{wildcards.sample_id}.sorted" \
+            -T "{params.tmp_dir}/{wildcards.sample_id}.sorted" \
             -@ {threads} \
             -o "{output.bam}##idx##{output.bai}" \
             "{input.bam}" > "{log}" 2>&1 || {{
