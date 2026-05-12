@@ -22,7 +22,6 @@ rule bam_filter:
         bamtools_script = os.path.join(workflow.basedir, "scripts", "bamtools_filter_pe.json"),
         bampe_rm_orphan_script = os.path.join(workflow.basedir, "scripts", "bampe_rm_orphan.py"),
         tmp_dir = os.path.join("{outdir}", "bam", "tmp"),
-        memory_per_thread = "6G",
         keep_input_bam = "true" if as_bool(bam_filter_cfg.get("keep_input_bam", False), default=False) else "false",
     conda:
         os.path.join(workflow.basedir, "envs", "samtools.yml")
@@ -30,7 +29,7 @@ rule bam_filter:
         "{wildcards.sample_id}: Filtering BAM"
     threads: 8
     resources:
-        mem_mb = lambda wildcards, attempt: attempt * 49152,
+        mem_mb = lambda wildcards, attempt: 49152 + (attempt - 1) * 16384,
         runtime = lambda wildcards, attempt: attempt * 960
     log:
         os.path.join("{outdir}", "logs", "samtools", "{sample_id}.bam_filter.log")
@@ -45,6 +44,10 @@ rule bam_filter:
         TMP_FILTERED="{params.tmp_dir}/{wildcards.sample_id}.filtered.tmp.bam"
         TMP_NAME_SORTED="{params.tmp_dir}/{wildcards.sample_id}.filtered.name_sorted.tmp.bam"
         TMP_CLEANED="{params.tmp_dir}/{wildcards.sample_id}.filtered.cleaned.name_sorted.tmp.bam"
+
+        mem_per_thread=$(( {resources.mem_mb} * 7 / 10 / ({threads} + 1) / 1024 ))
+        mem_per_thread=${{mem_per_thread:-1}}G
+        [ "${{mem_per_thread%%G}}" -lt 1 ] 2>/dev/null && mem_per_thread=1G
 
         set -euo pipefail
 
@@ -81,7 +84,7 @@ rule bam_filter:
         if [ -f "{params.bampe_rm_orphan_script}" ] && command -v python3 >/dev/null 2>&1 && python3 -c "import pysam" >/dev/null 2>&1; then
             samtools sort \
                 -n \
-                -m {params.memory_per_thread} \
+                -m $mem_per_thread \
                 -T "{params.tmp_dir}/{wildcards.sample_id}.name_sort_tmp" \
                 -@ {threads} \
                 -o "$TMP_NAME_SORTED" \
@@ -106,7 +109,7 @@ rule bam_filter:
 
         samtools sort \
             --write-index \
-            -m {params.memory_per_thread} \
+            -m $mem_per_thread \
             -T "{params.tmp_dir}/{wildcards.sample_id}.filtered" \
             -@ {threads} \
             -o "{output.bam}##idx##{output.bai}" \

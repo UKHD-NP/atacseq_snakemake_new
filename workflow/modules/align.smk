@@ -272,7 +272,7 @@ rule sort_bam:
         "{wildcards.sample_id}: Sorting BAM by coordinates"
     threads: 8
     resources:
-        mem_mb = lambda wildcards, attempt: attempt * 36864,
+        mem_mb = lambda wildcards, attempt: 49152 + (attempt - 1) * 16384,
         runtime = lambda wildcards, attempt: attempt * 240
     log:
         os.path.join("{outdir}", "logs", "samtools", "{sample_id}.sort.log")

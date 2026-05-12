@@ -29,7 +29,7 @@ rule ataqv:
     threads: 1
     resources:
         mem_mb = lambda wildcards, attempt: attempt * 6144,
-        runtime = lambda wildcards, attempt: attempt * 480
+        runtime = lambda wildcards, attempt: min(attempt * 480, 580)
     log:
         os.path.join("{outdir}", "logs", "ataqv", "{sample_id}.ataqv.log")
     benchmark:
@@ -39,6 +39,7 @@ rule ataqv:
         mkdir -p "$(dirname "{output.json}")"
         mkdir -p "$(dirname "{log}")"
 
+        ATAQV_EXIT=0
         ataqv \
             {params.ignore_read_groups} \
             --mitochondrial-reference-name "{params.mito_name}" \
@@ -49,10 +50,14 @@ rule ataqv:
             --threads {threads} \
             --name "{params.sample_name}" \
             "{params.description}" \
-            "{input.bam}" > "{log}" 2>&1 || {{
-            echo "[ERROR] ataqv failed." >> "{log}"
+            "{input.bam}" > "{log}" 2>&1 || ATAQV_EXIT=$?
+
+        # Exit 135 (128+7 = SIGBUS) is a known ataqv 1.3.1 bug: crashes on exit after
+        # successfully writing output. Treat it as success if the output file exists.
+        if [ "$ATAQV_EXIT" -ne 0 ] && [ "$ATAQV_EXIT" -ne 135 ]; then
+            echo "[ERROR] ataqv failed with exit code $ATAQV_EXIT." >> "{log}"
             exit 1
-        }}
+        fi
 
         if [ ! -s "{output.json}" ]; then
             echo "[ERROR] ataqv output is missing or empty: {output.json}" >> "{log}"

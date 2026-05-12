@@ -160,7 +160,7 @@ set-resources:
 
   # ---- ataqv ----
   ataqv:
-    lsf_queue: "long"
+    lsf_queue: "verylong"
 
   ataqv_mqc:
     lsf_queue: "medium"

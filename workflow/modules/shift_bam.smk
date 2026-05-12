@@ -8,7 +8,7 @@ rule shift_bam:
         bam = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam"),
         bai = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam.bai")
     params:
-        tmp_dir = lambda wildcards: os.path.join(wildcards.outdir, "bam", f"tmp_{wildcards.sample_id}"),
+        tmp_dir = os.path.join("{outdir}", "bam", "tmp"),
         memory_per_thread = "3G",
         chunk_length = 100000000
     conda:
@@ -17,7 +17,7 @@ rule shift_bam:
         "{wildcards.sample_id}: ATAC-shifting BAM with alignmentSieve"
     threads: 26
     resources:
-        mem_mb = lambda wildcards, attempt: attempt * 98304,
+        mem_mb = lambda wildcards, attempt: attempt * 73728,
         runtime = lambda wildcards, attempt: attempt * 2880
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.alignmentSieve.log")
