@@ -89,7 +89,7 @@ set-resources:
     lsf_queue: "long"
 
   picard_collect_multiple_metrics:
-    lsf_queue: "long"
+    lsf_queue: "verylong"
 
   # ---- PEAK CALLING ----
   macs3_callpeak_tn5:
