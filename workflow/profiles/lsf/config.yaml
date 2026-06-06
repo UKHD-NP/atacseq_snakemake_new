@@ -79,7 +79,7 @@ set-resources:
     lsf_queue: "verylong"
 
   shifted_bam_to_bigwig:
-    lsf_queue: "long"
+    lsf_queue: "verylong"
 
   # ---- POST ALIGNMENT QC ----
   samtools_stats_pre_filter:
@@ -141,7 +141,7 @@ set-resources:
 
   # ---- NFR ----
   nfr_fragment_counts:
-    lsf_queue: "medium"
+    lsf_queue: "long"
 
   nfr_bigwig_nfr:
     lsf_queue: "verylong"
@@ -175,3 +175,4 @@ set-resources:
   # ---- FINAL ----
   multiqc:
     lsf_queue: "medium"
+

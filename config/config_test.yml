@@ -47,7 +47,13 @@ bam_filter:
   # - false: keep all contigs from the FASTA. Use for non-human genomes (mouse mm10/mm39,
   #           C. elegans ce11, custom assemblies) or any genome with non-chr* chromosome names.
   apply_canonical_chromosomes: false
-  apply_blacklist: false   # true = restrict BAM to include_regions (blacklist-excluded); false = skip blacklist interval filtering
+  # canonical_chroms_pattern: override the default awk regex used when apply_canonical_chromosomes=true.
+  # Default (human hg19/hg38): "^chr([1-9]|1[0-9]|2[0-2]|X|Y|M)$"
+  # Examples for other genomes:
+  #   mouse/rat/zebrafish (chr-prefixed, any number): "^chr([0-9]+|X|Y|M)$"
+  #   ENSEMBL naming (no chr prefix):                 "^([0-9]+|X|Y|MT)$"
+  # canonical_chroms_pattern: ""
+  apply_blacklist: false # true = restrict BAM to include_regions (blacklist-excluded); false = skip blacklist interval filtering
   keep_input_bam: false  # true = keep the source BAM used before bam_filter; false = delete it to save space
 
 markduplicates:

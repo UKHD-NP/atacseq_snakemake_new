@@ -53,7 +53,7 @@ bam_filter:
   #   mouse/rat/zebrafish (chr-prefixed, any number): "^chr([0-9]+|X|Y|M)$"
   #   ENSEMBL naming (no chr prefix):                 "^([0-9]+|X|Y|MT)$"
   # canonical_chroms_pattern: ""
-  apply_blacklist: true   # true = restrict BAM to include_regions (blacklist-excluded); false = skip blacklist interval filtering
+  apply_blacklist: false # true = restrict BAM to include_regions (blacklist-excluded); false = skip blacklist interval filtering
   keep_input_bam: false  # true = keep the source BAM used before bam_filter; false = delete it to save space
 
 markduplicates:
@@ -97,7 +97,7 @@ shift_bam:
 # enabled: controls NFR/mono bigWigs + computeMatrix + plotProfile/plotHeatmap (slow).
 # fragment_counts: controls NFR/mono/di/tri read counting only (fast, for MultiQC).
 nfr:
-  enabled: true
+  enabled: false
   fragment_counts: true
 # Optional: tune fragment size boundaries (defaults shown):
 #   nfr_max_fragment:  150     # fragments ≤ this bp → NFR bigWig / NFR count
