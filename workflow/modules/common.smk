@@ -247,6 +247,9 @@ def get_target_files(sample_ids):
             _path("bam", f"{sample_id}.filtered.bam.idxstats"),
         ])
 
+        # Library complexity QC (NRF, PBC1, PBC2) - produced by bam_filter itself.
+        targets.append(_path("library_complexity", f"{sample_id}.pbc_qc.tsv"))
+
         # Add Picard CollectMultipleMetrics
         targets.extend([
             _path("bam", f"{sample_id}.CollectMultipleMetrics.alignment_summary_metrics"),

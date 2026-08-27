@@ -20,6 +20,8 @@ report_section_order:
     order: 3000
   picard:
     order: 2900
+  library_complexity_mqc:
+    order: 2850
   deeptools:
     order: 2800
   ataqv:
@@ -126,6 +128,8 @@ extra_fn_clean_exts:
 fn_clean_sample_names: true
 
 sp:
+  library_complexity_mqc:
+    fn: "*.pbc_qc.tsv"
   ataqv_mqc:
     fn: "*.ataqv_mqc.tsv"
   atacseqqc_mqc:
@@ -211,6 +215,78 @@ custom_data:
       FRiP_featureCounts:
         title: "FRiP (featureCounts %)"
         format: "{:,.2f}"
+  library_complexity_mqc:
+    id: "library_complexity_mqc"
+    section_name: "Library Complexity (NRF / PBC1 / PBC2)"
+    description: "ENCODE ATAC-seq library complexity metrics computed from mapped, properly paired, MAPQ-filtered read pairs before duplicate removal: the Non-Redundant Fraction (NRF) and the PCR Bottlenecking Coefficients 1 and 2, or PBC1 and PBC2. ENCODE tiers - ideal/none: NRF > 0.9, PBC1 > 0.9, PBC2 > 3; acceptable/moderate: NRF/PBC1 0.7-0.9, PBC2 1-3; concerning/severe: NRF/PBC1 < 0.7, PBC2 < 1."
+    file_format: "tsv"
+    plot_type: "table"
+    pconfig:
+      namespace: "ATAC"
+      id: "library_complexity_mqc_table"
+      title: "Library Complexity (NRF / PBC1 / PBC2)"
+    headers:
+      TotalReadPairs:
+        title: "Total Read Pairs"
+        description: "Total mapped, properly paired, MAPQ-filtered read pairs (pre-dedup, mito excluded)."
+        format: "{:,.0f}"
+        hidden: true
+      DistinctReadPairs:
+        title: "Distinct Read Pairs"
+        description: "Distinct genomic read-pair positions (chr, start, end, strand)."
+        format: "{:,.0f}"
+        hidden: true
+      OneReadPair:
+        title: "Positions w/ 1 Pair"
+        description: "Genomic positions occupied by exactly one read pair."
+        format: "{:,.0f}"
+        hidden: true
+      TwoReadPairs:
+        title: "Positions w/ 2 Pairs"
+        description: "Genomic positions occupied by exactly two read pairs."
+        format: "{:,.0f}"
+        hidden: true
+      NRF:
+        title: "NRF"
+        description: "Non-Redundant Fraction: distinct read-pair positions / total read pairs. ENCODE: >0.9 ideal, 0.7-0.9 acceptable, <0.7 concerning."
+        format: "{:,.4f}"
+        min: 0
+        max: 1
+        scale: "RdYlGn"
+        cond_formatting_rules:
+          pass:
+            - gt: 0.9
+          warn:
+            - lt: 0.9
+          fail:
+            - lt: 0.7
+      PBC1:
+        title: "PBC1"
+        description: "PCR Bottlenecking Coefficient 1: read-pair positions with exactly 1 read pair / distinct read-pair positions. ENCODE: >0.9 none, 0.7-0.9 moderate, <0.7 severe bottlenecking."
+        format: "{:,.4f}"
+        min: 0
+        max: 1
+        scale: "RdYlGn"
+        cond_formatting_rules:
+          pass:
+            - gt: 0.9
+          warn:
+            - lt: 0.9
+          fail:
+            - lt: 0.7
+      PBC2:
+        title: "PBC2"
+        description: "PCR Bottlenecking Coefficient 2: positions with exactly 1 read pair / positions with exactly 2 read pairs. ENCODE: >3 none, 1-3 moderate, <1 severe bottlenecking."
+        format: "{:,.2f}"
+        min: 0
+        scale: "RdYlGn"
+        cond_formatting_rules:
+          pass:
+            - gt: 3
+          warn:
+            - lt: 3
+          fail:
+            - lt: 1
   ataqv_mqc:
     id: "ataqv_mqc"
     section_name: "ataqv Metrics (NFR / TSSE)"

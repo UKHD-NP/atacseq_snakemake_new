@@ -60,6 +60,9 @@ def get_input_multiqc(wildcards):
         for ext in ("stats", "flagstat", "idxstats")
     )
 
+    # Add library complexity QC (NRF, PBC1, PBC2) - produced by bam_filter itself.
+    targets.append(_path("library_complexity", f"{sample_id}.pbc_qc.tsv"))
+
     # Add Picard CollectMultipleMetrics
     targets.extend([
         _path("bam", f"{sample_id}.CollectMultipleMetrics.alignment_summary_metrics"),

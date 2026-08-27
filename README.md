@@ -64,11 +64,12 @@ Main workflow (per sample):
    - always applies SAM flag/MAPQ filtering
    - optionally applies blacklist exclusion
    - optionally excludes mitochondrial reads via `ref.keep_mito`
+   - compute library complexity QC (NRF, PBC1, PBC2) on that duplicate-retaining population
    - can preserve the source BAM before filtering
 7. BAM stats on filtered BAM (`samtools stats/flagstat/idxstats`)
 8. Signal tracks
-   - Scaled bedGraph + bigWig from filtered BAM
-   - ATAC-shifted BAM + shifted RPGC bigWig
+   - CPM-normalized bigWig from filtered BAM (deepTools `bamCoverage`)
+   - ATAC-shifted BAM + shifted CPM-normalized bigWig
 9. Peak calling (MACS3 with Tn5-shifted BED)
 10. Peak QC summary plots (`plot_macs_qc.r`)
 11. FRiP (two methods: bedtools intersect + featureCounts log)
@@ -107,11 +108,18 @@ alignment (bwa-mem2 | bowtie2)
 mark_duplicates (optional)
         |
         v
-bam_filter  --->  filtered.bam / filtered.bam.bai
+bam_filter (single rule, 4 internal stages - duplicate-exclusion flag deferred to stage 4):
+  [1] samtools view + bamtools filter + include_regions (duplicates retained)
+  [2] name-sort + pysam bampe_rm_orphan (optional)
+  [3] bedtools bamtobed -bedpe + awk -> pbc_qc.tsv (NRF, PBC1, PBC2; feeds MultiQC)
+  [4] samtools view -F 0x0400 (remove duplicates) + sort --write-index
+        |
+        v
+filtered.bam / filtered.bam.bai
         |                    |
         |                    +--> align_stats (samtools stats/flagstat/idxstats)
-        |                    +--> bedtools_genomecov -> bedGraphToBigWig -> bigWig
-        |                    +--> shift_bam (alignmentSieve --ATACshift) -> shifted.bam + shifted.bigWig
+        |                    +--> bamcoverage_bigwig (deepTools bamCoverage, CPM) -> bigWig
+        |                    +--> shift_bam (alignmentSieve --ATACshift) -> shifted.bam + shifted.bigWig (CPM)
         |                    +--> macs3_callpeak_tn5 (narrow: filtered.bam -> bamtobed -> awk Tn5 shift -> MACS3 BED mode)
         |                               |            (broad:  filtered.bam -> MACS3 BAMPE mode)
         |                               |    
@@ -156,11 +164,11 @@ All per-sample rules in execution order. Toggle columns: `t` = threads, `MB` = `
 | 8 | Sort BAM | `sort_bam` | align.smk | samtools sort + index | 8 | 36 864 | `.unsorted.bam` → `bam/*.bam + *.bam.bai` |
 | 9 | Mark duplicates | `mark_duplicates` | mark_duplicates.smk | Picard MarkDuplicates | 2 | 49 152 | `.bam` → `bam/*.markdup.sorted.bam + *.MarkDuplicates.metrics.txt` |
 | 10 | Samtools stats pre-filter | `samtools_stats_pre_filter` | align_stats.smk | samtools stats / flagstat / idxstats | 1 | 2 048 | pre-filter BAM → `bam/*.pre_filter.bam.{stats,flagstat,idxstats}` |
-| 11 | BAM filter | `bam_filter` | bam_filter.smk | samtools view + bamtools filter + pysam bampe_rm_orphan | 8 | 49 152 | `.markdup.sorted.bam` + include_regions → `bam/*.filtered.bam + *.bai` |
+| 11 | BAM filter + library complexity | `bam_filter` | bam_filter.smk | samtools view + bamtools filter + pysam bampe_rm_orphan + bedtools bamtobed -bedpe + awk | 8 | 57 344 | `.markdup.sorted.bam` + include_regions → `bam/*.filtered.bam + *.bai` + `library_complexity/*.pbc_qc.tsv` (NRF/PBC1/PBC2) |
 | 12 | Samtools stats | `samtools_stats` | align_stats.smk | samtools stats / flagstat / idxstats | 1 | 2 048 | `.filtered.bam` → `bam/*.filtered.bam.{stats,flagstat,idxstats}` |
 | 13 | Picard metrics | `picard_collect_multiple_metrics` | align_stats.smk | Picard CollectMultipleMetrics | 1 | 16 384 | `.filtered.bam` → alignment_summary / insert_size / base_dist / quality_* metrics |
-| 14 | BigWig (unshifted) | `bedtools_genomecov` → `ucsc_bedgraphtobigwig` | bam_to_bigwig.smk | bedtools genomecov + bedGraphToBigWig | 2 / 2 | 40 960 / 6 144 | `.filtered.bam` → `bigwig/*.bedGraph` → `bigwig/*.bigWig` |
-| 15 | Shift BAM | `shift_bam` | shift_bam.smk | deepTools alignmentSieve + bamCoverage (RPGC) | 26 | 98 304 | `.filtered.bam` → `bam/*.shifted.bam` + `bigwig/*.shifted.bigWig` |
+| 14 | BigWig (unshifted) | `bamcoverage_bigwig` | bam_to_bigwig.smk | deepTools bamCoverage (CPM-normalized) | 16 | 36 864 | `.filtered.bam` → `bigwig/*.bigWig` |
+| 15 | Shift BAM | `shift_bam` → `shifted_bam_to_bigwig` | shift_bam.smk | deepTools alignmentSieve + bamCoverage (CPM-normalized) | 26 / 16 | 98 304 / 36 864 | `.filtered.bam` → `bam/*.shifted.bam` → `bigwig/*.shifted.bigWig` |
 | 16 | MACS3 peak calling | `macs3_callpeak_tn5` | call_peaks.smk | bedtools bamtobed + awk Tn5-shift + MACS3 (narrow: BED mode; broad: BAMPE mode) | 2 | 8 192 | `.filtered.bam` → `peaks/*.tn5_shifted.bed + *_peaks.peak + *_peaks.xls` |
 | 17 | MACS3 peak QC | `macs3_peak_qc_plot` | call_peaks.smk | R (plot_macs_qc.r) | 2 | 8 192 | `*_peaks.peak` → `peaks/*.macs_peakqc.summary.txt + *.plots.pdf` |
 | 18 | featureCounts | `featurecounts_in_peaks` | frip_score.smk | featureCounts / Subread (SAF, paired, unstranded) | 1 | 6 144 | `.filtered.bam` + peaks SAF → `featurecounts/*.readCountInPeaks.txt` |
@@ -178,7 +186,7 @@ All per-sample rules in execution order. Toggle columns: `t` = threads, `MB` = `
 |--------|-----------|:-------:|---------|
 | Trimming | `trimming.enabled` | true | — |
 | Mark duplicates | `markduplicates.enabled` | true | — |
-| BAM filter | *(always on)* | always | — |
+| BAM filter + library complexity (NRF/PBC1/PBC2) | *(always on)* | always | — |
 | Peak calling | `call_peaks.enabled` | true | bam_filter |
 | Peak QC plot | `call_peaks.macs3_peak_qc_plot` | true | call_peaks |
 | Annotation | `annotate_peaks.enabled` | true | call_peaks |
@@ -519,7 +527,12 @@ align:
   bwa_params: "-I 0,2000"
 
 bam_filter:
-  params: "-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400 -q 30"
+  # Pre-dedup filter flags only - duplicate removal (-F 0x0400) is a fixed,
+  # always-on final step inside bam_filter, NOT part of params below. bam_filter
+  # also computes NRF/PBC1/PBC2 internally (ENCODE library complexity QC ->
+  # library_complexity/*.pbc_qc.tsv) on this pre-dedup population, before that
+  # fixed dedup step runs. No separate toggle for either - always runs.
+  params: "-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -q 30"
   apply_canonical_chromosomes: false   # hg19/hg38: set true. Non-human or custom genomes: set false (see below)
   apply_blacklist: true        # true = exclude blacklist regions; false = keep them
   keep_input_bam: false         # true = preserve BAM before bam_filter; false = delete to save space
@@ -542,6 +555,10 @@ annotate_peaks:
 
 deeptools:
   enabled: true
+
+shift_bam:
+  enabled: true                 # false = skip shifted.bam/.bigWig, NFR analysis, ATACseqQC
+  delete_shifted_bam: false     # true = delete shifted.bam once all its consumers are done
 
 # NFR / fragment-length-class analysis (runs when call_peaks.peak_type=narrow).
 # enabled: NFR/mono bigWigs + computeMatrix + plotProfile/plotHeatmap (slow; requires shift_bam).
@@ -598,6 +615,7 @@ Explanation by block:
 - `call_peaks.frip_threshold`: FRiP percentage threshold for quality label in `*.FRiP.txt`; samples at or above this value are labelled `good`, below is `bad` (default: 20%).
 - `annotate_peaks.enabled`: run HOMER `annotatePeaks` and summary plotting.
 - `shift_bam.enabled` (default: `true`): Tn5-shift the filtered BAM with `alignmentSieve --ATACshift` and produce `shifted.bam` + `shifted.bigWig`. Set `false` to skip — saves significant time (24 threads, up to 16h runtime) and disk. **Disabling also skips NFR analysis and ATACseqQC**, which both require `shifted.bam`.
+- `shift_bam.delete_shifted_bam` (default: `false`): set `true` to delete `shifted.bam` (+ `.bai`) in the cleanup step (`delete_tmp`) once every consumer has finished — `shifted.bigWig`, NFR bigWigs/fragment counts, ATACseqQC. Saves disk on large runs; the file can always be regenerated from `filtered.bam` via `alignmentSieve` if needed again. Only takes effect when `shift_bam.enabled=true` and `call_peaks.peak_type=narrow` (i.e. only when `shifted.bam` is actually produced).
 - `deeptools.enabled`: run computeMatrix/plotProfile/plotHeatmap/plotFingerprint modules. Requires `call_peaks.enabled=true`. For narrow peaks, computeMatrix uses the Tn5-shifted bigWig (`shifted.bigWig`); for broad peaks, it uses the unshifted bigWig (`bigWig`).
 - `nfr.enabled` (default: `true`): enable/disable NFR/mono bigWigs, computeMatrix, plotProfile, and plotHeatmap (the slow part). Requires `shift_bam.enabled=true` and `call_peaks.peak_type=narrow`. Set `false` to skip bigWig generation and TSS profiles while keeping fragment counts.
 - `nfr.fragment_counts` (default: `true`): enable/disable NFR/mono/di/tri read counting (`fragment_counts_mqc.tsv`). Fast and independent — runs even when `nfr.enabled=false`. Uses `shifted.bam` when `shift_bam.enabled=true`, otherwise falls back to `filtered.bam`. Requires `call_peaks.peak_type=narrow`. Fragment size boundaries can be tuned in the same `nfr:` block (see config comments for defaults).
@@ -628,10 +646,7 @@ Explanation by block:
 
 ## Re-mark Duplicates and BAM Filtering Criteria
 
-After alignment and coordinate sorting, duplicates are marked with Picard (`mark_duplicates`, when enabled), then `bam_filter` creates `*.filtered.bam`.
-
-Important: `bam_filter.params` is the **SAMtools core filter only**.  
-Additional filters are applied by BAMTools and Pysam (if available in the runtime env).
+After alignment and coordinate sorting, duplicates are marked with Picard (`mark_duplicates`, when enabled), then the `bam_filter` rule runs  to produce both `*.filtered.bam` and the library complexity QC table.
 
 Why this default filtering strategy is used:
 - It prioritizes specificity for ATAC peak detection.
@@ -644,18 +659,17 @@ Practical examples:
 - Preserve the BAM before filtering for debugging or alternate peak-calling runs:
   `bam_filter.keep_input_bam: true`
 
-### 1) SAMtools core filter (from `config.yml`)
+### SAMtools core filter (from `config.yml`)
 
 Current default:
 
-`-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400 -q 30`
+`-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -q 30`
 
 Meaning:
 - `-F 0x004`: remove unmapped reads
 - `-F 0x0008`: remove reads whose mate is unmapped
 - `-f 0x001`: keep only reads flagged as paired
 - `-F 0x0100`: remove secondary alignments
-- `-F 0x0400`: remove reads marked as duplicates
 - `-q 30`: keep reads with MAPQ >= 30 (remove lower-confidence multimappers/ambiguous mappings)
 
 `bam_filter` also uses `-L ref.include_regions` with `samtools view`:
@@ -665,20 +679,30 @@ Meaning:
 - mitochondrial contig is excluded there when `ref.keep_mito: false`
 - if `bam_filter.apply_blacklist: false` and `ref.keep_mito: false`, `chrM`/`MT` is still filtered out as long as `ref.mito_name` matches the FASTA
 
-### 2) BAMTools extra filter (optional but enabled when `bamtools` exists)
+### BAMTools extra filter (optional but enabled when `bamtools` exists)
 
 From `workflow/scripts/bamtools_filter_pe.json`, extra constraints are:
 - mismatches `NM <= 4`
 - remove soft-clipped reads (`CIGAR` containing `S`) — **note:** this rejects any read with even 1 bp soft-clip, which can be overly aggressive; see `resources/pipeline_comparison.md` Section 7 for a recommended fix
 - keep insert size in `[-2000, 2000]`
 
-### 3) Pysam pair/orphan cleanup (optional but enabled when `python3+pysam` exists)
+### Pysam pair/orphan cleanup (optional but enabled when `python3+pysam` exists)
 
 From `workflow/scripts/bampe_rm_orphan.py` (`--only_fr_pairs` mode):
 - remove singleton/orphan reads
 - keep only read pairs on the same chromosome
 - keep only FR-oriented proper pairs
 - remove pairs where one mate fails the pair criteria
+
+### Library complexity QC (NRF, PBC1, PBC2)
+
+Two sub-steps, inline in `bam_filter`:
+- **4a:** `bedtools bamtobed -bedpe` + `awk` — drop mito, extract position key (`chrom1, start1, chrom2, end2, strand1, strand2`) to a temp TSV.
+- **4b:** `sort | uniq -c | awk` — count reads per position (`m0`/`m1`/`m2`), compute `NRF = m0/mt`, `PBC1 = m1/m0`, `PBC2 = m1/m2` → `library_complexity/{sample}.pbc_qc.tsv`.
+
+### Duplicate removal
+
+A fixed, always-on `-F 0x0400` filter (not configurable, not part of `bam_filter.params` — see stage 1), followed by the final coordinate-sort + index, producing `*.filtered.bam`.
 
 ## Main Outputs
 
@@ -687,8 +711,8 @@ Per sample under `<outdir>`:
 - BAM
   - `bam/{sample}.filtered.bam`
   - `bam/{sample}.filtered.bam.bai`
-  - `bam/{sample}.shifted.bam` (narrow peaks only)
-  - `bam/{sample}.shifted.bam.bai` (narrow peaks only)
+  - `bam/{sample}.shifted.bam` (narrow peaks only; deleted in cleanup when `shift_bam.delete_shifted_bam: true`)
+  - `bam/{sample}.shifted.bam.bai` (narrow peaks only; deleted alongside `.shifted.bam`)
   - `bam/{sample}.markdup.sorted.bam` / `bam/{sample}.markdup.sorted.bam.bai` or `bam/{sample}.bam` / `bam/{sample}.bam.bai` may also be retained when `bam_filter.keep_input_bam: true`
 - BAM stats
   - `bam/{sample}.pre_filter.bam.stats`
@@ -708,10 +732,10 @@ Per sample under `<outdir>`:
   - `bam/{sample}.CollectMultipleMetrics.quality_distribution.pdf`
   - `bam/{sample}.CollectMultipleMetrics.quality_distribution_metrics`
 - Signal tracks
-  - `bigwig/{sample}.bedGraph`
-  - `bigwig/{sample}.scale_factor.txt`
-  - `bigwig/{sample}.bigWig`
-  - `bigwig/{sample}.shifted.bigWig` (narrow peaks only)
+  - `bigwig/{sample}.bigWig` (CPM-normalized, deepTools `bamCoverage`)
+  - `bigwig/{sample}.shifted.bigWig` (narrow peaks only; CPM-normalized)
+- Library complexity
+  - `library_complexity/{sample}.pbc_qc.tsv` (Sample, TotalReadPairs, DistinctReadPairs, OneReadPair, TwoReadPairs, NRF, PBC1, PBC2; also consumed by MultiQC)
 - Peaks / FRiP
   - `peaks/{sample}.tn5_shifted.bed` (narrow peaks only)
   - `peaks/{sample}_peaks.peak`
@@ -816,6 +840,9 @@ Sources: [ENCODE ATAC-seq Standards](https://www.encodeproject.org/atac-seq/) ·
 |--------|--------|--------------|--------|------------|
 | Alignment rate | ENCODE | Bowtie2 / BWA-MEM2 log | >95% | ≥80% |
 | Duplication rate | general practice | `*.MarkDuplicates.metrics.txt` | <20% | <30% |
+| NRF | ENCODE | `library_complexity/*.pbc_qc.tsv` | >0.9 (ideal) | 0.7–0.9 (concerning if <0.7) |
+| PBC1 | ENCODE | `library_complexity/*.pbc_qc.tsv` | >0.9 (no bottleneck) | 0.7–0.9 moderate (severe if <0.7) |
+| PBC2 | ENCODE | `library_complexity/*.pbc_qc.tsv` | >3 (no bottleneck) | 1–3 moderate (severe if <1) |
 | FRiP score | ENCODE | `*_peaks.FRiP_mqc.tsv` | ≥0.3 | ≥0.2 |
 | NFR ratio (short:mono) | ataqv | `ataqv/*.ataqv_mqc.tsv` | >2 | — |
 | TSSE score | ataqv / ENCODE (hg38) | `ataqv/*.ataqv_mqc.tsv` | ≥7 | ≥5 |
@@ -978,24 +1005,40 @@ TSSE = max(mean(per-step score across all TSS))
 
 ---
 
-### Duplication Rate — Library Complexity
+### NRF / PBC1 / PBC2 — Library Complexity (ENCODE)
 
-**Source:** General bioinformatics practice (not a direct ENCODE threshold — ENCODE uses NRF/PBC1/PBC2 which require a separate counting step not implemented in this pipeline)
+**Source:** [ENCODE ATAC-seq Standards](https://www.encodeproject.org/atac-seq/) — the official ENCODE library complexity metrics.
 
-**What it measures:** The fraction of reads flagged as PCR/optical duplicates by Picard MarkDuplicates.
+**What it measures:** the three ENCODE library complexity metrics are the Non-Redundant Fraction (NRF) and the PCR Bottlenecking Coefficients 1 and 2, or PBC1 and PBC2. Unlike the Picard duplication rate below (which relies on the aligner/Picard duplicate flag), NRF/PBC1/PBC2 identify duplicates directly from **genomic position** — grouping fragments by `(chrom1, start1, chrom2, end2, strand1, strand2)` from `bedtools bamtobed -bedpe`, then counting how many distinct positions are hit exactly once vs. exactly twice vs. many times.
 
 ```
-Duplication rate = duplicate reads / total mapped reads
+mt = total read pairs (fragments)
+m0 = distinct genomic positions
+m1 = positions hit by exactly 1 read pair
+m2 = positions hit by exactly 2 read pairs
+
+NRF  (Non-Redundant Fraction)          = m0 / mt
+PBC1 (PCR Bottlenecking Coefficient 1) = m1 / m0
+PBC2 (PCR Bottlenecking Coefficient 2) = m1 / m2
 ```
 
-**Why it matters:** High duplication indicates over-amplification or low-complexity library — most reads are copies of the same fragment rather than independent Tn5 insertions. This artificially inflates peak signal.
+**Why it matters:** these are the metrics ENCODE actually publishes cutoffs for — a low NRF/PBC1 means most fragments are PCR duplicates rather than independent Tn5 insertions; a low PBC2 means the library has few singly-observed positions relative to doubly-observed ones, a sign of PCR bottlenecking (over-amplification from too little input material).
 
-**Thresholds (community practice):**
-- `<20%` — good library complexity
-- `20–30%` — acceptable; consider using more input material next time
-- `>30%` — poor complexity; reduce PCR cycles or increase input
+**Thresholds (ENCODE ATAC-seq Standards):**
 
-**In this pipeline:** reported in `bam/{sample}.markdup.sorted.MarkDuplicates.metrics.txt` (`PERCENT_DUPLICATION` column), parsed automatically by MultiQC.
+| PBC1 | PBC2 | NRF | Bottlenecking / complexity | Flag |
+|---|---|---|---|---|
+| > 0.9 | > 3 | > 0.9 | None / ideal | — |
+| 0.7 – 0.9 | 1 – 3 | 0.7 – 0.9 | Moderate / acceptable | Yellow |
+| < 0.7 | < 1 | < 0.7 | Severe / concerning | Orange |
+
+The three metrics are reported and thresholded independently. A `PBC2` at or below 1 (positions seen twice ≈ positions seen once) is the clearest single sign of PCR bottlenecking.
+
+ENCODE's definitions are written in terms of *uniquely mapping reads*; because this is paired-end ATAC data, the pipeline applies them per **read pair / fragment** (one BEDPE record per pair), which is the standard PE adaptation (same as the ENCODE/Kundaje ATAC pipeline). The MAPQ + proper-pair filter upstream is what enforces "maps uniquely".
+
+**In this pipeline:** computed internally by `bam_filter` (stage 3 of 4 — see [Re-mark Duplicates and BAM Filtering Criteria](#re-mark-duplicates-and-bam-filtering-criteria)).
+
+---
 
 ## Space-saving behavior
 
@@ -1003,6 +1046,7 @@ Pipeline removes some intermediates to reduce storage, for example:
 - unsorted BAM after sort
 - pre-filter BAM after filtering
 - merged/trimmed FASTQ files in cleanup step after MultiQC
+- `shifted.bam` (+ `.bai`) in the cleanup step, once all its consumers are done — only when `shift_bam.delete_shifted_bam: true` (default: `false`, kept)
 
 ## Troubleshooting
 

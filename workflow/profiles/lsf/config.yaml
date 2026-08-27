@@ -110,11 +110,8 @@ set-resources:
     lsf_queue: "medium"
 
   # ---- BIGWIG ----
-  bedtools_genomecov:
-    lsf_queue: "long"
-
-  ucsc_bedgraphtobigwig:
-    lsf_queue: "long"
+  bamcoverage_bigwig:
+    lsf_queue: "verylong"
 
   # ---- POST PEAK CALLING QC ----
   # ---- DEEPTOOLS ----

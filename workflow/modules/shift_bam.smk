@@ -89,7 +89,6 @@ rule shifted_bam_to_bigwig:
     output:
         bigwig = os.path.join("{outdir}", "bigwig", "{sample_id}.shifted.bigWig")
     params:
-        gsize = get_gsize,
         bin_size = 10
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
@@ -116,8 +115,7 @@ rule shifted_bam_to_bigwig:
         bamCoverage \
             --numberOfProcessors {threads} \
             --binSize {params.bin_size} \
-            --normalizeUsing RPGC \
-            --effectiveGenomeSize "{params.gsize}" \
+            --normalizeUsing CPM \
             --bam "{input.bam}" \
             -o "{output.bigwig}" \
             2>> "{log}" || {{

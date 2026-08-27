@@ -36,11 +36,15 @@ align:
   bwa_params: "-I 0,2000"
 
 bam_filter:
-  # Core filtering flags:
-  # - remove unmapped/mate-unmapped/secondary/duplicate
+  # Core filtering flags (pre-dedup only):
+  # - remove unmapped/mate-unmapped/secondary
   # - keep proper pairs
   # - MAPQ threshold
-  params: "-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -F 0x0400 -q 30"
+  # Duplicate removal (-F 0x0400) is NOT configured here - it's a fixed, always-on
+  # final step inside bam_filter, applied *after* it computes NRF/PBC1/PBC2 (ENCODE
+  # library complexity QC -> library_complexity/*.pbc_qc.tsv) on this pre-dedup
+  # population. There is no separate toggle for either step.
+  params: "-F 0x004 -F 0x0008 -f 0x001 -F 0x0100 -q 30"
   # apply_canonical_chromosomes: restrict alignable regions to standard chromosomes only.
   # - true : keep only chr1–chr22, chrX, chrY, chrM (UCSC naming). Use for hg19/hg38.
   #           Removes unplaced contigs (chrUn_*, random, EBV, etc.) that inflate background noise.
@@ -91,6 +95,11 @@ shift_bam:
   # Disabling skips shifted.bam, shifted.bigWig, NFR analysis, and ATACseqQC.
   # Set false to save time and disk when only unshifted signal tracks are needed.
   enabled: true
+  # delete_shifted_bam: true = delete shifted.bam (+ .bai) during cleanup once every
+  # consumer has finished (shifted.bigWig, NFR bigWigs/fragment counts, ATACseqQC).
+  # false = keep it. It can always be regenerated from filtered.bam via
+  # alignmentSieve if needed again later.
+  delete_shifted_bam: true
 
 # NFR vs mononucleosomal analysis.
 # Runs when call_peaks.peak_type=narrow.
