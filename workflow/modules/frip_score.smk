@@ -24,7 +24,7 @@ rule frip_score:
     threads: 1
     resources:
         mem_mb = lambda wildcards, attempt: attempt * 6144,
-        runtime = 60
+        runtime = 120
     log:
         os.path.join("{outdir}", "logs", "frip", "{sample_id}.frip.log")
     benchmark:

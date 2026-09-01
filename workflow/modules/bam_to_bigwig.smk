@@ -13,8 +13,8 @@ rule bamcoverage_bigwig:
         "{wildcards.sample_id}: Building CPM-normalized bigWig with bamCoverage - [Source: Filtered BAM, NOT SHIFTED]"
     threads: 16
     resources:
-        mem_mb = lambda wildcards, attempt: attempt * 36864,
-        runtime = lambda wildcards, attempt: attempt * 240
+        mem_mb = lambda wildcards, attempt: 4096 + (attempt - 1) * 2048,
+        runtime = lambda wildcards, attempt: attempt * 480
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.bamCoverage.log")
     benchmark:

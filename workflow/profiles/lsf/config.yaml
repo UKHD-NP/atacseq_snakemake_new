@@ -103,7 +103,7 @@ set-resources:
     lsf_queue: "medium"
 
   frip_score:
-    lsf_queue: "medium"
+    lsf_queue: "long"
 
   # ---- ANNOTATION ---- 
   homer_annotate_peaks:
@@ -134,7 +134,7 @@ set-resources:
     lsf_queue: "long"
 
   deeptools_fragment_size_distribution:
-    lsf_queue: "long"
+    lsf_queue: "verylong"
 
   # ---- NFR ----
   nfr_fragment_counts:
@@ -172,4 +172,3 @@ set-resources:
   # ---- FINAL ----
   multiqc:
     lsf_queue: "medium"
-

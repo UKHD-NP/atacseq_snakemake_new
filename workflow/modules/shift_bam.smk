@@ -17,7 +17,7 @@ rule shift_bam:
         "{wildcards.sample_id}: ATAC-shifting BAM with alignmentSieve"
     threads: 26
     resources:
-        mem_mb = lambda wildcards, attempt: min(attempt * 73728, 204800),
+        mem_mb = lambda wildcards, attempt: min(attempt * 73728, 250880),
         runtime = lambda wildcards, attempt: attempt * 2880
     log:
         os.path.join("{outdir}", "logs", "deeptools", "{sample_id}.alignmentSieve.log")

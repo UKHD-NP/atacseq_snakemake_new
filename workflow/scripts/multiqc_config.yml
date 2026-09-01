@@ -298,6 +298,12 @@ custom_data:
       id: "ataqv_mqc_table"
       title: "ataqv Metrics (NFR / TSSE)"
     headers:
+      tss_enrichment:
+        title: "TSSE Score"
+        description: "Signal at TSS / background flanking signal (ataqv)"
+        format: "{:,.4f}"
+        min: 0
+        scale: "RdYlGn"
       nfr_ratio:
         title: "NFR Ratio"
         description: "short_mononucleosomal_ratio: fragments ≤100 bp (hqaa_tf_count) / fragments 180-300 bp (hqaa_mononucleosomal_count)"
@@ -312,12 +318,6 @@ custom_data:
         title: "HQAA Mono Reads"
         description: "High-quality autosomal aligned mononucleosomal fragment count"
         format: "{:,.0f}"
-      tss_enrichment:
-        title: "TSSE Score"
-        description: "Signal at TSS / background flanking signal (ataqv)"
-        format: "{:,.4f}"
-        min: 0
-        scale: "RdYlGn"
   atacseqqc_mqc:
     id: "atacseqqc_mqc"
     section_name: "ATACseqQC Metrics (PT / NFR / TSSE)"
@@ -329,6 +329,22 @@ custom_data:
       id: "atacseqqc_mqc_table"
       title: "ATACseqQC Metrics (PT / NFR / TSSE)"
     headers:
+      TSSE_score:
+        title: "TSSE Score"
+        description: "Depth at each 100 bp step within ±1000 bp of TSS / mean depth at 100 bp end flanks; TSSE = max(mean(per-window TSS score)) (ATACseqQC)"
+        format: "{:,.4f}"
+        min: 0
+        scale: "RdYlGn"
+      NFR_score_mean:
+        title: "NFR Score (mean)"
+        description: "Mean log2(nf) − log2((n1+n2)/2) across all TSS; 400 bp window: nf = 5' ends in middle 100 bp, n1/n2 = 5' ends in upstream/downstream 150 bp (ATACseqQC NFRscore)"
+        format: "{:,.4f}"
+        scale: "RdYlGn"
+      NFR_score_median:
+        title: "NFR Score (median)"
+        description: "Median log2(nf) − log2((n1+n2)/2) across all TSS (ATACseqQC NFRscore)"
+        format: "{:,.4f}"
+        scale: "RdYlGn"
       PT_score_mean:
         title: "PT Score (mean)"
         description: "Mean log2(promoter coverage / transcript body coverage) per transcript; positive values indicate promoter-enriched signal (ATACseqQC PTscore)"
@@ -349,22 +365,6 @@ custom_data:
         description: "Mean Tn5 5' insertion density across transcript body windows (2500 bp downstream of promoter)"
         format: "{:,.6f}"
         min: 0
-      NFR_score_mean:
-        title: "NFR Score (mean)"
-        description: "Mean log2(nf) − log2((n1+n2)/2) across all TSS; 400 bp window: nf = 5' ends in middle 100 bp, n1/n2 = 5' ends in upstream/downstream 150 bp (ATACseqQC NFRscore)"
-        format: "{:,.4f}"
-        scale: "RdYlGn"
-      NFR_score_median:
-        title: "NFR Score (median)"
-        description: "Median log2(nf) − log2((n1+n2)/2) across all TSS (ATACseqQC NFRscore)"
-        format: "{:,.4f}"
-        scale: "RdYlGn"
-      TSSE_score:
-        title: "TSSE Score"
-        description: "Depth at each 100 bp step within ±1000 bp of TSS / mean depth at 100 bp end flanks; TSSE = max(mean(per-window TSS score)) (ATACseqQC)"
-        format: "{:,.4f}"
-        min: 0
-        scale: "RdYlGn"
   nfr_fragment_counts:
     id: "nfr_fragment_counts"
     section_name: "Fragment Length Class Counts"
