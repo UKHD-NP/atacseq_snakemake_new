@@ -9,7 +9,8 @@ rule shift_bam:
         bai = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam.bai")
     params:
         tmp_dir = os.path.join("{outdir}", "bam", "tmp_shifted"),
-        memory_per_thread = "3G",
+        sort_threads = 8,
+        memory_per_thread = "4G",
         chunk_length = 100000000
     conda:
         os.path.join(workflow.basedir, "envs", "deeptools.yml")
@@ -61,7 +62,7 @@ rule shift_bam:
             --write-index \
             -m "{params.memory_per_thread}" \
             -T "{params.tmp_dir}/sort" \
-            -@ {threads} \
+            -@ {params.sort_threads} \
             -o "{output.bam}##idx##{output.bai}" \
             "{params.tmp_dir}/shifted.unsorted.bam" \
             2>> "{log}" || {{

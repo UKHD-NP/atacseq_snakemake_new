@@ -38,9 +38,15 @@ tryCatch({
     # 24 real chromosomes avoids inheriting that bloat into gal's seqinfo.
     bam_targets <- scanBamHeader(bam_file)[[1]]$targets[std_chr]
     which_gr <- GRanges(names(bam_targets), IRanges(1, bam_targets))
-    gal <- readBamFile(bamFile = bam_file,
-                        param = ScanBamParam(which = which_gr),
-                        asMates = FALSE)
+
+    # PTscore/NFRscore/TSSEscore only use read positions to build coverage,
+    # so read a bare GAlignments (no seq/qual/tags). readBamFile() would pull
+    # "seq" and "qual" for every read across all 24 chromosomes, which for a
+    # deep ATAC BAM is >100 GB of base/quality strings and OOM-kills the job.
+    # BAM is already filtered upstream (no secondary/supplementary/unmapped),
+    # so no flag filter here.
+    bam_param <- ScanBamParam(which = which_gr, what = character(0))
+    gal <- readGAlignments(bam_file, param = bam_param)
     gal <- keepSeqlevels(gal, std_chr, pruning.mode = "coarse")
 
     # TSSE score: max(LOESS-smoothed mean enrichment in sliding windows ±1000 bp of TSS)
