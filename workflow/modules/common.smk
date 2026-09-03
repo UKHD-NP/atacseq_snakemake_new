@@ -270,13 +270,13 @@ def get_target_files(sample_ids):
                 _path("peaks", f"{sample_id}_peaks.xls"),
             ])
 
-        # Shifted BAM targets (narrow peaks only, produced by rule shift_bam).
+        # Shifted BAM (narrow peaks only, produced by rule shift_bam).
+        # shifted.bam/.bai are intentionally NOT listed as targets: rule
+        # delete_tmp removes them when shift_bam.delete_shifted_bam is on, and
+        # listing them would make rule all unsatisfiable. The shifted bigWig
+        # below (plus the ATACseqQC/NFR/ataqv outputs and the deletion log)
+        # already force rule shift_bam to run.
         if shift_bam_on and call_peaks_on:
-            targets.extend([
-                _path("bam",    f"{sample_id}.shifted.bam"),
-                _path("bam",    f"{sample_id}.shifted.bam.bai"),
-            ])
-            # Shifted bigWig target is produced downstream from shifted BAM.
             targets.append(_path("bigwig", f"{sample_id}.shifted.bigWig"))
 
         if call_peaks_qc_on:
