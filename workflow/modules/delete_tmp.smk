@@ -1,24 +1,20 @@
-def _final_bam(wildcards, ext=""):
-    """Return the path to the last permanent BAM: shifted (narrow peaks) or filtered."""
-    if is_enabled("call_peaks") and CALL_PEAKS_PEAK_TYPE == "narrow" and is_enabled("shift_bam", default=True):
-        return os.path.join(wildcards.outdir, "bam", f"{wildcards.sample_id}.shifted.bam{ext}")
-    return os.path.join(wildcards.outdir, "bam", f"{wildcards.sample_id}.filtered.bam{ext}")
-
-
-def _shifted_bam_is_final(wildcards=None):
-    """True when _final_bam actually resolves to shifted.bam (narrow peaks + shift_bam on)."""
-    return is_enabled("call_peaks") and CALL_PEAKS_PEAK_TYPE == "narrow" and is_enabled("shift_bam", default=True)
-
-
-DELETE_SHIFTED_BAM_ON = as_bool(config.get("shift_bam", {}).get("delete_shifted_bam", False), default=False)
+# shifted.bam only exists for narrow peaks with shift_bam on (see common.smk).
+# Default: delete it once every consumer is done (regenerable from filtered.bam).
+DELETE_SHIFTED_BAM_ON = (
+    CALL_PEAKS_PEAK_TYPE == "narrow"
+    and is_enabled("shift_bam", default=True)
+    and as_bool(config.get("shift_bam", {}).get("delete_shifted_bam", True), default=True)
+)
+DELETE_TRIMMING_ON = is_enabled("trimming") and as_bool(
+    config.get("trimming", {}).get("delete_trimming", True)
+)
 
 
 def _shifted_bam_consumer_outputs(wildcards):
     """Outputs that must exist before shifted.bam can be safely deleted - every rule
-    that reads shifted.bam directly (shifted_bam_to_bigwig, NFR, ATACseqQC). Only
-    populated when delete_shifted_bam is actually on, to avoid adding unnecessary
-    DAG edges when this cleanup step is disabled (the default)."""
-    if not (DELETE_SHIFTED_BAM_ON and _shifted_bam_is_final()):
+    that reads shifted.bam directly (shifted bigWig, NFR, ATACseqQC). Empty unless
+    delete_shifted_bam is on, so no extra DAG edges are added in the default case."""
+    if not DELETE_SHIFTED_BAM_ON:
         return []
     outdir = wildcards.outdir
     sample_id = wildcards.sample_id
@@ -38,13 +34,13 @@ def _shifted_bam_consumer_outputs(wildcards):
 rule delete_tmp:
     # Clean up temporary files
     input:
-        bam = lambda wildcards: _final_bam(wildcards),
-        bai = lambda wildcards: _final_bam(wildcards, ".bai"),
+        bam = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam"),
+        bai = os.path.join("{outdir}", "bam", "{sample_id}.filtered.bam.bai"),
         fastqc = lambda wildcards: [
             os.path.join(wildcards.outdir, "trim", f"{wildcards.sample_id}_trimmed_1_fastqc.zip"),
             os.path.join(wildcards.outdir, "trim", f"{wildcards.sample_id}_trimmed_2_fastqc.zip"),
         ] if is_enabled("trimming") and TRIM_TOOL == "trim_galore" else [],
-        shifted_bam_consumers = lambda wildcards: _shifted_bam_consumer_outputs(wildcards)
+        shifted_bam_consumers = _shifted_bam_consumer_outputs
     output:
         log = os.path.join("{outdir}", "logs", "{sample_id}.deletion.log")
     params:
@@ -55,11 +51,9 @@ rule delete_tmp:
         raw_fq1 = os.path.join("{outdir}", "raw_merged", "{sample_id}_merged_1.fastq.gz"),
         raw_fq2 = os.path.join("{outdir}", "raw_merged", "{sample_id}_merged_2.fastq.gz"),
         raw_dir = os.path.join("{outdir}", "raw_merged"),
-        delete_trimming = lambda wildcards: str(
-            is_enabled("trimming") and
-            as_bool(config.get("trimming", {}).get("delete_trimming", True))
-        ).lower(),
-        delete_shifted_bam = lambda wildcards: str(DELETE_SHIFTED_BAM_ON and _shifted_bam_is_final()).lower()
+        delete_trimming = str(DELETE_TRIMMING_ON).lower(),
+        shifted_bam = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam") if DELETE_SHIFTED_BAM_ON else "",
+        shifted_bai = os.path.join("{outdir}", "bam", "{sample_id}.shifted.bam.bai") if DELETE_SHIFTED_BAM_ON else "",
     message:
         "{wildcards.sample_id}: Cleaning up temporary files"
     threads: 1
@@ -72,46 +66,35 @@ rule delete_tmp:
         mkdir -p "$(dirname "{log}")"
         echo "[INFO] Starting cleanup for {wildcards.sample_id}" > "{log}"
 
-        # Remove trimmed FASTQ files (conditional)
+        # Remove trimmed FASTQs
         if [ "{params.delete_trimming}" = "true" ]; then
             for f in "{params.fq1}" "{params.fq2}" "{params.fq1_fail}" "{params.fq2_fail}"; do
-                if [ -f "$f" ]; then
-                    rm -f "$f" && echo "[INFO] Removed $f" >> "{log}"
-                fi
+                [ -f "$f" ] && rm -f "$f" && echo "[INFO] Removed $f" >> "{log}"
             done
         else
-            echo "[INFO] delete_trimming=false, skipping trimmed FASTQ deletion." >> "{log}"
+            echo "[INFO] delete_trimming=false, keeping trimmed FASTQs." >> "{log}"
         fi
 
         # Remove merged raw FASTQs
         for f in "{params.raw_fq1}" "{params.raw_fq2}"; do
-            if [ -e "$f" ] || [ -L "$f" ]; then
-                rm -f "$f" && echo "[INFO] Removed $f" >> "{log}"
-            fi
+            { [ -e "$f" ] || [ -L "$f" ]; } && rm -f "$f" && echo "[INFO] Removed $f" >> "{log}"
         done
 
-        # Remove shifted.bam (conditional; only when it's actually the final BAM here -
-        # narrow peaks + shift_bam enabled - and shift_bam.delete_shifted_bam=true).
-        # All consumers (shifted.bigWig, NFR, ATACseqQC) are guaranteed done via
-        # {input.shifted_bam_consumers}, so it's safe to delete at this point; it can
-        # always be regenerated from filtered.bam via alignmentSieve if needed again.
-        if [ "{params.delete_shifted_bam}" = "true" ]; then
-            for f in "{input.bam}" "{input.bai}"; do
-                if [ -f "$f" ]; then
-                    rm -f "$f" && echo "[INFO] Removed $f (shift_bam.delete_shifted_bam=true)" >> "{log}"
-                fi
+        # Shifted BAM (only when shift_bam.delete_shifted_bam=true; consumers are
+        # already done via the shifted_bam_consumers input)
+        if [ -n "{params.shifted_bam}" ]; then
+            for f in "{params.shifted_bam}" "{params.shifted_bai}"; do
+                [ -f "$f" ] && rm -f "$f" && echo "[INFO] Removed $f" >> "{log}"
             done
         else
-            echo "[INFO] shift_bam.delete_shifted_bam=false (or not applicable), keeping shifted BAM." >> "{log}"
+            echo "[INFO] delete_shifted_bam=false, keeping shifted BAM." >> "{log}"
         fi
 
-        # Remove raw_merged directory if empty
+        # Drop raw_merged dir if now empty
         if [ -d "{params.raw_dir}" ]; then
-            if rmdir "{params.raw_dir}" 2>/dev/null; then
-                echo "[INFO] Removed empty directory: {params.raw_dir}" >> "{log}"
-            else
-                echo "[INFO] Directory not empty, keeping: {params.raw_dir}" >> "{log}"
-            fi
+            rmdir "{params.raw_dir}" 2>/dev/null \
+                && echo "[INFO] Removed empty directory: {params.raw_dir}" >> "{log}" \
+                || echo "[INFO] Directory not empty, keeping: {params.raw_dir}" >> "{log}"
         fi
 
         echo "[INFO] Cleanup completed for {wildcards.sample_id}" >> "{log}"

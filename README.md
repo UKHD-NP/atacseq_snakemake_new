@@ -558,7 +558,7 @@ deeptools:
 
 shift_bam:
   enabled: true                 # false = skip shifted.bam/.bigWig, NFR analysis, ATACseqQC
-  delete_shifted_bam: false     # true = delete shifted.bam once all its consumers are done
+  delete_shifted_bam: true      # false = keep shifted.bam instead of deleting it after cleanup
 
 # NFR / fragment-length-class analysis (runs when call_peaks.peak_type=narrow).
 # enabled: NFR/mono bigWigs + computeMatrix + plotProfile/plotHeatmap (slow; requires shift_bam).
@@ -615,7 +615,7 @@ Explanation by block:
 - `call_peaks.frip_threshold`: FRiP percentage threshold for quality label in `*.FRiP.txt`; samples at or above this value are labelled `good`, below is `bad` (default: 20%).
 - `annotate_peaks.enabled`: run HOMER `annotatePeaks` and summary plotting.
 - `shift_bam.enabled` (default: `true`): Tn5-shift the filtered BAM with `alignmentSieve --ATACshift` and produce `shifted.bam` + `shifted.bigWig`. Set `false` to skip — saves significant time (24 threads, up to 16h runtime) and disk. **Disabling also skips NFR analysis and ATACseqQC**, which both require `shifted.bam`.
-- `shift_bam.delete_shifted_bam` (default: `false`): set `true` to delete `shifted.bam` (+ `.bai`) in the cleanup step (`delete_tmp`) once every consumer has finished — `shifted.bigWig`, NFR bigWigs/fragment counts, ATACseqQC. Saves disk on large runs; the file can always be regenerated from `filtered.bam` via `alignmentSieve` if needed again. Only takes effect when `shift_bam.enabled=true` and `call_peaks.peak_type=narrow` (i.e. only when `shifted.bam` is actually produced).
+- `shift_bam.delete_shifted_bam` (default: `true`): deletes `shifted.bam` (+ `.bai`) in the cleanup step (`delete_tmp`) once every consumer has finished — `shifted.bigWig`, NFR bigWigs/fragment counts, ATACseqQC. Saves disk on large runs; the file can always be regenerated from `filtered.bam` via `alignmentSieve` if needed again. Set `false` to keep it. Only takes effect when `shift_bam.enabled=true` and `call_peaks.peak_type=narrow` (i.e. only when `shifted.bam` is actually produced).
 - `deeptools.enabled`: run computeMatrix/plotProfile/plotHeatmap/plotFingerprint modules. Requires `call_peaks.enabled=true`. For narrow peaks, computeMatrix uses the Tn5-shifted bigWig (`shifted.bigWig`); for broad peaks, it uses the unshifted bigWig (`bigWig`).
 - `nfr.enabled` (default: `true`): enable/disable NFR/mono bigWigs, computeMatrix, plotProfile, and plotHeatmap (the slow part). Requires `shift_bam.enabled=true` and `call_peaks.peak_type=narrow`. Set `false` to skip bigWig generation and TSS profiles while keeping fragment counts.
 - `nfr.fragment_counts` (default: `true`): enable/disable NFR/mono/di/tri read counting (`fragment_counts_mqc.tsv`). Fast and independent — runs even when `nfr.enabled=false`. Uses `shifted.bam` when `shift_bam.enabled=true`, otherwise falls back to `filtered.bam`. Requires `call_peaks.peak_type=narrow`. Fragment size boundaries can be tuned in the same `nfr:` block (see config comments for defaults).
@@ -1046,7 +1046,7 @@ Pipeline removes some intermediates to reduce storage, for example:
 - unsorted BAM after sort
 - pre-filter BAM after filtering
 - merged/trimmed FASTQ files in cleanup step after MultiQC
-- `shifted.bam` (+ `.bai`) in the cleanup step, once all its consumers are done — only when `shift_bam.delete_shifted_bam: true` (default: `false`, kept)
+- `shifted.bam` (+ `.bai`) in the cleanup step, once all its consumers are done — only when `shift_bam.delete_shifted_bam: true` (default: `true`, deleted)
 
 ## Troubleshooting
 

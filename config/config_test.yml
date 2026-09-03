@@ -94,9 +94,9 @@ shift_bam:
   enabled: false
   # delete_shifted_bam: true = delete shifted.bam (+ .bai) during cleanup once every
   # consumer has finished (shifted.bigWig, NFR bigWigs/fragment counts, ATACseqQC).
-  # false (default) = keep it. It can always be regenerated from filtered.bam via
+  # false = keep it. It can always be regenerated from filtered.bam via
   # alignmentSieve if needed again later.
-  delete_shifted_bam: false
+  delete_shifted_bam: true
 
 # NFR vs mononucleosomal analysis.
 # Runs when call_peaks.peak_type=narrow.
