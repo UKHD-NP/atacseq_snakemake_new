@@ -77,7 +77,9 @@ rule delete_tmp:
 
         # Remove merged raw FASTQs
         for f in "{params.raw_fq1}" "{params.raw_fq2}"; do
-            { [ -e "$f" ] || [ -L "$f" ]; } && rm -f "$f" && echo "[INFO] Removed $f" >> "{log}"
+            if [ -e "$f" ] || [ -L "$f" ]; then
+                rm -f "$f" && echo "[INFO] Removed $f" >> {log}
+            fi
         done
 
         # Shifted BAM (only when shift_bam.delete_shifted_bam=true; consumers are
